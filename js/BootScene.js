@@ -29,10 +29,10 @@ class BootScene extends Phaser.Scene {
 
   // ─── スプライット試し読み込み ─────────────────────────────
   _tryLoadSprites() {
-    // ゾンビ（6種 × 3方向 × nフレーム、left は right 反転で対応）
+    // ゾンビ（6種 × 3方向 × バリアント別フレーム数、left は right 反転で対応）
     ZOMBIE_TYPES.forEach(type => {
       SPRITE_DIRS.forEach(dir => {
-        for (let f = 1; f <= ZOMBIE_FRAMES; f++) {
+        for (let f = 1; f <= zombieFrameCount(type); f++) {
           const key  = zombieTexKey(type, dir, f);
           const path = `assets/sprites/zombie/${type}/walk_${dir}_${_pad(f)}.png`;
           this.load.image(key, path);
@@ -40,10 +40,10 @@ class BootScene extends Phaser.Scene {
       });
     });
 
-    // 護衛（3バリアント × 3方向 × nフレーム、left は right 反転で対応）
+    // 護衛（3バリアント × 3方向 × バリアント別フレーム数、left は right 反転で対応）
     ESCORT_VARIANTS.forEach(variant => {
       SPRITE_DIRS.forEach(dir => {
-        for (let f = 1; f <= ESCORT_FRAMES; f++) {
+        for (let f = 1; f <= escortFrameCount(variant); f++) {
           const key  = escortTexKey(variant, dir, f);
           const path = `assets/sprites/escort/${variant}/walk_${dir}_${_pad(f)}.png`;
           this.load.image(key, path);

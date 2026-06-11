@@ -65,6 +65,17 @@ const ESCORT_VARIANTS = ['dad','mom','grandma'];
 const WALK_DIRS       = ['down','up','left','right']; // 移動方向ロジック用（4方向）
 const SPRITE_DIRS     = ['down','up','right'];        // スプライット読み込み用（left は right を反転）
 
+// ─── アニメーション定義 ──────────────────────────────────────
+// バリアント／種別ごとにフレーム数・fpsを上書き可能（デフォルト6フレーム）
+const ANIM_DEFS = {
+  zombie: { default: { frames: 6, fps: 8 } },
+  escort: { default: { frames: 6, fps: 6 } },
+};
+const zombieFrameCount = type    => (ANIM_DEFS.zombie[type]    ?? ANIM_DEFS.zombie.default).frames;
+const zombieFps        = type    => (ANIM_DEFS.zombie[type]    ?? ANIM_DEFS.zombie.default).fps;
+const escortFrameCount = variant => (ANIM_DEFS.escort[variant] ?? ANIM_DEFS.escort.default).frames;
+const escortFps        = variant => (ANIM_DEFS.escort[variant] ?? ANIM_DEFS.escort.default).fps;
+
 const _pad = n => String(n).padStart(2, '0');
 const zombieTexKey  = (type, dir, frame) => `zombie_${type}_${dir}_${_pad(frame)}`;
 const escortTexKey  = (variant, dir, frame) => `escort_${variant}_${dir}_${_pad(frame)}`;
