@@ -109,21 +109,21 @@ class GameScene extends Phaser.Scene {
     g.clear();
 
     // 背景
-    g.fillStyle(0x1a1a2e, 1);
+    g.fillStyle(0x1e2840, 1);
     g.fillRect(0, 0, MAP_W, MAP_H);
 
     // グリッド線
     if (this.showGrid) {
-      g.lineStyle(1, 0x2a2a4a, 1);
+      g.lineStyle(1, 0x3a4a6a, 1);
       for (let c = 0; c <= COLS; c++) g.lineBetween(c * CELL, 0, c * CELL, MAP_H);
       for (let r = 0; r <= ROWS; r++) g.lineBetween(0, r * CELL, MAP_W, r * CELL);
     }
 
     // 遮蔽物
-    g.fillStyle(0x445566, 1);
+    g.fillStyle(0x607898, 1);
     for (const obs of this.stageData.obstacles) {
       g.fillRect(obs.col * CELL + 2, obs.row * CELL + 2, CELL - 4, CELL - 4);
-      g.lineStyle(1.5, 0x334455, 1);
+      g.lineStyle(2, 0x80a0c0, 1);
       g.strokeRect(obs.col * CELL + 2, obs.row * CELL + 2, CELL - 4, CELL - 4);
     }
 
@@ -504,14 +504,19 @@ class GameScene extends Phaser.Scene {
 
       const bg = this.add.rectangle(i * bw, by, bw, UI_H, 0x0a0a1a, 0)
         .setScrollFactor(0).setDepth(51).setOrigin(0, 0).setInteractive();
-      const lbl = this.add.text(bx, by + 20, def.label, {
-        fontSize: '15px', color: def.textColor, fontStyle: 'bold'
+      const lbl = this.add.text(bx, by + 10, def.label, {
+        fontSize: '20px', color: def.textColor, fontStyle: 'bold',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        stroke: '#000000', strokeThickness: 3,
       }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
-      const cost = this.add.text(bx, by + 42, `¥${def.cost}`, {
-        fontSize: '13px', color: '#aaaaaa'
+      const cost = this.add.text(bx, by + 38, `¥${def.cost}`, {
+        fontSize: '17px', color: '#cccccc',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        stroke: '#000000', strokeThickness: 2,
       }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
-      const rng = this.add.text(bx, by + 60, `射程 ${def.range}C`, {
-        fontSize: '11px', color: '#667788'
+      const rng = this.add.text(bx, by + 60, `射程${def.range}C`, {
+        fontSize: '13px', color: '#889aaa',
+        fontFamily: 'Arial, Helvetica, sans-serif',
       }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
 
       bg.on('pointerdown', () => {
@@ -520,26 +525,32 @@ class GameScene extends Phaser.Scene {
       this.towerBtns[type] = { bg, lbl, cost, rng };
     });
 
+    const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
+
     // 所持金
-    this.moneyText = this.add.text(8, 8, `¥ ${this.money}`, {
-      fontSize: '18px', color: '#ffee44', stroke: '#000000', strokeThickness: 3
+    this.moneyText = this.add.text(10, 8, `¥ ${this.money}`, {
+      ...uiFont, fontSize: '22px', color: '#ffee44',
+      stroke: '#000000', strokeThickness: 4,
     }).setScrollFactor(0).setDepth(52);
 
     // ウェーブ表示
     this.waveText = this.add.text(CANVAS_W / 2, 8, this.waveLabel, {
-      fontSize: '16px', color: '#ffffff', stroke: '#000000', strokeThickness: 3
+      ...uiFont, fontSize: '22px', color: '#ffffff',
+      stroke: '#000000', strokeThickness: 4,
     }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
 
     // タイムモード表示
-    this.timeText = this.add.text(CANVAS_W - 8, 8, TIME_LABELS[this.timeModeIdx], {
-      fontSize: '13px', color: '#aaaaaa'
+    this.timeText = this.add.text(CANVAS_W - 10, 8, TIME_LABELS[this.timeModeIdx], {
+      ...uiFont, fontSize: '18px', color: '#aaddff',
+      stroke: '#000000', strokeThickness: 3,
     }).setScrollFactor(0).setDepth(52).setOrigin(1, 0).setInteractive();
     this.timeText.on('pointerdown', () => this._cycleTimeMode());
 
     // 護衛へ戻るボタン
-    const homeBtn = this.add.text(CANVAS_W - 8, CANVAS_H - UI_H - 8, '⌂ 護衛', {
-      fontSize: '14px', color: '#aaccff', backgroundColor: '#1a2a3a',
-      padding: { x: 8, y: 4 }
+    const homeBtn = this.add.text(CANVAS_W - 10, CANVAS_H - UI_H - 10, '⌂ 護衛', {
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontSize: '18px', color: '#aaddff', backgroundColor: '#1a2a3a',
+      padding: { x: 10, y: 6 },
     }).setScrollFactor(0).setDepth(52).setOrigin(1, 1).setInteractive();
     homeBtn.on('pointerdown', () => {
       this._returnToEscort();
@@ -555,16 +566,18 @@ class GameScene extends Phaser.Scene {
     const px = CANVAS_W - 195, py = 35;
     this.debugObjects = [];
 
-    const bg = this.add.rectangle(px - 5, py - 5, 190, 200, 0x000000, 0.82)
+    const dbgFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
+    const bg = this.add.rectangle(px - 5, py - 5, 200, 230, 0x000000, 0.88)
       .setScrollFactor(0).setDepth(60).setOrigin(0, 0).setVisible(false);
     this.debugObjects.push(bg);
 
     // タイムボタン
     this.timeBtns = [];
     ['⏸ 停止', '🐢 スロー', '▶ 通常'].forEach((lbl, i) => {
-      const btn = this.add.text(px, py + i * 32, lbl, {
-        fontSize: '13px', color: this.timeModeIdx === i ? '#ffff44' : '#aaaaaa',
-        backgroundColor: '#223344', padding: { x: 6, y: 3 }
+      const btn = this.add.text(px, py + i * 38, lbl, {
+        ...dbgFont, fontSize: '17px',
+        color: this.timeModeIdx === i ? '#ffff44' : '#aaaaaa',
+        backgroundColor: '#223344', padding: { x: 8, y: 5 },
       }).setScrollFactor(0).setDepth(61).setInteractive().setVisible(false);
       btn.on('pointerdown', () => { this.timeModeIdx = i; this._highlightTimeBtn(); });
       this.timeBtns.push(btn);
@@ -573,18 +586,18 @@ class GameScene extends Phaser.Scene {
 
     // ズームボタン
     ['-', '+'].forEach((sign, i) => {
-      const btn = this.add.text(px + i * 36, py + 105, `ズーム${sign}`, {
-        fontSize: '13px', color: '#aaccff', backgroundColor: '#223344',
-        padding: { x: 4, y: 3 }
+      const btn = this.add.text(px + i * 60, py + 120, `ズーム${sign}`, {
+        ...dbgFont, fontSize: '16px', color: '#aaccff',
+        backgroundColor: '#223344', padding: { x: 6, y: 5 },
       }).setScrollFactor(0).setDepth(61).setInteractive().setVisible(false);
       btn.on('pointerdown', () => this._setZoom(this.zoomIdx + (i === 0 ? -1 : 1)));
       this.debugObjects.push(btn);
     });
 
     // グリッドトグル
-    const gridBtn = this.add.text(px, py + 135, 'グリッド: ON', {
-      fontSize: '13px', color: '#aaccff', backgroundColor: '#223344',
-      padding: { x: 4, y: 3 }
+    const gridBtn = this.add.text(px, py + 158, 'グリッド: ON', {
+      ...dbgFont, fontSize: '16px', color: '#aaccff',
+      backgroundColor: '#223344', padding: { x: 6, y: 5 },
     }).setScrollFactor(0).setDepth(61).setInteractive().setVisible(false);
     gridBtn.on('pointerdown', () => {
       this.showGrid = !this.showGrid;
@@ -594,9 +607,9 @@ class GameScene extends Phaser.Scene {
     this.debugObjects.push(gridBtn);
 
     // パス表示トグル
-    const pathBtn = this.add.text(px, py + 160, 'パス表示: OFF', {
-      fontSize: '13px', color: '#aaccff', backgroundColor: '#223344',
-      padding: { x: 4, y: 3 }
+    const pathBtn = this.add.text(px, py + 192, 'パス表示: OFF', {
+      ...dbgFont, fontSize: '16px', color: '#aaccff',
+      backgroundColor: '#223344', padding: { x: 6, y: 5 },
     }).setScrollFactor(0).setDepth(61).setInteractive().setVisible(false);
     pathBtn.on('pointerdown', () => {
       this.showPaths = !this.showPaths;
@@ -605,9 +618,10 @@ class GameScene extends Phaser.Scene {
     this.debugObjects.push(pathBtn);
 
     // デバッグ開閉ボタン
-    const dbgToggle = this.add.text(8, CANVAS_H - UI_H - 8, '⚙', {
-      fontSize: '18px', color: '#667788', backgroundColor: '#1a2233',
-      padding: { x: 6, y: 4 }
+    const dbgToggle = this.add.text(10, CANVAS_H - UI_H - 10, '⚙', {
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontSize: '22px', color: '#667788', backgroundColor: '#1a2233',
+      padding: { x: 8, y: 5 },
     }).setScrollFactor(0).setDepth(52).setOrigin(0, 1).setInteractive();
     dbgToggle.on('pointerdown', () => {
       this.debugOpen = !this.debugOpen;

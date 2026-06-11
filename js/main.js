@@ -1,19 +1,20 @@
 // Phaser 設定 & 起動
 const PhaserConfig = {
-  type:   Phaser.AUTO,
-  width:  CANVAS_W,
-  height: CANVAS_H,
-  backgroundColor: '#1a1a2e',
-  parent: 'game-container',
-  scene:  [BootScene, GameScene],
+  type:       Phaser.AUTO,
+  width:      CANVAS_W,
+  height:     CANVAS_H,
+  backgroundColor: '#1e2840',
+  parent:     'game-container',
+  scene:      [BootScene, GameScene],
+  resolution: window.devicePixelRatio || 1,  // HiDPI対応：フォントを鮮明に
   scale: {
     mode:       Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   render: {
-    antialias:    false,
-    pixelArt:     false,
-    roundPixels:  true,
+    antialias:   true,
+    pixelArt:    false,
+    roundPixels: false,
   },
 };
 
