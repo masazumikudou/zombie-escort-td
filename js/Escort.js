@@ -12,8 +12,10 @@ class Escort {
     this.maxHp   = def.hp;
     this.speed   = def.speed;
     this.variant = def.variant ?? 'dad';
-    this.alive   = true;
-    this.reached = false;
+    this.alive        = true;
+    this.reached      = false;
+    this.defeated     = false;
+    this._defeatTimer = 0;
     this.lastDx  = 1;
     this.lastDy  = 0;
     this.hitFlash   = 0;
@@ -26,7 +28,15 @@ class Escort {
   get row() { return Math.floor(this.y / CELL); }
 
   update(dt) {
-    if (!this.alive || this.reached) return;
+    if (!this.alive) return;
+
+    if (this.defeated) {
+      this._defeatTimer += dt;
+      if (this._defeatTimer >= 2000) this.alive = false;
+      return;
+    }
+
+    if (this.reached) return;
     if (this.hitFlash > 0) this.hitFlash -= dt;
 
     // 歩行アニメ（移動中は常にサイクル）
@@ -52,15 +62,32 @@ class Escort {
   }
 
   takeDamage(amount) {
-    if (!this.alive) return;
+    if (!this.alive || this.defeated) return;
     this.hp = Math.max(0, this.hp - amount);
     this.hitFlash = 200;
     audioSynth.escortHit();
-    if (this.hp <= 0) this.alive = false;
+    if (this.hp <= 0) this.defeated = true;
   }
 
   draw(g) {
-    if (!this.alive || this.reached) {
+    if (!this.alive) {
+      if (this._sprite) this._sprite.setVisible(false);
+      return;
+    }
+
+    if (this.defeated) {
+      if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
+      const blink = Math.floor(this._defeatTimer / 200) % 2 === 0;
+      if (blink) {
+        g.fillStyle(0x555555, 0.7);
+        g.fillCircle(this.x, this.y, 22);
+        g.lineStyle(2, 0x888888, 0.5);
+        g.strokeCircle(this.x, this.y, 22);
+      }
+      return;
+    }
+
+    if (this.reached) {
       if (this._sprite) this._sprite.setVisible(false);
       return;
     }

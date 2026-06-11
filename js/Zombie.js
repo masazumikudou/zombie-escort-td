@@ -40,6 +40,12 @@ class Zombie {
     if (!this.alive) return;
     if (this.hitFlash > 0) this.hitFlash -= dt;
 
+    // インターバル中（escort=null）は既存パスを進み続け、攻撃しない
+    if (!escort || escort.defeated) {
+      this._advancePath(dt);
+      return;
+    }
+
     const dx = escort.x - this.x, dy = escort.y - this.y;
     const distToEscort = Math.sqrt(dx * dx + dy * dy);
 
@@ -70,6 +76,10 @@ class Zombie {
       }
     }
 
+    this._advancePath(dt);
+  }
+
+  _advancePath(dt) {
     if (!this.path.length || this.wpIdx >= this.path.length) return;
 
     const wp   = this.path[this.wpIdx];

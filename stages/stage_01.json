@@ -3,12 +3,31 @@
   "name": "住宅街ステージ",
   "grid": { "cols": 20, "rows": 15 },
   "startMoney": 500,
-  "escort": {
-    "start": { "col": 0, "row": 7 },
-    "goal":  { "col": 19, "row": 7 },
-    "hp": 100,
-    "speed": 80
-  },
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "start": { "col": 0, "row": 7 },
+      "goal":  { "col": 19, "row": 7 },
+      "hp": 100,
+      "speed": 80,
+      "waves": [
+        { "startDelay": 6000, "spawnInterval": 2500, "count": 4,  "enemy": { "type": "normal",         "hp": 30, "speed": 55, "damage": 10, "reward": 20 } },
+        { "startDelay": 4000, "spawnInterval": 2000, "count": 7,  "enemy": { "type": "normal_cap",     "hp": 45, "speed": 62, "damage": 13, "reward": 25 } }
+      ]
+    },
+    {
+      "variant": "grandma",
+      "start": { "col": 0, "row": 7 },
+      "goal":  { "col": 19, "row": 7 },
+      "hp": 80,
+      "speed": 45,
+      "waves": [
+        { "startDelay": 3000, "spawnInterval": 1800, "count": 8,  "enemy": { "type": "normal_helmet",  "hp": 55, "speed": 65, "damage": 16, "reward": 28 } },
+        { "startDelay": 3500, "spawnInterval": 1500, "count": 12, "enemy": { "type": "normal_helmet",  "hp": 65, "speed": 72, "damage": 20, "reward": 32 } }
+      ]
+    }
+  ],
   "obstacles": [
     { "col": 2,  "row": 1 }, { "col": 3,  "row": 1 }, { "col": 4,  "row": 1 },
     { "col": 2,  "row": 2 }, { "col": 3,  "row": 2 }, { "col": 4,  "row": 2 },
@@ -68,10 +87,5 @@
     { "col": 18, "row": 2  },
     { "col": 5,  "row": 13 },
     { "col": 13, "row": 12 }
-  ],
-  "waves": [
-    { "startDelay": 6000, "spawnInterval": 2500, "count": 4,  "enemy": { "type": "normal", "hp": 30, "speed": 55, "damage": 10, "reward": 20 } },
-    { "startDelay": 4000, "spawnInterval": 2000, "count": 7,  "enemy": { "type": "normal_cap",    "hp": 45, "speed": 62, "damage": 13, "reward": 25 } },
-    { "startDelay": 4000, "spawnInterval": 1500, "count": 12, "enemy": { "type": "normal_helmet", "hp": 60, "speed": 70, "damage": 18, "reward": 30 } }
   ]
 }

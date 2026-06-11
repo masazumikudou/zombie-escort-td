@@ -20,10 +20,11 @@ class WaveManager {
   onWaveStart(cb) { this._onWaveStart = cb; }
   onAllDone(cb)   { this._onAllDone   = cb; }
 
-  start() {
+  // timeOffset: scaledTime の現在値（2人目以降の護衛用）
+  start(timeOffset = 0) {
     const w = this.waves[0];
     if (!w) { this.allDone = true; return; }
-    this.nextSpawnTime = w.startDelay;  // scaledTime が 0 からスタートするので直値
+    this.nextSpawnTime = timeOffset + w.startDelay;
     if (this._onWaveStart) this._onWaveStart(1, this.waves.length);
   }
 

@@ -1,3 +1,6 @@
+const RELAY_INTERVAL    = 4000;  // インターバル時間（ms）
+const VARIANT_NAMES     = { dad: 'お父さん', mom: 'お母さん', grandma: 'おばあちゃん' };
+
 class GameScene extends Phaser.Scene {
   constructor() { super('GameScene'); }
 
@@ -22,22 +25,24 @@ class GameScene extends Phaser.Scene {
     this.lastInteractionTime = 0;
 
     // ポップアップ状態
-    this.popupState      = null;   // { type:'build', col, row } | { type:'sell', tower }
+    this.popupState      = null;
     this.popupObjects    = [];
     this._popupJustActed = false;
 
-    // 設置点（Set<"col,row"> で O(1) 判定）
+    // リレー状態
+    this.escortDefs    = sd.escorts;
+    this.escortIdx     = 0;
+    this.survivors     = 0;
+    this.relayPhase    = 'active';  // 'active' | 'interval' | 'done'
+    this.intervalTimer = 0;
+    this._bannerText   = null;
+    this._bannerBg     = null;
+
+    // 設置点
     this.buildSpots = new Set((sd.buildSpots || []).map(s => `${s.col},${s.row}`));
 
     // 経路探索
     this.pf = new Pathfinder(sd.grid.cols, sd.grid.rows, sd.obstacles);
-
-    // 護衛
-    const escStart = sd.escort.start;
-    const escGoal  = sd.escort.goal;
-    const escCells = this.pf.find(escStart.col, escStart.row, escGoal.col, escGoal.row);
-    const escPath  = escCells ? this.pf.toPixelPath(escCells) : [];
-    this.escort    = new Escort(this, escPath, sd.escort);
 
     // エンティティ
     this.zombies = [];
@@ -47,26 +52,18 @@ class GameScene extends Phaser.Scene {
     // 音声シーン注入
     audioSynth.setScene(this);
 
-    // ウェーブ管理
-    this.waveManager = new WaveManager(sd.waves, sd.zombieSpawns);
-    this.waveManager.onWaveStart((n, t) => this._setWaveLabel(n, t));
-    this.waveManager.onAllDone(() => this._onAllWavesDone());
-    this._setWaveLabel(1, sd.waves.length);
-
     // グラフィクスレイヤー
     this.mapGfx       = this.add.graphics().setDepth(0);
     this.dynGfx       = this.add.graphics().setDepth(3);
     this.hudGfx       = this.add.graphics().setScrollFactor(0).setDepth(10);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
 
-    // 静的マップ描画（一度だけ）
+    // 静的マップ描画
     this._drawMapStatic();
 
     // カメラ設定
-    const cam = this.cameras.main;
-    cam.setBounds(0, 0, MAP_W, MAP_H);
-    cam.setZoom(ZOOM_LEVELS[this.zoomIdx]);
-    cam.centerOn(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2);
+    this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
+    this.cameras.main.setZoom(ZOOM_LEVELS[this.zoomIdx]);
 
     // UI構築
     this._buildUI();
@@ -74,8 +71,69 @@ class GameScene extends Phaser.Scene {
     // 入力設定
     this._setupInput();
 
-    // ウェーブ開始
-    this.waveManager.start();
+    // 最初の護衛者をスタート
+    this._startEscort(0, 0);
+  }
+
+  // ─── リレー：護衛者起動 ───────────────────────────────────
+  _startEscort(idx, timeOffset) {
+    if (this.escort) this.escort.cleanup();
+
+    const def      = this.escortDefs[idx];
+    const escCells = this.pf.find(def.start.col, def.start.row, def.goal.col, def.goal.row);
+    const escPath  = escCells ? this.pf.toPixelPath(escCells) : [];
+    this.escort    = new Escort(this, escPath, def);
+
+    const cam = this.cameras.main;
+    cam.pan(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2, 600, 'Power2');
+
+    // ウェーブマネージャー
+    this.waveManager = new WaveManager(def.waves, this.stageData.zombieSpawns);
+    this.waveManager.onWaveStart((n, t) => this._setWaveLabel(n, t));
+    this.waveManager.onAllDone(() => {});
+    this.waveManager.start(timeOffset);
+
+    this._setWaveLabel(1, def.waves.length);
+    this._updateRelayHUD();
+    this.relayPhase = 'active';
+  }
+
+  // ─── リレー：護衛者終了処理 ───────────────────────────────
+  _onEscortDone(reached) {
+    if (reached) this.survivors++;
+
+    const nextIdx = this.escortIdx + 1;
+    if (nextIdx >= this.escortDefs.length) {
+      this.relayPhase = 'done';
+      this._endGame();
+      return;
+    }
+
+    // インターバル開始
+    this.relayPhase    = 'interval';
+    this.intervalTimer = RELAY_INTERVAL;
+    const nextName     = VARIANT_NAMES[this.escortDefs[nextIdx].variant] ?? this.escortDefs[nextIdx].variant;
+    this._showBanner(`${nextName}、出発！`);
+  }
+
+  _activateNextEscort() {
+    this.escortIdx++;
+    this._closeBanner();
+    this._startEscort(this.escortIdx, this.scaledTime);
+  }
+
+  _endGame() {
+    const minS  = this.stageData.minSurvivors ?? 1;
+    const total = this.escortDefs.length;
+    if (this.survivors >= minS) {
+      this.gameState = 'victory';
+      audioSynth.stageClear();
+      this._showResult('STAGE CLEAR!', '#ffff44', 'リスタート', true);
+    } else {
+      this.gameState = 'defeat';
+      audioSynth.gameOver();
+      this._showResult('GAME OVER', '#ff4444', 'もう一度', false);
+    }
   }
 
   // ─── メインループ ─────────────────────────────────────────
@@ -86,7 +144,10 @@ class GameScene extends Phaser.Scene {
 
     if (this.gameState === 'playing' && dt > 0) {
       this.escort.update(dt);
-      this.zombies.forEach(z => z.update(this.scaledTime, dt, this.escort));
+
+      // インターバル中はnullを渡しゾンビを既存パスで継続移動させる
+      const escortTarget = this.relayPhase === 'active' ? this.escort : null;
+      this.zombies.forEach(z => z.update(this.scaledTime, dt, escortTarget));
       this.towers.forEach(t  => t.update(this.scaledTime, dt, this.zombies, this.bullets));
 
       this.bullets = this.bullets.filter(b => b.active);
@@ -97,14 +158,20 @@ class GameScene extends Phaser.Scene {
       this.zombies.forEach(z => { if (!z.alive) z.cleanup(); });
       this.zombies = this.zombies.filter(z => z.alive);
 
-      this._checkWinLose();
+      // インターバルカウントダウン
+      if (this.relayPhase === 'interval') {
+        this.intervalTimer -= delta;  // リアルタイムで計測
+        if (this.intervalTimer <= 0) this._activateNextEscort();
+      }
+
+      if (this.relayPhase === 'active') this._checkWinLose();
     }
 
     this._drawDynamic();
     this._drawHUD();
     this._drawIndicators();
 
-    if (this.gameState === 'playing' && this.lastInteractionTime > 0) {
+    if (this.gameState === 'playing' && !this.popupState && this.lastInteractionTime > 0) {
       if (time - this.lastInteractionTime > AUTO_RETURN_DELAY) {
         this._returnToEscort();
         this.lastInteractionTime = 0;
@@ -133,11 +200,11 @@ class GameScene extends Phaser.Scene {
       g.strokeRect(obs.col * CELL + 2, obs.row * CELL + 2, CELL - 4, CELL - 4);
     }
 
-    const s  = this.stageData.escort.start;
-    const g2 = this.stageData.escort.goal;
+    const s  = this.escortDefs[0].start;
+    const gl = this.escortDefs[0].goal;
     this.add.graphics().setDepth(1)
       .fillStyle(0x00ff88, 0.22).fillRect(s.col * CELL, s.row * CELL, CELL, CELL)
-      .fillStyle(0xffff00, 0.22).fillRect(g2.col * CELL, g2.row * CELL, CELL, CELL);
+      .fillStyle(0xffff00, 0.22).fillRect(gl.col * CELL, gl.row * CELL, CELL, CELL);
 
     const sg = this.add.graphics().setDepth(1);
     sg.lineStyle(2, 0xff3300, 0.6);
@@ -296,7 +363,11 @@ class GameScene extends Phaser.Scene {
         }
         return;
       }
-      this.pinching = false;
+
+      if (this.pinching) {
+        this._snapZoomIdx();
+        this.pinching = false;
+      }
 
       if (p.isDown) {
         const ddx = Math.abs(p.x - downX), ddy = Math.abs(p.y - downY);
@@ -309,6 +380,7 @@ class GameScene extends Phaser.Scene {
     });
 
     this.input.on('pointerup', (p) => {
+      if (this.pinching) this._snapZoomIdx();
       this.pinching = false;
       if (!isDrag) this._handleTap(p);
       isDrag = false;
@@ -330,17 +402,27 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  // ─── ズームスナップ ───────────────────────────────────────
+  _snapZoomIdx() {
+    const cur = this.cameras.main.zoom;
+    let nearest = 0, minDist = Infinity;
+    ZOOM_LEVELS.forEach((z, i) => {
+      const d = Math.abs(z - cur);
+      if (d < minDist) { minDist = d; nearest = i; }
+    });
+    this.zoomIdx = nearest;
+    this.cameras.main.setZoom(ZOOM_LEVELS[this.zoomIdx]);
+  }
+
   // ─── タップ処理 ──────────────────────────────────────────
   _handleTap(p) {
     if (p.y > CANVAS_H - UI_H) return;
 
-    // ポップアップボタンの pointerdown でアクション済みの場合はスキップ
     if (this._popupJustActed) {
       this._popupJustActed = false;
       return;
     }
 
-    // ポップアップが開いていればメニュー外タップとして閉じる
     if (this.popupState) {
       this._closePopup();
       return;
@@ -350,14 +432,12 @@ class GameScene extends Phaser.Scene {
     const row = Math.floor(p.worldY / CELL);
     if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
 
-    // 既存タワー → 売却メニュー
     const tower = this.towers.find(t => t.col === col && t.row === row);
     if (tower) {
       this._openSellMenu(tower);
       return;
     }
 
-    // 空き設置点 → 建設メニュー
     const onSpot = this.buildSpots.size === 0 || this.buildSpots.has(`${col},${row}`);
     if (onSpot) {
       this._openBuildMenu(col, row);
@@ -536,42 +616,57 @@ class GameScene extends Phaser.Scene {
   // ─── 勝敗判定 ────────────────────────────────────────────
   _checkWinLose() {
     if (this.gameState !== 'playing') return;
+    if (this.relayPhase !== 'active') return;
 
-    if (!this.escort.alive) {
-      this.gameState = 'defeat';
-      audioSynth.gameOver();
-      this._showResult('GAME OVER', '#ff4444', 'もう一度');
+    if (this.escort.reached) {
+      this._onEscortDone(true);
       return;
     }
 
-    if (this.escort.reached) {
-      this._victory();
+    if (this.escort.defeated) {
+      this._onEscortDone(false);
     }
   }
 
-  _onAllWavesDone() {
-    // 勝利は _checkWinLose で毎フレーム評価するため不要
-  }
-
-  _victory() {
-    if (this.gameState !== 'playing') return;
-    this.gameState = 'victory';
-    audioSynth.stageClear();
-    this._showResult('STAGE CLEAR!', '#ffff44', 'リスタート');
-  }
-
-  _showResult(msg, color, btnLabel) {
+  // ─── バナー表示 ──────────────────────────────────────────
+  _showBanner(text) {
+    this._closeBanner();
     const cx = CANVAS_W / 2, cy = (CANVAS_H - UI_H) / 2;
-    this.add.text(cx, cy - 20, msg, {
-      fontSize: '42px', color, stroke: '#000000', strokeThickness: 6,
+    this._bannerBg = this.add.rectangle(cx, cy, 380, 82, 0x0a0a2a, 0.92)
+      .setScrollFactor(0).setDepth(65).setStrokeStyle(2, 0x4488ff);
+    this._bannerText = this.add.text(cx, cy, text, {
+      fontSize: '30px', color: '#ffffff', fontFamily: 'Arial, Helvetica, sans-serif',
+      stroke: '#000000', strokeThickness: 4,
+    }).setScrollFactor(0).setDepth(66).setOrigin(0.5, 0.5);
+  }
+
+  _closeBanner() {
+    this._bannerText?.destroy(); this._bannerText = null;
+    this._bannerBg?.destroy();   this._bannerBg   = null;
+  }
+
+  // ─── リザルト表示 ────────────────────────────────────────
+  _showResult(msg, color, btnLabel, victory) {
+    const total = this.escortDefs.length;
+    const cx = CANVAS_W / 2, cy = (CANVAS_H - UI_H) / 2;
+
+    // 星評価
+    const stars = '★'.repeat(this.survivors) + '☆'.repeat(total - this.survivors);
+    this.add.text(cx, cy - 65, stars, {
+      fontSize: '38px', color: '#ffdd00', fontFamily: 'Arial, Helvetica, sans-serif',
+      stroke: '#664400', strokeThickness: 3,
+    }).setScrollFactor(0).setDepth(80).setOrigin(0.5);
+
+    this.add.text(cx, cy - 15, msg, {
+      fontSize: '40px', color, stroke: '#000000', strokeThickness: 6,
       fontFamily: 'Arial, Helvetica, sans-serif',
     }).setScrollFactor(0).setDepth(80).setOrigin(0.5);
 
-    this.add.text(cx, cy + 40, `撃破数: ${this.killCount}`, {
+    this.add.text(cx, cy + 38, `生還 ${this.survivors} / ${total}  撃破 ${this.killCount}`, {
       fontSize: '18px', color: '#cccccc', fontFamily: 'Arial, Helvetica, sans-serif',
     }).setScrollFactor(0).setDepth(80).setOrigin(0.5);
 
-    const btn = this.add.text(cx, cy + 90, `[ ${btnLabel} ]`, {
+    const btn = this.add.text(cx, cy + 86, `[ ${btnLabel} ]`, {
       fontSize: '22px', color: '#ffffff', backgroundColor: '#334466',
       padding: { x: 16, y: 8 }, fontFamily: 'Arial, Helvetica, sans-serif',
     }).setScrollFactor(0).setDepth(80).setOrigin(0.5).setInteractive();
@@ -598,6 +693,16 @@ class GameScene extends Phaser.Scene {
 
   _setWaveLabel(n, total) {
     this.waveLabel = `Wave ${n} / ${total}`;
+    this._updateRelayHUD();
+  }
+
+  _updateRelayHUD() {
+    if (!this.relayStatusText) return;
+    const idx     = this.escortIdx;
+    const total   = this.escortDefs.length;
+    const name    = VARIANT_NAMES[this.escortDefs[idx].variant] ?? this.escortDefs[idx].variant;
+    const survivors = `生還 ${this.survivors}/${total}`;
+    this.relayStatusText.setText(`${name} (${idx + 1}/${total})   ${survivors}`);
   }
 
   // ─── UI構築 ──────────────────────────────────────────────
@@ -612,8 +717,8 @@ class GameScene extends Phaser.Scene {
     }).setScrollFactor(0).setDepth(52);
 
     // ウェーブ（中央）
-    this.waveText = this.add.text(CANVAS_W / 2, uy + 10, this.waveLabel, {
-      ...uiFont, fontSize: '22px', color: '#ffffff',
+    this.waveText = this.add.text(CANVAS_W / 2, uy + 10, this.waveLabel ?? '', {
+      ...uiFont, fontSize: '18px', color: '#ffffff',
       stroke: '#000000', strokeThickness: 4,
     }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
 
@@ -623,6 +728,12 @@ class GameScene extends Phaser.Scene {
       stroke: '#000000', strokeThickness: 3,
     }).setScrollFactor(0).setDepth(52).setOrigin(1, 0).setInteractive();
     this.timeText.on('pointerdown', () => this._cycleTimeMode());
+
+    // リレーステータス（HUD上のライン）
+    this.relayStatusText = this.add.text(CANVAS_W / 2, uy - 8, '', {
+      ...uiFont, fontSize: '14px', color: '#aabbcc',
+      stroke: '#000000', strokeThickness: 2,
+    }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 1);
 
     // 護衛へ戻るボタン
     const homeBtn = this.add.text(CANVAS_W - 10, uy - 10, '⌂ 護衛', {
