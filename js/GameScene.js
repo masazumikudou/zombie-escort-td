@@ -23,6 +23,9 @@ class GameScene extends Phaser.Scene {
     this.showPaths    = false;
     this.lastInteractionTime = 0;
 
+    // 設置点（Set<"col,row"> で O(1) 判定）
+    this.buildSpots = new Set((sd.buildSpots || []).map(s => `${s.col},${s.row}`));
+
     // 経路探索
     this.pf = new Pathfinder(sd.grid.cols, sd.grid.rows, sd.obstacles);
 
@@ -149,6 +152,31 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // ─── 設置点マーカー描画 ───────────────────────────────────
+  _drawBuildSpots(g) {
+    if (this.buildSpots.size === 0) return;
+    const t = this.time.now;
+    for (const key of this.buildSpots) {
+      const [col, row] = key.split(',').map(Number);
+      if (this.towers.some(tw => tw.col === col && tw.row === row)) continue;
+      const cx = col * CELL + CELL / 2;
+      const cy = row * CELL + CELL / 2;
+      if (this.selectedType) {
+        const pulse = 0.5 + 0.5 * Math.sin(t * 0.005);
+        const def   = TOWER_DEFS[this.selectedType];
+        g.fillStyle(def.color, 0.10 + 0.12 * pulse);
+        g.fillRect(col * CELL + 3, row * CELL + 3, CELL - 6, CELL - 6);
+        g.lineStyle(1.5, 0xffee44, 0.3 + 0.5 * pulse);
+        g.strokeRect(col * CELL + 6, row * CELL + 6, CELL - 12, CELL - 12);
+        g.fillStyle(0xffee44, 0.65 + 0.35 * pulse);
+        g.fillCircle(cx, cy, 4 + 3 * pulse);
+      } else {
+        g.fillStyle(0xffee44, 0.55);
+        g.fillCircle(cx, cy, 4);
+      }
+    }
+  }
+
   // ─── 動的描画 ─────────────────────────────────────────────
   _drawDynamic() {
     const g = this.dynGfx;
@@ -163,20 +191,25 @@ class GameScene extends Phaser.Scene {
       }
     }
 
+    // 設置点マーカー
+    this._drawBuildSpots(g);
+
     // タワー
     this.towers.forEach(t => t.draw(g));
 
-    // タワー配置プレビュー（ホバー中）
+    // タワー配置プレビュー（設置点ホバー中のみ）
     if (this.selectedType && this.hoverCell.col >= 0) {
       const { col, row } = this.hoverCell;
-      const canPlace = this._canPlace(col, row);
-      const def = TOWER_DEFS[this.selectedType];
-      const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
-      g.fillStyle(def.color, canPlace ? 0.35 : 0.15);
-      g.fillRect(col * CELL + 4, row * CELL + 4, CELL - 8, CELL - 8);
-      if (canPlace) {
-        g.lineStyle(2, def.color, 0.6);
-        g.strokeCircle(cx, cy, def.range * CELL);
+      if (this.buildSpots.size === 0 || this.buildSpots.has(`${col},${row}`)) {
+        const canPlace = this._canPlace(col, row);
+        const def = TOWER_DEFS[this.selectedType];
+        const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
+        g.fillStyle(def.color, canPlace ? 0.4 : 0.15);
+        g.fillRect(col * CELL + 4, row * CELL + 4, CELL - 8, CELL - 8);
+        if (canPlace) {
+          g.lineStyle(2, def.color, 0.7);
+          g.strokeCircle(cx, cy, def.range * CELL);
+        }
       }
     }
 
@@ -394,7 +427,8 @@ class GameScene extends Phaser.Scene {
   // ─── タワー配置 ──────────────────────────────────────────
   _canPlace(col, row) {
     if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
-    if (!this.pf.isWalkable(col, row)) return false;  // 遮蔽物
+    if (!this.pf.isWalkable(col, row)) return false;
+    if (this.buildSpots.size > 0 && !this.buildSpots.has(`${col},${row}`)) return false;
     if (this.towers.some(t => t.col === col && t.row === row)) return false;
     const def = TOWER_DEFS[this.selectedType];
     return this.money >= def.cost;

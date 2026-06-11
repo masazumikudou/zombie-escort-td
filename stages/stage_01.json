@@ -57,6 +57,18 @@
     { "col": 0,  "row": 14 },
     { "col": 19, "row": 14 }
   ],
+  "buildSpots": [
+    { "col": 3,  "row": 5  },
+    { "col": 6,  "row": 3  },
+    { "col": 9,  "row": 3  },
+    { "col": 11, "row": 8  },
+    { "col": 14, "row": 5  },
+    { "col": 17, "row": 4  },
+    { "col": 1,  "row": 12 },
+    { "col": 18, "row": 2  },
+    { "col": 5,  "row": 13 },
+    { "col": 13, "row": 12 }
+  ],
   "waves": [
     { "startDelay": 6000, "spawnInterval": 2500, "count": 4,  "enemy": { "type": "normal", "hp": 30, "speed": 55, "damage": 10, "reward": 20 } },
     { "startDelay": 4000, "spawnInterval": 2000, "count": 7,  "enemy": { "type": "normal_cap",    "hp": 45, "speed": 62, "damage": 13, "reward": 25 } },
