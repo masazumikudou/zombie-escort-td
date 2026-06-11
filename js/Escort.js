@@ -16,8 +16,10 @@ class Escort {
     this.reached = false;
     this.lastDx  = 1;
     this.lastDy  = 0;
-    this.hitFlash = 0;
-    this._sprite  = null;
+    this.hitFlash   = 0;
+    this._animTime  = 0;
+    this._animFrame = 1;
+    this._sprite    = null;
   }
 
   get col() { return Math.floor(this.x / CELL); }
@@ -26,6 +28,11 @@ class Escort {
   update(dt) {
     if (!this.alive || this.reached) return;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+
+    // 歩行アニメ（移動中は常にサイクル）
+    this._animTime  += dt;
+    this._animFrame  = Math.floor(this._animTime / (1000 / escortFps(this.variant))) % escortFrameCount(this.variant) + 1;
+
     if (this.wpIdx >= this.path.length) { this.reached = true; return; }
 
     const wp   = this.path[this.wpIdx];
@@ -60,9 +67,11 @@ class Escort {
 
     const dir       = dirFromVec(this.lastDx, this.lastDy);
     const spriteDir = dir === 'left' ? 'right' : dir;
-    const texKey    = escortTexKey(this.variant, spriteDir, 1);
+    const baseKey   = escortTexKey(this.variant, spriteDir, 1);
+    const animKey   = escortTexKey(this.variant, spriteDir, this._animFrame);
+    const texKey    = this.scene.textures.exists(animKey) ? animKey : baseKey;
 
-    if (this.scene.textures.exists(texKey)) {
+    if (this.scene.textures.exists(baseKey)) {
       // ─── スプライットモード ───────────────────────────
       if (!this._sprite) {
         this._sprite = this.scene.add.image(this.x, this.y, texKey).setDepth(3);

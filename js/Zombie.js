@@ -27,6 +27,8 @@ class Zombie {
     this.lastDx        = 1;
     this.lastDy        = 0;
     this.hitFlash      = 0;
+    this._animTime     = 0;
+    this._animFrame    = 1;
     this.onDeath       = null;
     this._sprite       = null;
   }
@@ -42,12 +44,19 @@ class Zombie {
     const distToEscort = Math.sqrt(dx * dx + dy * dy);
 
     if (distToEscort < CELL * 0.9) {
+      // 攻撃中 - アニメ静止（フレーム1）
+      this._animTime  = 0;
+      this._animFrame = 1;
       if (scaledTime - this.lastAttack > 1000) {
         this.lastAttack = scaledTime;
         escort.takeDamage(this.damage);
       }
       return;
     }
+
+    // 移動中 - 歩行アニメ進行
+    this._animTime  += dt;
+    this._animFrame  = Math.floor(this._animTime / (1000 / zombieFps(this.type))) % zombieFrameCount(this.type) + 1;
 
     const targetChanged = escort.col !== this.lastTargetCol || escort.row !== this.lastTargetRow;
     if (targetChanged || scaledTime - this.lastPathCalc > 500) {
@@ -99,9 +108,11 @@ class Zombie {
 
     const dir       = dirFromVec(this.lastDx, this.lastDy);
     const spriteDir = dir === 'left' ? 'right' : dir;
-    const texKey    = zombieTexKey(this.type, spriteDir, 1);
+    const baseKey   = zombieTexKey(this.type, spriteDir, 1);
+    const animKey   = zombieTexKey(this.type, spriteDir, this._animFrame);
+    const texKey    = this.scene.textures.exists(animKey) ? animKey : baseKey;
 
-    if (this.scene.textures.exists(texKey)) {
+    if (this.scene.textures.exists(baseKey)) {
       // ─── スプライットモード ───────────────────────────
       if (!this._sprite) {
         this._sprite = this.scene.add.image(this.x, this.y, texKey).setDepth(3);
