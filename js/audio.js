@@ -2,8 +2,20 @@
 // ASSET SWAP POINT: 実音声ファイルが揃ったら loadFile() に差し替え可能
 class AudioSynth {
   constructor() {
-    this._ctx = null;
+    this._ctx     = null;
     this._enabled = true;
+    this._scene   = null;  // GameScene から setScene() で注入
+  }
+
+  // Phaser シーンを注入（GameScene.create() で呼ぶ）
+  setScene(scene) { this._scene = scene; }
+
+  // 音声ファイルがロード済みなら再生して true を返す
+  _tryFile(key, volume = 0.4) {
+    if (!this._scene) return false;
+    if (!this._scene.cache.audio.exists(key)) return false;
+    try { this._scene.sound.play(key, { volume }); } catch (_) {}
+    return true;
   }
 
   _getCtx() {
@@ -35,38 +47,31 @@ class AudioSynth {
     } catch (_) {}
   }
 
-  shoot() {
-    this._play('square', 880, 0.08, 0.15);
-  }
-
-  hit() {
-    this._play('sawtooth', 220, 0.12, 0.25, -600);
-  }
-
-  escortHit() {
-    this._play('sawtooth', 120, 0.18, 0.4, -200);
-  }
-
-  zombieGroan() {
-    this._play('triangle', 80, 0.4, 0.2, 300);
-  }
+  shoot()       { if (!this._tryFile('sfx_shoot'))      this._play('square',   880, 0.08, 0.15); }
+  hit()         { if (!this._tryFile('sfx_hit'))        this._play('sawtooth', 220, 0.12, 0.25, -600); }
+  escortHit()   { if (!this._tryFile('sfx_escort_hit')) this._play('sawtooth', 120, 0.18, 0.4,  -200); }
+  zombieGroan() { if (!this._tryFile('sfx_groan'))      this._play('triangle',  80, 0.4,  0.2,   300); }
 
   coin() {
-    this._play('sine', 660, 0.1, 0.2);
-    setTimeout(() => this._play('sine', 880, 0.1, 0.15), 80);
+    if (!this._tryFile('sfx_coin')) {
+      this._play('sine', 660, 0.1, 0.2);
+      setTimeout(() => this._play('sine', 880, 0.1, 0.15), 80);
+    }
   }
 
   stageClear() {
-    const notes = [523, 659, 784, 1047];
-    notes.forEach((f, i) => {
-      setTimeout(() => this._play('sine', f, 0.3, 0.4), i * 120);
-    });
+    if (!this._tryFile('sfx_clear', 0.5)) {
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((f, i) => setTimeout(() => this._play('sine', f, 0.3, 0.4), i * 120));
+    }
   }
 
   gameOver() {
-    this._play('sawtooth', 220, 0.5, 0.4);
-    setTimeout(() => this._play('sawtooth', 165, 0.6, 0.4), 200);
-    setTimeout(() => this._play('sawtooth', 110, 0.8, 0.4), 450);
+    if (!this._tryFile('sfx_gameover', 0.5)) {
+      this._play('sawtooth', 220, 0.5, 0.4);
+      setTimeout(() => this._play('sawtooth', 165, 0.6, 0.4), 200);
+      setTimeout(() => this._play('sawtooth', 110, 0.8, 0.4), 450);
+    }
   }
 
   setEnabled(v) { this._enabled = v; }

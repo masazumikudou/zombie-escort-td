@@ -31,12 +31,15 @@ class GameScene extends Phaser.Scene {
     const escGoal  = sd.escort.goal;
     const escCells = this.pf.find(escStart.col, escStart.row, escGoal.col, escGoal.row);
     const escPath  = escCells ? this.pf.toPixelPath(escCells) : [];
-    this.escort    = new Escort(escPath, sd.escort);
+    this.escort    = new Escort(this, escPath, sd.escort);
 
     // エンティティ
     this.zombies = [];
     this.towers  = [];
     this.bullets = [];
+
+    // 音声シーン注入（ファイルキャッシュ参照のため）
+    audioSynth.setScene(this);
 
     // ウェーブ管理
     this.waveManager = new WaveManager(sd.waves, sd.zombieSpawns);
@@ -85,6 +88,10 @@ class GameScene extends Phaser.Scene {
       this.bullets.forEach(b => b.update(dt));
 
       this.waveManager.update(this.scaledTime, (col, row, def, wn) => this._spawnZombie(col, row, def, wn));
+
+      // 死亡ゾンビのスプライトを破棄してから配列から除去
+      this.zombies.forEach(z => { if (!z.alive) z.cleanup(); });
+      this.zombies = this.zombies.filter(z => z.alive);
 
       this._checkWinLose();
     }
@@ -397,7 +404,7 @@ class GameScene extends Phaser.Scene {
     if (!this._canPlace(col, row)) return;
     const def = TOWER_DEFS[this.selectedType];
     this.money -= def.cost;
-    const tower = new Tower(col, row, this.selectedType);
+    const tower = new Tower(this, col, row, this.selectedType);
     this.towers.push(tower);
     audioSynth.coin();
   }
@@ -410,7 +417,7 @@ class GameScene extends Phaser.Scene {
 
   // ─── ゾンビスポーン ──────────────────────────────────────
   _spawnZombie(col, row, def, waveNum) {
-    const z = new Zombie(col, row, def, this.pf, waveNum);
+    const z = new Zombie(this, col, row, def, this.pf, waveNum);
     // onDeath はWaveManagerが注入するが、報酬もここで加算
     const origOnDeath = z.onDeath;
     z.onDeath = () => {

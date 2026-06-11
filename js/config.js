@@ -11,7 +11,7 @@ const CANVAS_H = 640;
 const UI_H     = 80;   // 下部タワー選択パネルの高さ
 
 // ─── カメラ ─────────────────────────────────────────────────
-const ZOOM_LEVELS        = [0.5, 0.75, 1.0, 1.25];
+const ZOOM_LEVELS        = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 const DEFAULT_ZOOM_IDX   = 2;       // 1.0
 const AUTO_RETURN_DELAY  = 3000;    // ms（無操作後に護衛へ自動復帰）
 
@@ -44,6 +44,31 @@ const ASSET_PATHS = {
     gameover: 'assets/audio/gameover.wav',
   }
 };
+
+// ─── スプライト規約 ──────────────────────────────────────────
+// ファイルを配置するだけでコード変更なしに本素材へ切り替わる。
+// キー命名規則: {entity}_{variant}_{dir}_{frame:02d}
+//   entity  : zombie | escort | tower | obstacle
+//   variant : zombie種別 or 護衛バリアント（後述）
+//   dir     : down | up | left | right
+//   frame   : 01, 02, 03 ...
+//
+// ファイルパス規約:
+//   ゾンビ  : assets/sprites/zombie/{type}/walk_{dir}_{frame:02d}.png
+//   護衛    : assets/sprites/escort/{variant}/walk_{dir}_{frame:02d}.png
+//   タワー  : assets/sprites/tower/{type}.png
+//   遮蔽物  : assets/sprites/obstacle/building.png
+//   音声    : assets/audio/{name}.wav
+
+const ZOMBIE_TYPES    = ['normal','normal_helmet','normal_cap','alt','alt_helmet','alt_cap'];
+const ESCORT_VARIANTS = ['dad','mom','grandma'];
+const WALK_DIRS       = ['down','up','left','right'];
+const ZOMBIE_FRAMES   = 4;
+const ESCORT_FRAMES   = 6;
+
+const _pad = n => String(n).padStart(2, '0');
+const zombieTexKey  = (type, dir, frame) => `zombie_${type}_${dir}_${_pad(frame)}`;
+const escortTexKey  = (variant, dir, frame) => `escort_${variant}_${dir}_${_pad(frame)}`;
 
 // ─── ユーティリティ ──────────────────────────────────────────
 function cellCenter(col, row) {
