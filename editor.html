@@ -99,6 +99,36 @@
   </div>
 
   <div class="sep"></div>
+  <h2>ウェーブ設定（エクスポート時に適用）</h2>
+  <div style="font-size:11px;color:#667;margin-bottom:4px">Wave 1 の敵種別</div>
+  <select id="w1-type" style="width:100%;background:#111;border:1px solid #446;color:#ccc;padding:3px;margin-bottom:4px">
+    <option value="normal">normal（通常）</option>
+    <option value="normal_cap">normal_cap（帽子）</option>
+    <option value="normal_helmet">normal_helmet（ヘルメット）</option>
+    <option value="alt">alt（別体型）</option>
+    <option value="alt_cap">alt_cap（別体型・帽子）</option>
+    <option value="alt_helmet">alt_helmet（別体型・ヘルメット）</option>
+  </select>
+  <div style="font-size:11px;color:#667;margin-bottom:4px">Wave 2 の敵種別</div>
+  <select id="w2-type" style="width:100%;background:#111;border:1px solid #446;color:#ccc;padding:3px;margin-bottom:4px">
+    <option value="normal_cap" selected>normal_cap</option>
+    <option value="normal">normal</option>
+    <option value="normal_helmet">normal_helmet</option>
+    <option value="alt">alt</option>
+    <option value="alt_cap">alt_cap</option>
+    <option value="alt_helmet">alt_helmet</option>
+  </select>
+  <div style="font-size:11px;color:#667;margin-bottom:4px">Wave 3 の敵種別</div>
+  <select id="w3-type" style="width:100%;background:#111;border:1px solid #446;color:#ccc;padding:3px;margin-bottom:8px">
+    <option value="normal_helmet" selected>normal_helmet</option>
+    <option value="normal">normal</option>
+    <option value="normal_cap">normal_cap</option>
+    <option value="alt">alt</option>
+    <option value="alt_cap">alt_cap</option>
+    <option value="alt_helmet">alt_helmet</option>
+  </select>
+
+  <div class="sep"></div>
   <button id="export-btn" onclick="exportJSON()">▼ JSON 生成</button>
   <button id="copy-btn"   onclick="copyJSON()">📋 クリップボードにコピー</button>
   <button id="clear-btn"  onclick="clearAll()">🗑 全消去</button>
@@ -261,9 +291,9 @@ function buildJSON() {
     obstacles:   obsArr,
     zombieSpawns: spawns.map(s => ({ ...s })),
     waves: [
-      { startDelay:6000, spawnInterval:2500, count:4,  enemy:{ hp:30, speed:55, damage:10, reward:20 } },
-      { startDelay:4000, spawnInterval:2000, count:7,  enemy:{ hp:45, speed:62, damage:13, reward:25 } },
-      { startDelay:4000, spawnInterval:1500, count:12, enemy:{ hp:60, speed:70, damage:18, reward:30 } },
+      { startDelay:6000, spawnInterval:2500, count:4,  enemy:{ type: document.getElementById('w1-type').value, hp:30, speed:55, damage:10, reward:20 } },
+      { startDelay:4000, spawnInterval:2000, count:7,  enemy:{ type: document.getElementById('w2-type').value, hp:45, speed:62, damage:13, reward:25 } },
+      { startDelay:4000, spawnInterval:1500, count:12, enemy:{ type: document.getElementById('w3-type').value, hp:60, speed:70, damage:18, reward:30 } },
     ]
   };
 }
