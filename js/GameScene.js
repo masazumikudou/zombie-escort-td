@@ -11,17 +11,20 @@ class GameScene extends Phaser.Scene {
 
     // ゲーム状態
     this.scaledTime   = 0;
-    this.timeModeIdx  = 2;   // TIME_SCALES index: 0=停止, 1=スロー, 2=通常
+    this.timeModeIdx  = 2;
     this.zoomIdx      = DEFAULT_ZOOM_IDX;
     this.money        = sd.startMoney;
-    this.selectedType = null;
-    this.hoverCell    = { col: -1, row: -1 };
     this.gameState    = 'playing';
     this.killCount    = 0;
     this.debugOpen    = false;
     this.showGrid     = true;
     this.showPaths    = false;
     this.lastInteractionTime = 0;
+
+    // ポップアップ状態
+    this.popupState      = null;   // { type:'build', col, row } | { type:'sell', tower }
+    this.popupObjects    = [];
+    this._popupJustActed = false;
 
     // 設置点（Set<"col,row"> で O(1) 判定）
     this.buildSpots = new Set((sd.buildSpots || []).map(s => `${s.col},${s.row}`));
@@ -41,7 +44,7 @@ class GameScene extends Phaser.Scene {
     this.towers  = [];
     this.bullets = [];
 
-    // 音声シーン注入（ファイルキャッシュ参照のため）
+    // 音声シーン注入
     audioSynth.setScene(this);
 
     // ウェーブ管理
@@ -51,9 +54,9 @@ class GameScene extends Phaser.Scene {
     this._setWaveLabel(1, sd.waves.length);
 
     // グラフィクスレイヤー
-    this.mapGfx      = this.add.graphics().setDepth(0);
-    this.dynGfx      = this.add.graphics().setDepth(3);
-    this.hudGfx      = this.add.graphics().setScrollFactor(0).setDepth(10);
+    this.mapGfx       = this.add.graphics().setDepth(0);
+    this.dynGfx       = this.add.graphics().setDepth(3);
+    this.hudGfx       = this.add.graphics().setScrollFactor(0).setDepth(10);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
 
     // 静的マップ描画（一度だけ）
@@ -83,7 +86,6 @@ class GameScene extends Phaser.Scene {
 
     if (this.gameState === 'playing' && dt > 0) {
       this.escort.update(dt);
-
       this.zombies.forEach(z => z.update(this.scaledTime, dt, this.escort));
       this.towers.forEach(t  => t.update(this.scaledTime, dt, this.zombies, this.bullets));
 
@@ -92,19 +94,16 @@ class GameScene extends Phaser.Scene {
 
       this.waveManager.update(this.scaledTime, (col, row, def, wn) => this._spawnZombie(col, row, def, wn));
 
-      // 死亡ゾンビのスプライトを破棄してから配列から除去
       this.zombies.forEach(z => { if (!z.alive) z.cleanup(); });
       this.zombies = this.zombies.filter(z => z.alive);
 
       this._checkWinLose();
     }
 
-    // 描画（停止中も実行）
     this._drawDynamic();
     this._drawHUD();
     this._drawIndicators();
 
-    // カメラ自動復帰（護衛追跡モード）
     if (this.gameState === 'playing' && this.lastInteractionTime > 0) {
       if (time - this.lastInteractionTime > AUTO_RETURN_DELAY) {
         this._returnToEscort();
@@ -118,18 +117,15 @@ class GameScene extends Phaser.Scene {
     const g = this.mapGfx;
     g.clear();
 
-    // 背景
     g.fillStyle(0x1e2840, 1);
     g.fillRect(0, 0, MAP_W, MAP_H);
 
-    // グリッド線
     if (this.showGrid) {
       g.lineStyle(1, 0x3a4a6a, 1);
       for (let c = 0; c <= COLS; c++) g.lineBetween(c * CELL, 0, c * CELL, MAP_H);
       for (let r = 0; r <= ROWS; r++) g.lineBetween(0, r * CELL, MAP_W, r * CELL);
     }
 
-    // 遮蔽物
     g.fillStyle(0x607898, 1);
     for (const obs of this.stageData.obstacles) {
       g.fillRect(obs.col * CELL + 2, obs.row * CELL + 2, CELL - 4, CELL - 4);
@@ -137,14 +133,12 @@ class GameScene extends Phaser.Scene {
       g.strokeRect(obs.col * CELL + 2, obs.row * CELL + 2, CELL - 4, CELL - 4);
     }
 
-    // スタート・ゴールマーカー
-    const s = this.stageData.escort.start;
+    const s  = this.stageData.escort.start;
     const g2 = this.stageData.escort.goal;
     this.add.graphics().setDepth(1)
       .fillStyle(0x00ff88, 0.22).fillRect(s.col * CELL, s.row * CELL, CELL, CELL)
       .fillStyle(0xffff00, 0.22).fillRect(g2.col * CELL, g2.row * CELL, CELL, CELL);
 
-    // ゾンビスポーンマーカー
     const sg = this.add.graphics().setDepth(1);
     sg.lineStyle(2, 0xff3300, 0.6);
     for (const sp of this.stageData.zombieSpawns) {
@@ -161,15 +155,17 @@ class GameScene extends Phaser.Scene {
       if (this.towers.some(tw => tw.col === col && tw.row === row)) continue;
       const cx = col * CELL + CELL / 2;
       const cy = row * CELL + CELL / 2;
-      if (this.selectedType) {
+      const isActive = this.popupState?.type === 'build'
+                    && this.popupState.col === col
+                    && this.popupState.row === row;
+      if (isActive) {
         const pulse = 0.5 + 0.5 * Math.sin(t * 0.005);
-        const def   = TOWER_DEFS[this.selectedType];
-        g.fillStyle(def.color, 0.10 + 0.12 * pulse);
-        g.fillRect(col * CELL + 3, row * CELL + 3, CELL - 6, CELL - 6);
-        g.lineStyle(1.5, 0xffee44, 0.3 + 0.5 * pulse);
-        g.strokeRect(col * CELL + 6, row * CELL + 6, CELL - 12, CELL - 12);
-        g.fillStyle(0xffee44, 0.65 + 0.35 * pulse);
-        g.fillCircle(cx, cy, 4 + 3 * pulse);
+        g.fillStyle(0xffee44, 0.18 + 0.14 * pulse);
+        g.fillRect(col * CELL + 2, row * CELL + 2, CELL - 4, CELL - 4);
+        g.lineStyle(2, 0xffee44, 0.65 + 0.35 * pulse);
+        g.strokeRect(col * CELL + 5, row * CELL + 5, CELL - 10, CELL - 10);
+        g.fillStyle(0xffee44, 0.9);
+        g.fillCircle(cx, cy, 6);
       } else {
         g.fillStyle(0xffee44, 0.55);
         g.fillCircle(cx, cy, 4);
@@ -182,7 +178,6 @@ class GameScene extends Phaser.Scene {
     const g = this.dynGfx;
     g.clear();
 
-    // デバッグ：護衛の経路
     if (this.showPaths && this.escort.path.length > 1) {
       g.lineStyle(2, 0xffff00, 0.35);
       for (let i = 0; i < this.escort.path.length - 1; i++) {
@@ -191,73 +186,27 @@ class GameScene extends Phaser.Scene {
       }
     }
 
-    // 設置点マーカー
     this._drawBuildSpots(g);
-
-    // タワー
     this.towers.forEach(t => t.draw(g));
-
-    // タワー配置プレビュー（設置点ホバー中のみ）
-    if (this.selectedType && this.hoverCell.col >= 0) {
-      const { col, row } = this.hoverCell;
-      if (this.buildSpots.size === 0 || this.buildSpots.has(`${col},${row}`)) {
-        const canPlace = this._canPlace(col, row);
-        const def = TOWER_DEFS[this.selectedType];
-        const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
-        g.fillStyle(def.color, canPlace ? 0.4 : 0.15);
-        g.fillRect(col * CELL + 4, row * CELL + 4, CELL - 8, CELL - 8);
-        if (canPlace) {
-          g.lineStyle(2, def.color, 0.7);
-          g.strokeCircle(cx, cy, def.range * CELL);
-        }
-      }
-    }
-
-    // ゾンビ
     this.zombies.forEach(z => z.draw(g));
-
-    // 護衛
     this.escort.draw(g);
-
-    // 弾丸
     this.bullets.forEach(b => b.draw(g));
   }
 
   // ─── HUD描画 ─────────────────────────────────────────────
   _drawHUD() {
-    // テキストは Phaser.Text オブジェクト（buildUIで作成済み）で更新
     if (this.moneyText) this.moneyText.setText(`¥ ${this.money}`);
     if (this.waveText)  this.waveText.setText(this.waveLabel);
     if (this.timeText)  this.timeText.setText(TIME_LABELS[this.timeModeIdx]);
 
-    // 護衛HPバーをHUD固定で追加表示
     const g = this.hudGfx;
     g.clear();
 
-    // 下部パネル背景
     g.fillStyle(0x0a0a1a, 0.92);
     g.fillRect(0, CANVAS_H - UI_H, CANVAS_W, UI_H);
     g.lineStyle(1, 0x334455, 1);
     g.lineBetween(0, CANVAS_H - UI_H, CANVAS_W, CANVAS_H - UI_H);
 
-    // タワーボタン境界線
-    for (let i = 1; i < 3; i++) {
-      g.lineStyle(1, 0x334455, 1);
-      g.lineBetween(i * (CANVAS_W / 3), CANVAS_H - UI_H, i * (CANVAS_W / 3), CANVAS_H);
-    }
-
-    // 選択タワーのハイライト
-    if (this.selectedType) {
-      const idx  = Object.keys(TOWER_DEFS).indexOf(this.selectedType);
-      const def  = TOWER_DEFS[this.selectedType];
-      const bx   = idx * (CANVAS_W / 3);
-      g.fillStyle(def.color, 0.12);
-      g.fillRect(bx, CANVAS_H - UI_H, CANVAS_W / 3, UI_H);
-      g.lineStyle(2, def.color, 0.8);
-      g.strokeRect(bx, CANVAS_H - UI_H, CANVAS_W / 3, UI_H);
-    }
-
-    // ゲームオーバー / ステージクリアオーバーレイ
     if (this.gameState === 'defeat' || this.gameState === 'victory') {
       g.fillStyle(0x000000, 0.6);
       g.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -279,7 +228,6 @@ class GameScene extends Phaser.Scene {
     const margin = 22;
 
     const drawArrow = (wx, wy, color) => {
-      // ワールド座標 → スクリーン中央からのベクトル
       const sx   = (wx - vl) * cam.zoom;
       const sy   = (wy - vt) * cam.zoom;
       const dx   = sx - scx;
@@ -303,14 +251,12 @@ class GameScene extends Phaser.Scene {
       g.fillTriangle(tipX, tipY, lx, ly, rx, ry);
     };
 
-    // ゾンビが画面外にいるとき
     for (const z of this.zombies) {
       if (!z.alive) continue;
       if (z.x >= vl && z.x <= vr && z.y >= vt && z.y <= vb) continue;
       drawArrow(z.x, z.y, 0x22cc44);
     }
 
-    // 護衛が画面外にいるとき（赤 ❗）
     if (this.escort.alive && !this.escort.reached) {
       if (this.escort.x < vl || this.escort.x > vr || this.escort.y < vt || this.escort.y > vb) {
         drawArrow(this.escort.x, this.escort.y, 0xff4444);
@@ -320,11 +266,11 @@ class GameScene extends Phaser.Scene {
 
   // ─── 入力設定 ─────────────────────────────────────────────
   _setupInput() {
-    this.input.addPointer(1);  // タッチ2点対応
+    this.input.addPointer(1);
 
     let downX = 0, downY = 0, isDrag = false;
-    this.pinching    = false;
-    this.pinchStart  = { dist: 0, zoom: 1 };
+    this.pinching   = false;
+    this.pinchStart = { dist: 0, zoom: 1 };
 
     this.input.on('pointerdown', (p) => {
       downX = p.x; downY = p.y; isDrag = false;
@@ -334,7 +280,6 @@ class GameScene extends Phaser.Scene {
     this.input.on('pointermove', (p) => {
       this.lastInteractionTime = this.time.now;
 
-      // ピンチズーム
       const p2 = this.input.pointer2;
       if (p2.isDown) {
         const dx   = p.x - p2.x, dy = p.y - p2.y;
@@ -353,18 +298,6 @@ class GameScene extends Phaser.Scene {
       }
       this.pinching = false;
 
-      // UI ゾーン（下部パネル）ではホバー無効
-      if (p.y > CANVAS_H - UI_H) {
-        this.hoverCell = { col: -1, row: -1 };
-        return;
-      }
-
-      this.hoverCell = {
-        col: Math.floor(p.worldX / CELL),
-        row: Math.floor(p.worldY / CELL),
-      };
-
-      // ドラッグでカメラパン
       if (p.isDown) {
         const ddx = Math.abs(p.x - downX), ddy = Math.abs(p.y - downY);
         if (ddx > 8 || ddy > 8) {
@@ -381,78 +314,215 @@ class GameScene extends Phaser.Scene {
       isDrag = false;
     });
 
-    // ホイールズーム
     this.input.on('wheel', (p, go, dx, dy) => {
       this.zoomIdx = clamp(this.zoomIdx + (dy > 0 ? -1 : 1), 0, ZOOM_LEVELS.length - 1);
       this.cameras.main.setZoom(ZOOM_LEVELS[this.zoomIdx]);
       this.lastInteractionTime = this.time.now;
     });
 
-    // キーボードショートカット
     this.input.keyboard.on('keydown', (e) => {
-      if (e.key === 'Escape')      this.selectedType = null;
-      if (e.key === 'd' || e.key === 'D') this._toggleDebug();
-      if (e.key === 'g' || e.key === 'G') { this.showGrid = !this.showGrid; this._drawMapStatic(); }
-      if (e.key === 'p' || e.key === 'P') this.showPaths = !this.showPaths;
-      if (e.key === ' ')           this._cycleTimeMode();
-      if (e.key === 'h' || e.key === 'H') this._returnToEscort();
+      if (e.key === 'Escape')                  this._closePopup();
+      if (e.key === 'd' || e.key === 'D')      this._toggleDebug();
+      if (e.key === 'g' || e.key === 'G')      { this.showGrid = !this.showGrid; this._drawMapStatic(); }
+      if (e.key === 'p' || e.key === 'P')      this.showPaths = !this.showPaths;
+      if (e.key === ' ')                        this._cycleTimeMode();
+      if (e.key === 'h' || e.key === 'H')      this._returnToEscort();
     });
   }
 
   // ─── タップ処理 ──────────────────────────────────────────
   _handleTap(p) {
-    if (p.y > CANVAS_H - UI_H) return;  // UIゾーンはボタンイベントで処理済み
+    if (p.y > CANVAS_H - UI_H) return;
+
+    // ポップアップボタンの pointerdown でアクション済みの場合はスキップ
+    if (this._popupJustActed) {
+      this._popupJustActed = false;
+      return;
+    }
+
+    // ポップアップが開いていればメニュー外タップとして閉じる
+    if (this.popupState) {
+      this._closePopup();
+      return;
+    }
 
     const col = Math.floor(p.worldX / CELL);
     const row = Math.floor(p.worldY / CELL);
-
     if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
 
-    if (this.selectedType) {
-      this._tryPlace(col, row);
-    } else {
-      // タワーを右クリック or タップで選択/売却
-      const tower = this.towers.find(t => t.col === col && t.row === row);
-      if (tower) {
-        if (p.rightButtonReleased()) {
-          this._sellTower(tower);
-        } else {
-          this.towers.forEach(t => t.selected = false);
-          tower.selected = !tower.selected;
-        }
-      }
+    // 既存タワー → 売却メニュー
+    const tower = this.towers.find(t => t.col === col && t.row === row);
+    if (tower) {
+      this._openSellMenu(tower);
+      return;
+    }
+
+    // 空き設置点 → 建設メニュー
+    const onSpot = this.buildSpots.size === 0 || this.buildSpots.has(`${col},${row}`);
+    if (onSpot) {
+      this._openBuildMenu(col, row);
     }
   }
 
+  // ─── 建設メニュー ────────────────────────────────────────
+  _openBuildMenu(col, row) {
+    this._closePopup();
+
+    const cam  = this.cameras.main;
+    const sx   = (col * CELL + CELL / 2 - cam.scrollX) * cam.zoom;
+    const sy   = (row * CELL + CELL / 2 - cam.scrollY) * cam.zoom;
+
+    const BW = 88, BH = 60, GAP = 5, PAD = 7;
+    const types = Object.keys(TOWER_DEFS);
+    const popW  = types.length * BW + (types.length - 1) * GAP + PAD * 2;
+    const popH  = BH + PAD * 2;
+
+    let px = sx - popW / 2;
+    let py = sy - (CELL * cam.zoom) / 2 - popH - 6;
+    px = clamp(px, 6, CANVAS_W - popW - 6);
+    if (py < 6) py = sy + (CELL * cam.zoom) / 2 + 6;
+    py = clamp(py, 6, CANVAS_H - UI_H - popH - 6);
+
+    this.popupState   = { type: 'build', col, row };
+    this.popupObjects = [];
+
+    const bg = this.add.rectangle(px + popW / 2, py + popH / 2, popW, popH, 0x050510, 0.96)
+      .setScrollFactor(0).setDepth(70).setStrokeStyle(1, 0x3a5070);
+    this.popupObjects.push(bg);
+
+    types.forEach((type, i) => {
+      const def       = TOWER_DEFS[type];
+      const canAfford = this.money >= def.cost;
+      const bx        = px + PAD + i * (BW + GAP);
+      const by        = py + PAD;
+
+      const btn = this.add.rectangle(bx + BW / 2, by + BH / 2, BW, BH,
+        canAfford ? def.color : 0x2a2a2a, canAfford ? 0.22 : 0.18)
+        .setScrollFactor(0).setDepth(71)
+        .setStrokeStyle(1.5, canAfford ? def.color : 0x444444, canAfford ? 0.7 : 0.35);
+      if (canAfford) {
+        btn.setInteractive();
+        btn.on('pointerover',  () => btn.setFillStyle(def.color, 0.44));
+        btn.on('pointerout',   () => btn.setFillStyle(def.color, 0.22));
+        btn.on('pointerdown',  () => {
+          this._popupJustActed = true;
+          this._tryPlace(col, row, type);
+        });
+      }
+
+      const nameText = this.add.text(bx + BW / 2, by + 7, def.label, {
+        fontSize: '16px', fontStyle: 'bold', fontFamily: 'Arial, Helvetica, sans-serif',
+        color: canAfford ? def.textColor : '#555555',
+        stroke: '#000000', strokeThickness: 2,
+      }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0);
+
+      const rangeText = this.add.text(bx + BW / 2, by + 28, `射程${def.range}C`, {
+        fontSize: '12px', fontFamily: 'Arial, Helvetica, sans-serif',
+        color: canAfford ? '#99aabb' : '#444444',
+      }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0);
+
+      const priceText = this.add.text(bx + BW / 2, by + BH - 16, `¥${def.cost}`, {
+        fontSize: '14px', fontFamily: 'Arial, Helvetica, sans-serif',
+        color: canAfford ? '#ffffff' : '#555555',
+        stroke: '#000000', strokeThickness: 2,
+      }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0);
+
+      this.popupObjects.push(btn, nameText, rangeText, priceText);
+    });
+  }
+
+  // ─── 売却メニュー ────────────────────────────────────────
+  _openSellMenu(tower) {
+    this._closePopup();
+
+    const cam = this.cameras.main;
+    const sx  = (tower.x - cam.scrollX) * cam.zoom;
+    const sy  = (tower.y - cam.scrollY) * cam.zoom;
+
+    const popW = 152, popH = 72;
+    let px = sx - popW / 2;
+    let py = sy - (CELL * cam.zoom) / 2 - popH - 6;
+    px = clamp(px, 6, CANVAS_W - popW - 6);
+    if (py < 6) py = sy + (CELL * cam.zoom) / 2 + 6;
+    py = clamp(py, 6, CANVAS_H - UI_H - popH - 6);
+
+    this.popupState   = { type: 'sell', tower };
+    this.popupObjects = [];
+    tower.selected    = true;
+
+    const def = TOWER_DEFS[tower.type];
+
+    const bg = this.add.rectangle(px + popW / 2, py + popH / 2, popW, popH, 0x050510, 0.96)
+      .setScrollFactor(0).setDepth(70).setStrokeStyle(1, 0x3a5070);
+    this.popupObjects.push(bg);
+
+    const titleText = this.add.text(px + popW / 2, py + 8, `${def.label}タワー`, {
+      fontSize: '14px', fontFamily: 'Arial, Helvetica, sans-serif',
+      color: def.textColor, stroke: '#000000', strokeThickness: 2,
+    }).setScrollFactor(0).setDepth(71).setOrigin(0.5, 0);
+    this.popupObjects.push(titleText);
+
+    const sbW = 128, sbH = 30;
+    const sbx = px + (popW - sbW) / 2;
+    const sby = py + popH - sbH - 8;
+
+    const sellBtn = this.add.rectangle(sbx + sbW / 2, sby + sbH / 2, sbW, sbH, 0x551111, 0.9)
+      .setScrollFactor(0).setDepth(71).setStrokeStyle(1.5, 0xff4444, 0.8).setInteractive();
+    sellBtn.on('pointerover',  () => sellBtn.setFillStyle(0x882222, 0.9));
+    sellBtn.on('pointerout',   () => sellBtn.setFillStyle(0x551111, 0.9));
+    sellBtn.on('pointerdown',  () => {
+      this._popupJustActed = true;
+      this._sellTower(tower);
+    });
+    this.popupObjects.push(sellBtn);
+
+    const sellText = this.add.text(sbx + sbW / 2, sby + sbH / 2, `売却  +¥${tower.sell}`, {
+      fontSize: '14px', fontFamily: 'Arial, Helvetica, sans-serif',
+      color: '#ff9999', stroke: '#000000', strokeThickness: 2,
+    }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0.5);
+    this.popupObjects.push(sellText);
+  }
+
+  // ─── ポップアップを閉じる ────────────────────────────────
+  _closePopup() {
+    if (this.popupObjects?.length) {
+      this.popupObjects.forEach(o => o.destroy());
+      this.popupObjects = [];
+    }
+    if (this.popupState?.type === 'sell') {
+      this.popupState.tower.selected = false;
+    }
+    this.popupState = null;
+  }
+
   // ─── タワー配置 ──────────────────────────────────────────
-  _canPlace(col, row) {
+  _canPlace(col, row, type) {
     if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
     if (!this.pf.isWalkable(col, row)) return false;
     if (this.buildSpots.size > 0 && !this.buildSpots.has(`${col},${row}`)) return false;
     if (this.towers.some(t => t.col === col && t.row === row)) return false;
-    const def = TOWER_DEFS[this.selectedType];
-    return this.money >= def.cost;
+    return this.money >= TOWER_DEFS[type].cost;
   }
 
-  _tryPlace(col, row) {
-    if (!this._canPlace(col, row)) return;
-    const def = TOWER_DEFS[this.selectedType];
-    this.money -= def.cost;
-    const tower = new Tower(this, col, row, this.selectedType);
-    this.towers.push(tower);
+  _tryPlace(col, row, type) {
+    if (!this._canPlace(col, row, type)) return;
+    this.money -= TOWER_DEFS[type].cost;
+    this.towers.push(new Tower(this, col, row, type));
     audioSynth.coin();
+    this._closePopup();
   }
 
   _sellTower(tower) {
     this.money += tower.sell;
+    tower.cleanup();
     this.towers = this.towers.filter(t => t !== tower);
     audioSynth.coin();
+    this._closePopup();
   }
 
   // ─── ゾンビスポーン ──────────────────────────────────────
   _spawnZombie(col, row, def, waveNum) {
     const z = new Zombie(this, col, row, def, this.pf, waveNum);
-    // onDeath はWaveManagerが注入するが、報酬もここで加算
     const origOnDeath = z.onDeath;
     z.onDeath = () => {
       this.money += z.reward;
@@ -475,7 +545,7 @@ class GameScene extends Phaser.Scene {
     }
 
     if (this.escort.reached && this.waveManager.allDone) {
-      // 全ウェーブ完了かつ護衛が無事到達 → 勝利
+      // _onAllWavesDone で処理
     }
   }
 
@@ -483,7 +553,6 @@ class GameScene extends Phaser.Scene {
     if (this.escort.alive && this.escort.reached) {
       this._victory();
     }
-    // 護衛がまだ歩いている場合は reached になった時点で _checkWinLose が処理
   }
 
   _victory() {
@@ -496,16 +565,17 @@ class GameScene extends Phaser.Scene {
   _showResult(msg, color, btnLabel) {
     const cx = CANVAS_W / 2, cy = (CANVAS_H - UI_H) / 2;
     this.add.text(cx, cy - 20, msg, {
-      fontSize: '42px', color, stroke: '#000000', strokeThickness: 6
+      fontSize: '42px', color, stroke: '#000000', strokeThickness: 6,
+      fontFamily: 'Arial, Helvetica, sans-serif',
     }).setScrollFactor(0).setDepth(80).setOrigin(0.5);
 
-    const sub = this.add.text(cx, cy + 40, `撃破数: ${this.killCount}`, {
-      fontSize: '18px', color: '#cccccc'
+    this.add.text(cx, cy + 40, `撃破数: ${this.killCount}`, {
+      fontSize: '18px', color: '#cccccc', fontFamily: 'Arial, Helvetica, sans-serif',
     }).setScrollFactor(0).setDepth(80).setOrigin(0.5);
 
     const btn = this.add.text(cx, cy + 90, `[ ${btnLabel} ]`, {
       fontSize: '22px', color: '#ffffff', backgroundColor: '#334466',
-      padding: { x: 16, y: 8 }
+      padding: { x: 16, y: 8 }, fontFamily: 'Arial, Helvetica, sans-serif',
     }).setScrollFactor(0).setDepth(80).setOrigin(0.5).setInteractive();
     btn.on('pointerdown', () => this.scene.restart());
   }
@@ -534,63 +604,31 @@ class GameScene extends Phaser.Scene {
 
   // ─── UI構築 ──────────────────────────────────────────────
   _buildUI() {
-    const types = Object.keys(TOWER_DEFS);
-    this.towerBtns = {};
-    const bw = Math.floor(CANVAS_W / 3);
-    const by = CANVAS_H - UI_H;
-
-    types.forEach((type, i) => {
-      const def = TOWER_DEFS[type];
-      const bx  = i * bw + bw / 2;
-
-      const bg = this.add.rectangle(i * bw, by, bw, UI_H, 0x0a0a1a, 0)
-        .setScrollFactor(0).setDepth(51).setOrigin(0, 0).setInteractive();
-      const lbl = this.add.text(bx, by + 10, def.label, {
-        fontSize: '20px', color: def.textColor, fontStyle: 'bold',
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        stroke: '#000000', strokeThickness: 3,
-      }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
-      const cost = this.add.text(bx, by + 38, `¥${def.cost}`, {
-        fontSize: '17px', color: '#cccccc',
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        stroke: '#000000', strokeThickness: 2,
-      }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
-      const rng = this.add.text(bx, by + 60, `射程${def.range}C`, {
-        fontSize: '13px', color: '#889aaa',
-        fontFamily: 'Arial, Helvetica, sans-serif',
-      }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
-
-      bg.on('pointerdown', () => {
-        this.selectedType = this.selectedType === type ? null : type;
-      });
-      this.towerBtns[type] = { bg, lbl, cost, rng };
-    });
-
     const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
+    const uy     = CANVAS_H - UI_H;
 
-    // 所持金
-    this.moneyText = this.add.text(10, 8, `¥ ${this.money}`, {
+    // 所持金（左）
+    this.moneyText = this.add.text(10, uy + 10, `¥ ${this.money}`, {
       ...uiFont, fontSize: '22px', color: '#ffee44',
       stroke: '#000000', strokeThickness: 4,
     }).setScrollFactor(0).setDepth(52);
 
-    // ウェーブ表示
-    this.waveText = this.add.text(CANVAS_W / 2, 8, this.waveLabel, {
+    // ウェーブ（中央）
+    this.waveText = this.add.text(CANVAS_W / 2, uy + 10, this.waveLabel, {
       ...uiFont, fontSize: '22px', color: '#ffffff',
       stroke: '#000000', strokeThickness: 4,
     }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
 
-    // タイムモード表示
-    this.timeText = this.add.text(CANVAS_W - 10, 8, TIME_LABELS[this.timeModeIdx], {
+    // タイムモード（右）
+    this.timeText = this.add.text(CANVAS_W - 10, uy + 10, TIME_LABELS[this.timeModeIdx], {
       ...uiFont, fontSize: '18px', color: '#aaddff',
       stroke: '#000000', strokeThickness: 3,
     }).setScrollFactor(0).setDepth(52).setOrigin(1, 0).setInteractive();
     this.timeText.on('pointerdown', () => this._cycleTimeMode());
 
     // 護衛へ戻るボタン
-    const homeBtn = this.add.text(CANVAS_W - 10, CANVAS_H - UI_H - 10, '⌂ 護衛', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontSize: '18px', color: '#aaddff', backgroundColor: '#1a2a3a',
+    const homeBtn = this.add.text(CANVAS_W - 10, uy - 10, '⌂ 護衛', {
+      ...uiFont, fontSize: '18px', color: '#aaddff', backgroundColor: '#1a2a3a',
       padding: { x: 10, y: 6 },
     }).setScrollFactor(0).setDepth(52).setOrigin(1, 1).setInteractive();
     homeBtn.on('pointerdown', () => {
@@ -612,7 +650,6 @@ class GameScene extends Phaser.Scene {
       .setScrollFactor(0).setDepth(60).setOrigin(0, 0).setVisible(false);
     this.debugObjects.push(bg);
 
-    // タイムボタン
     this.timeBtns = [];
     ['⏸ 停止', '🐢 スロー', '▶ 通常'].forEach((lbl, i) => {
       const btn = this.add.text(px, py + i * 38, lbl, {
@@ -625,7 +662,6 @@ class GameScene extends Phaser.Scene {
       this.debugObjects.push(btn);
     });
 
-    // ズームボタン
     ['-', '+'].forEach((sign, i) => {
       const btn = this.add.text(px + i * 60, py + 120, `ズーム${sign}`, {
         ...dbgFont, fontSize: '16px', color: '#aaccff',
@@ -635,7 +671,6 @@ class GameScene extends Phaser.Scene {
       this.debugObjects.push(btn);
     });
 
-    // グリッドトグル
     const gridBtn = this.add.text(px, py + 158, 'グリッド: ON', {
       ...dbgFont, fontSize: '16px', color: '#aaccff',
       backgroundColor: '#223344', padding: { x: 6, y: 5 },
@@ -647,7 +682,6 @@ class GameScene extends Phaser.Scene {
     });
     this.debugObjects.push(gridBtn);
 
-    // パス表示トグル
     const pathBtn = this.add.text(px, py + 192, 'パス表示: OFF', {
       ...dbgFont, fontSize: '16px', color: '#aaccff',
       backgroundColor: '#223344', padding: { x: 6, y: 5 },
@@ -658,7 +692,6 @@ class GameScene extends Phaser.Scene {
     });
     this.debugObjects.push(pathBtn);
 
-    // デバッグ開閉ボタン
     const dbgToggle = this.add.text(10, CANVAS_H - UI_H - 10, '⚙', {
       fontFamily: 'Arial, Helvetica, sans-serif',
       fontSize: '22px', color: '#667788', backgroundColor: '#1a2233',
