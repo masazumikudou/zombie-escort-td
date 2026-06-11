@@ -544,15 +544,13 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.escort.reached && this.waveManager.allDone) {
-      // _onAllWavesDone で処理
+    if (this.escort.reached) {
+      this._victory();
     }
   }
 
   _onAllWavesDone() {
-    if (this.escort.alive && this.escort.reached) {
-      this._victory();
-    }
+    // 勝利は _checkWinLose で毎フレーム評価するため不要
   }
 
   _victory() {
