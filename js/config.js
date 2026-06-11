@@ -50,7 +50,7 @@ const ASSET_PATHS = {
 // キー命名規則: {entity}_{variant}_{dir}_{frame:02d}
 //   entity  : zombie | escort | tower | obstacle
 //   variant : zombie種別 or 護衛バリアント（後述）
-//   dir     : down | up | left | right
+//   dir     : down | up | right  (left は right を setFlipX で対応)
 //   frame   : 01, 02, 03 ...
 //
 // ファイルパス規約:
@@ -62,9 +62,8 @@ const ASSET_PATHS = {
 
 const ZOMBIE_TYPES    = ['normal','normal_helmet','normal_cap','alt','alt_helmet','alt_cap'];
 const ESCORT_VARIANTS = ['dad','mom','grandma'];
-const WALK_DIRS       = ['down','up','left','right'];
-const ZOMBIE_FRAMES   = 4;
-const ESCORT_FRAMES   = 6;
+const WALK_DIRS       = ['down','up','left','right']; // 移動方向ロジック用（4方向）
+const SPRITE_DIRS     = ['down','up','right'];        // スプライット読み込み用（left は right を反転）
 
 const _pad = n => String(n).padStart(2, '0');
 const zombieTexKey  = (type, dir, frame) => `zombie_${type}_${dir}_${_pad(frame)}`;

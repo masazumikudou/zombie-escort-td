@@ -58,8 +58,9 @@ class Escort {
       return;
     }
 
-    const dir    = dirFromVec(this.lastDx, this.lastDy);
-    const texKey = escortTexKey(this.variant, dir, 1);
+    const dir       = dirFromVec(this.lastDx, this.lastDy);
+    const spriteDir = dir === 'left' ? 'right' : dir;
+    const texKey    = escortTexKey(this.variant, spriteDir, 1);
 
     if (this.scene.textures.exists(texKey)) {
       // ─── スプライットモード ───────────────────────────
