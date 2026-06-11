@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Zombie Escort TD</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d0d1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+    #game-container canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <!-- Phaser 3 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.88.2/dist/phaser.min.js"></script>
+
+  <!-- ゲームスクリプト（依存順） -->
+  <script src="js/config.js"></script>
+  <script src="js/pathfinder.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/Escort.js"></script>
+  <script src="js/Zombie.js"></script>
+  <script src="js/Tower.js"></script>
+  <script src="js/WaveManager.js"></script>
+  <script src="js/BootScene.js"></script>
+  <script src="js/GameScene.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

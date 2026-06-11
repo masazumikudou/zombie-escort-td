@@ -1,0 +1,60 @@
+// ─── グリッド ───────────────────────────────────────────────
+const CELL    = 64;   // 1マスのピクセルサイズ
+const COLS    = 20;
+const ROWS    = 15;
+const MAP_W   = CELL * COLS;  // 1280
+const MAP_H   = CELL * ROWS;  // 960
+
+// ─── キャンバス ─────────────────────────────────────────────
+const CANVAS_W = 960;
+const CANVAS_H = 640;
+const UI_H     = 80;   // 下部タワー選択パネルの高さ
+
+// ─── カメラ ─────────────────────────────────────────────────
+const ZOOM_LEVELS        = [0.5, 0.75, 1.0, 1.25];
+const DEFAULT_ZOOM_IDX   = 2;       // 1.0
+const AUTO_RETURN_DELAY  = 3000;    // ms（無操作後に護衛へ自動復帰）
+
+// ─── 時間スケール ────────────────────────────────────────────
+const TIME_SCALES = [0, 0.25, 1.0]; // 0=停止, 1=スロー, 2=通常
+const TIME_LABELS = ['⏸ 停止', '🐢 スロー', '▶ 通常'];
+
+// ─── タワー定義 ──────────────────────────────────────────────
+// range はセル単位（ピクセル = range * CELL）
+const TOWER_DEFS = {
+  basic:  { label:'基本',  cost:100, sell:50,  range:2.5, fireRate:900,  damage:25, color:0x4488ff, textColor:'#5599ff' },
+  rapid:  { label:'速射',  cost:150, sell:75,  range:2.0, fireRate:250,  damage:10, color:0xff8800, textColor:'#ff9933' },
+  sniper: { label:'狙撃',  cost:200, sell:100, range:4.5, fireRate:1600, damage:70, color:0x44ff88, textColor:'#55ffaa' },
+};
+
+// ─── アセットパス（差し替えポイント） ─────────────────────────
+// ASSET SWAP POINT: 各キー先に実スプライトを置けば即差し替え可能
+const ASSET_PATHS = {
+  escort: {
+    run: 'assets/sprites/escort/run_{dir}_{n}.png',  // dir=r/l/u/d, n=1..6
+  },
+  zombie: {
+    run: 'assets/sprites/zombie/run_{dir}_{n}.png',
+  },
+  audio: {
+    shoot:  'assets/audio/shoot.wav',
+    hit:    'assets/audio/hit.wav',
+    groan:  'assets/audio/groan.wav',
+    clear:  'assets/audio/clear.wav',
+    gameover: 'assets/audio/gameover.wav',
+  }
+};
+
+// ─── ユーティリティ ──────────────────────────────────────────
+function cellCenter(col, row) {
+  return { x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 };
+}
+
+function dirFromVec(dx, dy) {
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+  return dy >= 0 ? 'down' : 'up';
+}
+
+function clamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}

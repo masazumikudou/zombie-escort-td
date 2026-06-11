@@ -1,0 +1,56 @@
+{
+  "id": "stage_01",
+  "name": "住宅街ステージ",
+  "grid": { "cols": 20, "rows": 15 },
+  "startMoney": 500,
+  "escort": {
+    "start": { "col": 0, "row": 7 },
+    "goal":  { "col": 19, "row": 7 },
+    "hp": 100,
+    "speed": 80
+  },
+  "obstacles": [
+    { "col": 2,  "row": 1 }, { "col": 3,  "row": 1 }, { "col": 4,  "row": 1 },
+    { "col": 2,  "row": 2 }, { "col": 3,  "row": 2 }, { "col": 4,  "row": 2 },
+    { "col": 2,  "row": 3 },
+
+    { "col": 15, "row": 1 }, { "col": 16, "row": 1 }, { "col": 17, "row": 1 },
+    { "col": 15, "row": 2 }, { "col": 16, "row": 2 }, { "col": 17, "row": 2 },
+                             { "col": 16, "row": 3 }, { "col": 17, "row": 3 },
+
+    { "col": 6, "row": 4 }, { "col": 7, "row": 4 }, { "col": 8, "row": 4 },
+    { "col": 6, "row": 5 },
+
+    { "col": 11, "row": 4 }, { "col": 12, "row": 4 }, { "col": 13, "row": 4 },
+                                                        { "col": 13, "row": 5 },
+
+    { "col": 9,  "row": 6 }, { "col": 10, "row": 6 },
+
+    { "col": 9,  "row": 8 }, { "col": 10, "row": 8 },
+
+    { "col": 6, "row": 9 },                            { "col": 8, "row": 9 },
+    { "col": 6, "row": 10 }, { "col": 7, "row": 10 }, { "col": 8, "row": 10 },
+
+    { "col": 11, "row": 9 },  { "col": 12, "row": 9 },
+    { "col": 11, "row": 10 }, { "col": 12, "row": 10 }, { "col": 13, "row": 10 },
+
+    { "col": 2, "row": 11 }, { "col": 3, "row": 11 },
+    { "col": 2, "row": 12 }, { "col": 3, "row": 12 }, { "col": 4, "row": 12 },
+    { "col": 2, "row": 13 }, { "col": 3, "row": 13 }, { "col": 4, "row": 13 },
+
+    { "col": 15, "row": 11 }, { "col": 16, "row": 11 },
+    { "col": 15, "row": 12 }, { "col": 16, "row": 12 }, { "col": 17, "row": 12 },
+    { "col": 15, "row": 13 }, { "col": 16, "row": 13 }, { "col": 17, "row": 13 }
+  ],
+  "zombieSpawns": [
+    { "col": 0,  "row": 0  },
+    { "col": 19, "row": 0  },
+    { "col": 0,  "row": 14 },
+    { "col": 19, "row": 14 }
+  ],
+  "waves": [
+    { "startDelay": 6000, "spawnInterval": 2500, "count": 4,  "enemy": { "hp": 30, "speed": 55, "damage": 10, "reward": 20 } },
+    { "startDelay": 4000, "spawnInterval": 2000, "count": 7,  "enemy": { "hp": 45, "speed": 62, "damage": 13, "reward": 25 } },
+    { "startDelay": 4000, "spawnInterval": 1500, "count": 12, "enemy": { "hp": 60, "speed": 70, "damage": 18, "reward": 30 } }
+  ]
+}
