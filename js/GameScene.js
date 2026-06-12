@@ -53,10 +53,13 @@ class GameScene extends Phaser.Scene {
     audioSynth.setScene(this);
 
     // グラフィクスレイヤー
-    this.mapGfx       = this.add.graphics().setDepth(0);
+    this.mapGfx       = this.add.graphics().setDepth(1);
     this.dynGfx       = this.add.graphics().setDepth(3);
     this.hudGfx       = this.add.graphics().setScrollFactor(0).setDepth(10);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
+
+    // 地面タイル（depth 0）→ 静的マップ（depth 1）の下に敷く
+    this._drawGroundTiles();
 
     // 静的マップ描画
     this._drawMapStatic();
@@ -189,13 +192,30 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // ─── 地面タイル（ランダム配置、一度だけ生成） ────────────
+  _drawGroundTiles() {
+    const keys = [0,1,2,3].map(i => `ground_${i}`).filter(k => this.textures.exists(k));
+    if (!keys.length) return;
+    this._hasTiles = true;
+    for (let col = 0; col < COLS; col++) {
+      for (let row = 0; row < ROWS; row++) {
+        const key = keys[Math.floor(Math.random() * keys.length)];
+        this.add.image(col * CELL + CELL / 2, row * CELL + CELL / 2, key)
+          .setDisplaySize(CELL, CELL).setDepth(0);
+      }
+    }
+  }
+
   // ─── 静的マップ描画 ───────────────────────────────────────
   _drawMapStatic() {
     const g = this.mapGfx;
     g.clear();
 
-    g.fillStyle(0x1e2840, 1);
-    g.fillRect(0, 0, MAP_W, MAP_H);
+    // タイルが敷かれている場合は暗色背景をスキップ
+    if (!this._hasTiles) {
+      g.fillStyle(0x1e2840, 1);
+      g.fillRect(0, 0, MAP_W, MAP_H);
+    }
 
     if (this.showGrid) {
       g.lineStyle(1, 0x3a4a6a, 1);

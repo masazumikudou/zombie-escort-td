@@ -60,6 +60,11 @@ class BootScene extends Phaser.Scene {
 
     // 遮蔽物
     this.load.image('obstacle_building', 'assets/sprites/obstacle/building.png');
+
+    // 地面タイル
+    for (let i = 0; i < 4; i++) {
+      this.load.image(`ground_${i}`, `assets/tiles/ground_${i}.png`);
+    }
   }
 
   // ─── 音声試し読み込み ────────────────────────────────────
