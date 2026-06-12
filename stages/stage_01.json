@@ -72,6 +72,9 @@
     { "col": 15, "row": 12 }, { "col": 16, "row": 12 }, { "col": 17, "row": 12 },
     { "col": 15, "row": 13 }, { "col": 16, "row": 13 }, { "col": 17, "row": 13 }
   ],
+  "props": [
+    { "type": "shop", "col": 10, "row": 0 }
+  ],
   "zombieSpawns": [
     { "col": 0,  "row": 0  },
     { "col": 19, "row": 0  },

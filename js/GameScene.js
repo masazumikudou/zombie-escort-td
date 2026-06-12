@@ -41,8 +41,17 @@ class GameScene extends Phaser.Scene {
     // 設置点
     this.buildSpots = new Set((sd.buildSpots || []).map(s => `${s.col},${s.row}`));
 
-    // 経路探索
+    // 経路探索（props の占有セルも obstacles と同等にブロック）
     this.pf = new Pathfinder(sd.grid.cols, sd.grid.rows, sd.obstacles);
+    for (const prop of (sd.props || [])) {
+      const def = PROP_DEFS[prop.type];
+      if (!def) continue;
+      for (let dc = 0; dc < def.cols; dc++) {
+        for (let dr = 0; dr < def.rows; dr++) {
+          this.pf.blocked.add(`${prop.col + dc},${prop.row + dr}`);
+        }
+      }
+    }
 
     // エンティティ
     this.zombies = [];
@@ -53,16 +62,16 @@ class GameScene extends Phaser.Scene {
     audioSynth.setScene(this);
 
     // グラフィクスレイヤー
-    this.mapGfx       = this.add.graphics().setDepth(1);
+    this.mapGfx       = this.add.graphics().setDepth(0);
     this.dynGfx       = this.add.graphics().setDepth(3);
     this.hudGfx       = this.add.graphics().setScrollFactor(0).setDepth(10);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
 
-    // 地面タイル（depth 0）→ 静的マップ（depth 1）の下に敷く
-    this._drawGroundTiles();
-
     // 静的マップ描画
     this._drawMapStatic();
+
+    // プロップ描画（depth 2：マップ上・キャラ下）
+    this._drawProps();
 
     // カメラ設定
     this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
@@ -192,30 +201,13 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── 地面タイル（ランダム配置、一度だけ生成） ────────────
-  _drawGroundTiles() {
-    const keys = [0,1,2,3].map(i => `ground_${i}`).filter(k => this.textures.exists(k));
-    if (!keys.length) return;
-    this._hasTiles = true;
-    for (let col = 0; col < COLS; col++) {
-      for (let row = 0; row < ROWS; row++) {
-        const key = keys[Math.floor(Math.random() * keys.length)];
-        this.add.image(col * CELL + CELL / 2, row * CELL + CELL / 2, key)
-          .setDisplaySize(CELL, CELL).setDepth(0);
-      }
-    }
-  }
-
   // ─── 静的マップ描画 ───────────────────────────────────────
   _drawMapStatic() {
     const g = this.mapGfx;
     g.clear();
 
-    // タイルが敷かれている場合は暗色背景をスキップ
-    if (!this._hasTiles) {
-      g.fillStyle(0x1e2840, 1);
-      g.fillRect(0, 0, MAP_W, MAP_H);
-    }
+    g.fillStyle(0x1e2840, 1);
+    g.fillRect(0, 0, MAP_W, MAP_H);
 
     if (this.showGrid) {
       g.lineStyle(1, 0x3a4a6a, 1);
@@ -240,6 +232,30 @@ class GameScene extends Phaser.Scene {
     sg.lineStyle(2, 0xff3300, 0.6);
     for (const sp of this.stageData.zombieSpawns) {
       sg.strokeRect(sp.col * CELL + 2, sp.row * CELL + 2, CELL - 4, CELL - 4);
+    }
+  }
+
+  // ─── プロップ描画（静的、一度だけ） ────────────────────────
+  _drawProps() {
+    for (const prop of (this.stageData.props || [])) {
+      const def = PROP_DEFS[prop.type];
+      if (!def) continue;
+      const px = prop.col * CELL;
+      const py = prop.row * CELL;
+      const pw = def.cols * CELL;
+      const ph = def.rows * CELL;
+      const key = `prop_${prop.type}`;
+      if (this.textures.exists(key)) {
+        this.add.image(px + pw / 2, py + ph / 2, key)
+          .setDisplaySize(pw, ph)
+          .setDepth(2);
+      } else {
+        const g = this.add.graphics().setDepth(2);
+        g.fillStyle(0x607898, 1);
+        g.fillRect(px + 2, py + 2, pw - 4, ph - 4);
+        g.lineStyle(2, 0x80a0c0, 1);
+        g.strokeRect(px + 2, py + 2, pw - 4, ph - 4);
+      }
     }
   }
 

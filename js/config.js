@@ -29,6 +29,13 @@ const TOWER_DEFS = {
   sniper: { label:'狙撃', color:0x44ff88, textColor:'#55ffaa', cost:200, sell:100, range:4.5, fireRate:1600, damage:70, durability:null },
 };
 
+// ─── プロップ定義 ────────────────────────────────────────────
+// アセットパス: assets/sprites/prop/{type}.png
+// col/row はステージ JSON でのプロップ左上セル座標
+const PROP_DEFS = {
+  shop: { texture: 'prop/shop.png', cols: 4, rows: 4 },
+};
+
 // ─── ゾンビ基準値 ────────────────────────────────────────────
 // balance.json が読めない場合のフォールバック。数値は balance.json を正とする
 const ZOMBIE_BASE = {
