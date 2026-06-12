@@ -256,6 +256,12 @@ class GameScene extends Phaser.Scene {
         g.lineStyle(2, 0x80a0c0, 1);
         g.strokeRect(px + 2, py + 2, pw - 4, ph - 4);
       }
+      // フットプリント確認枠（グリッド表示ON時のみ）
+      if (this.showGrid) {
+        const dg = this.add.graphics().setDepth(2);
+        dg.lineStyle(2, 0xff4444, 0.85);
+        dg.strokeRect(px, py, pw, ph);
+      }
     }
   }
 
