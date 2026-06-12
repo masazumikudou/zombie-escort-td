@@ -41,8 +41,9 @@ class Tower {
     this.fireRate = def.fireRate;
     this.damage   = def.damage;
     this.color    = def.color;
-    this.sell     = def.sell;
-    this.selected = false;
+    this.sell       = def.sell;
+    this.durability = def.durability ?? null;  // null = 無限（将来の耐久値システム用）
+    this.selected   = false;
     const { x, y } = cellCenter(col, row);
     this.x        = x;
     this.y        = y;

@@ -12,6 +12,7 @@ class BootScene extends Phaser.Scene {
     this.load.on('loaderror', () => {});
 
     this.load.json('stageData', this.stageFile);
+    this.load.json('balance', 'balance.json');
     this._tryLoadSprites();
     this._tryLoadAudio();
 
@@ -24,6 +25,7 @@ class BootScene extends Phaser.Scene {
 
   create() {
     const stageData = this.cache.json.get('stageData');
+    applyBalance(this.cache.json.get('balance'));
     this.scene.start('GameScene', { stageData });
   }
 

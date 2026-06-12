@@ -102,7 +102,17 @@ class GameScene extends Phaser.Scene {
   _onEscortDone(reached) {
     if (reached) this.survivors++;
 
-    const nextIdx = this.escortIdx + 1;
+    const nextIdx   = this.escortIdx + 1;
+    const remaining = this.escortDefs.length - nextIdx;
+    const minS      = this.stageData.minSurvivors ?? 1;
+
+    // 即敗北：現生還数 + 未出発人数 < minSurvivors
+    if (this.survivors + remaining < minS) {
+      this.relayPhase = 'done';
+      this._endGame();
+      return;
+    }
+
     if (nextIdx >= this.escortDefs.length) {
       this.relayPhase = 'done';
       this._endGame();

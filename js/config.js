@@ -21,11 +21,24 @@ const TIME_LABELS = ['⏸ 停止', '🐢 スロー', '▶ 通常'];
 
 // ─── タワー定義 ──────────────────────────────────────────────
 // range はセル単位（ピクセル = range * CELL）
+// 数値（cost/range/fireRate/damage/durability）は balance.json で上書き。
+// ここの数値は balance.json が読めなかった場合のフォールバック。
 const TOWER_DEFS = {
-  basic:  { label:'基本',  cost:100, sell:50,  range:2.5, fireRate:900,  damage:25, color:0x4488ff, textColor:'#5599ff' },
-  rapid:  { label:'速射',  cost:150, sell:75,  range:2.0, fireRate:250,  damage:10, color:0xff8800, textColor:'#ff9933' },
-  sniper: { label:'狙撃',  cost:200, sell:100, range:4.5, fireRate:1600, damage:70, color:0x44ff88, textColor:'#55ffaa' },
+  basic:  { label:'基本', color:0x4488ff, textColor:'#5599ff', cost:100, sell:50,  range:2.5, fireRate:900,  damage:25, durability:null },
+  rapid:  { label:'速射', color:0xff8800, textColor:'#ff9933', cost:150, sell:75,  range:2.0, fireRate:250,  damage:10, durability:null },
+  sniper: { label:'狙撃', color:0x44ff88, textColor:'#55ffaa', cost:200, sell:100, range:4.5, fireRate:1600, damage:70, durability:null },
 };
+
+// balance.json の数値を TOWER_DEFS に反映する（BootScene から呼ぶ）
+function applyBalance(b) {
+  if (!b) return;
+  const sellRate = b.sellRate ?? 0.5;
+  Object.entries(b.towers ?? {}).forEach(([type, stats]) => {
+    if (!TOWER_DEFS[type]) return;
+    Object.assign(TOWER_DEFS[type], stats);
+    TOWER_DEFS[type].sell = Math.floor(TOWER_DEFS[type].cost * sellRate);
+  });
+}
 
 // ─── アセットパス（差し替えポイント） ─────────────────────────
 // ASSET SWAP POINT: 各キー先に実スプライトを置けば即差し替え可能

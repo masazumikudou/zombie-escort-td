@@ -1,0 +1,31 @@
+{
+  "_comment": "全ゲーム数値の一元管理。コードに数値を書かずここを編集する。",
+
+  "sellRate": 0.70,
+
+  "towers": {
+    "basic":  { "cost": 100, "range": 2.5, "fireRate": 900,  "damage": 25, "durability": null },
+    "rapid":  { "cost": 150, "range": 2.0, "fireRate": 250,  "damage": 10, "durability": null },
+    "sniper": { "cost": 200, "range": 4.5, "fireRate": 1600, "damage": 70, "durability": null }
+  },
+
+  "zombies": {
+    "normal":        { "hp": 30, "speed": 55, "damage": 10, "reward": 20, "flags": { "flying": false, "knockbackImmune": false, "targetsTowers": false, "waterImmune": false, "mangaImmune": false } },
+    "normal_cap":    { "hp": 45, "speed": 62, "damage": 13, "reward": 25, "flags": { "flying": false, "knockbackImmune": false, "targetsTowers": false, "waterImmune": false, "mangaImmune": false } },
+    "normal_helmet": { "hp": 60, "speed": 70, "damage": 18, "reward": 30, "flags": { "flying": false, "knockbackImmune": false, "targetsTowers": false, "waterImmune": false, "mangaImmune": false } },
+    "alt":           { "hp": 35, "speed": 58, "damage": 11, "reward": 22, "flags": { "flying": false, "knockbackImmune": false, "targetsTowers": false, "waterImmune": false, "mangaImmune": false } },
+    "alt_helmet":    { "hp": 65, "speed": 68, "damage": 19, "reward": 32, "flags": { "flying": false, "knockbackImmune": false, "targetsTowers": false, "waterImmune": false, "mangaImmune": false } },
+    "alt_cap":       { "hp": 50, "speed": 64, "damage": 15, "reward": 27, "flags": { "flying": false, "knockbackImmune": false, "targetsTowers": false, "waterImmune": false, "mangaImmune": false } }
+  },
+
+  "economy": {
+    "defaultStartMoney": 500,
+    "starBonusGems": [0, 0, 1, 2]
+  },
+
+  "items": {
+    "lureSigns": {
+      "cost": 80
+    }
+  }
+}
