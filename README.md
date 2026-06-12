@@ -1,9 +1,11 @@
 # Zombie Escort TD — グレーボックスビルド
 
 ## 概要
-ファミリーを1人ずつ順番に護衛しながら右端まで連れて行くタワーディフェンス。
+家族を1人ずつ順番に護衛しながら右端まで連れて行くタワーディフェンス。
 グレーボックス（単色図形）でコアループを検証しつつ、
 **素材ファイルを置くだけでコード変更ゼロで本素材に切り替わる**仕組み済み。
+
+確定設計仕様書は [`docs/`](docs/) フォルダを参照。
 
 ---
 
@@ -14,44 +16,45 @@
 assets/sprites/zombie/{type}/walk_{dir}_{frame:02d}.png
   type  : normal | normal_helmet | normal_cap | alt | alt_helmet | alt_cap
   dir   : down | up | left | right
-  frame : 01, 02, 03, 04, 05, 06
+  frame : 01 〜 06
 ```
-例: `assets/sprites/zombie/normal/walk_down_01.png`
-
-typeは stageデータの `escorts[].waves[].enemy.type` と一致させること。
 
 ### 護衛スプライト
 ```
 assets/sprites/escort/{variant}/walk_{dir}_{frame:02d}.png
   variant : dad | mom | grandma
   dir     : down | up | left | right
-  frame   : 01, 02, 03, 04, 05, 06
+  frame   : 01 〜 06
 ```
-例: `assets/sprites/escort/dad/walk_right_01.png`
 
-### タワースプライト（1枚画像）
+### タワースプライト
 ```
-assets/sprites/tower/{type}.png
+assets/sprites/tower/{type}_base.png  ← 土台（将来用、現在は {type}.png）
+assets/sprites/tower/{type}.png       ← グレーボックスフォールバック用
   type : basic | rapid | sniper
-```
-
-### 遮蔽物スプライト
-```
-assets/sprites/obstacle/building.png
 ```
 
 ### 音声ファイル
 ```
-assets/audio/shoot.wav      … タワー発射音
-assets/audio/hit.wav        … ゾンビ被弾音
-assets/audio/escort_hit.wav … 護衛被ダメージ音
-assets/audio/groan.wav      … ゾンビ呻き声
-assets/audio/coin.wav       … タワー設置/売却音
-assets/audio/clear.wav      … ステージクリア音
-assets/audio/gameover.wav   … ゲームオーバー音
+assets/audio/shoot.wav / hit.wav / escort_hit.wav / groan.wav
+assets/audio/coin.wav / clear.wav / gameover.wav
 ```
 
-**ファイルが存在しない場合は自動的に単色図形 / Web Audio 合成にフォールバックする。**
+**ファイルが存在しない場合は自動的に単色図形 / Web Audio 合成にフォールバック。**
+
+---
+
+## バランス調整
+**[`balance.json`](balance.json) のみを編集する。コードに数値を書かない。**
+
+```
+balance.json
+├── sellRate          … 売却還元率（初期 0.70）
+├── towers.*          … タワーごとの cost / range / fireRate / damage / durability
+├── zombies.*         … ゾンビ種ごとの hp / speed / damage / reward / flags
+├── economy           … 初期資金デフォルト・星ボーナスジェム数
+└── items             … 看板コスト等
+```
 
 ---
 
@@ -59,62 +62,59 @@ assets/audio/gameover.wav   … ゲームオーバー音
 
 ```
 zombie-escort-td/
-├── index.html          # ゲーム本体
-├── editor.html         # マップエディタ（Phaser不使用）
+├── index.html
+├── editor.html         # マップエディタ
+├── CLAUDE.md           # AI作業ガイドライン
+├── balance.json        # 全ゲーム数値の一元管理
 ├── stages/
 │   └── stage_01.json   # ステージデータ（escorts配列形式）
+├── docs/               # 確定設計仕様書
+│   ├── spec01_detour.md
+│   ├── spec02_roster.md
+│   ├── spec03_economy_towers.md
+│   └── spec04_enemies.md
 ├── assets/
-│   ├── sprites/        # ← スプライット配置ポイント（上記規約通り）
-│   └── audio/          # ← 音声配置ポイント（上記規約通り）
+│   ├── sprites/
+│   └── audio/
 └── js/
-    ├── config.js       # 定数・スプライット規約定数・ユーティリティ
-    ├── pathfinder.js   # A* 経路探索（4方向・遮蔽物のみブロック）
-    ├── audio.js        # 音声（ファイル優先 → Web Audio 合成フォールバック）
-    ├── Escort.js       # 護衛（スプライット優先 → 青丸フォールバック）
-    ├── Zombie.js       # ゾンビ（スプライット優先 → 緑丸フォールバック）
-    ├── Tower.js        # タワー（スプライット優先 → 色付き四角フォールバック）
-    ├── WaveManager.js  # ウェーブ管理・スポーン制御
-    ├── BootScene.js    # ステージJSON読み込み + スプライット試し読み込み
-    ├── GameScene.js    # メインゲームシーン（全システム統合）
-    └── main.js         # Phaser初期化
+    ├── config.js       # 定数・applyBalance()
+    ├── pathfinder.js
+    ├── audio.js
+    ├── Escort.js
+    ├── Zombie.js
+    ├── Tower.js
+    ├── WaveManager.js
+    ├── BootScene.js    # balance.json + stageData ロード
+    ├── GameScene.js
+    └── main.js
 ```
 
 ---
 
 ## システム仕様
 
-### ファミリーリレーシステム
+### ファミリーリレーシステム（実装済み）
 1. 護衛者は `escorts` 配列の順番に1人ずつ出発
-2. 護衛者がゴール到達 or 脱落したら **約4秒のインターバル**（タワー設置・売却可能、時間は流れ続ける）
-3. インターバル中は「{名前}、出発！」バナーを表示
-4. 残存ゾンビは消えず持ち越し。次の護衛者出発後に自動でターゲットを切り替える
-5. 全員消化後：`生還数 >= minSurvivors` → クリア、未満 → ゲームオーバー
+2. 護衛者がゴール到達 or 脱落したら **約4秒のインターバル**（タワー操作可、時間継続）
+3. インターバル中は「{名前}、出発！」バナー表示
+4. 残存ゾンビは持ち越し。次の護衛者出発後に自動でターゲット切替
+5. 全員消化後：`生還数 >= minSurvivors` → クリア
+6. 即敗北：`現生還数 ＋ 未出発人数 < minSurvivors` の瞬間に敗北
+7. リザルト：星評価（★/☆）＋生還数/撃破数
 
-#### 脱落演出
-- HP0 になった護衛者は「脱落」状態に移行（グレーボックス：灰色点滅）
-- 脱落から2秒後に消える。ゾンビは脱落者を無視して次のターゲットへ移行
-
-#### リザルト画面
-- 星評価（生還者数ぶんの ★）
-- 生還数 / 総数 + 撃破数
-
-### ステージJSON スキーマ（escorts 形式）
+### ステージ JSON スキーマ（escorts 形式）
 ```json
 {
-  "id": "stage_01",
   "startMoney": 500,
   "minSurvivors": 1,
   "escorts": [
     {
       "variant": "dad",
+      "startTrigger": "afterPrevious",
       "start": { "col": 0, "row": 7 },
       "goal":  { "col": 19, "row": 7 },
-      "hp": 100,
-      "speed": 80,
-      "waves": [
-        { "startDelay": 6000, "spawnInterval": 2500, "count": 4,
-          "enemy": { "type": "normal", "hp": 30, "speed": 55, "damage": 10, "reward": 20 } }
-      ]
+      "hp": 100, "speed": 80,
+      "waves": [ ... ]
     }
   ],
   "obstacles": [...],
@@ -123,37 +123,16 @@ zombie-escort-td/
 }
 ```
 
-> **後方互換**：`buildSpots` が空の場合は全通行可能セルに設置可能。
-
-### タワー設置 UI（タップ → ポップアップ方式）
-1. 空き**設置点（黄丸マーカー）をタップ** → タワー選択メニューがその場にポップアップ
-2. タイプをタップ → 即建設・メニュー閉じる（所持金不足はグレーアウトで選択不可）
-3. メニュー外をタップ / `Escape` キー → キャンセル
-4. **既存タワーをタップ** → 売却メニューをポップアップ
-
-### 設置点（buildSpots）
-- ステージJSONの `buildSpots` 配列で指定したセルにのみタワーを設置可能
-- `buildSpots` が空の場合は制限なし（後方互換）
-- 空き設置点は常時**黄色の小円マーカー**で表示
-- アクティブな設置点（メニュー表示中）はマーカーが**パルスアニメーションで強調**
-- タワー設置済みのセルはマーカー非表示
-
-### 経路探索
-- **A* 4方向**（斜め移動なし）
-- ブロック対象：`obstacles` 配列のセルのみ
-- **タワーは通過可能**（パスをブロックしない）
+### タワー設置 UI（タップ → ポップアップ）
+- 空き設置点（黄丸マーカー）をタップ → タワー種選択メニュー
+- 既存タワーをタップ → 売却メニュー
+- Escape / メニュー外タップ → キャンセル
 
 ### カメラ
-- ドラッグでパン、ホイール / ピンチでズーム（0.5〜2.0倍）
+- ドラッグでパン、ホイール/ピンチでズーム（0.5〜2.0倍）
 - ピンチ終了時に最も近い `ZOOM_LEVELS` にスナップ
-- `⌂ 護衛` ボタンで現在の護衛者へカメラ復帰
-- ポップアップ表示中は自動復帰タイマーを停止
-- 無操作 3秒後に自動復帰
-- キーボード `H` で即時復帰
-
-### タイムコントロール
-- HUD右端のタイム表示をクリック or スペースキーでサイクル
-- ⏸ 停止 → 🐢 スロー(0.25x) → ▶ 通常(1.0x)
+- ポップアップ表示中は自動帰還タイマーを停止
+- 無操作 3秒後に護衛者へ自動帰還
 
 ### キーボードショートカット
 | キー | 機能 |
@@ -163,19 +142,25 @@ zombie-escort-td/
 | G | グリッド表示 ON/OFF |
 | P | デバッグパス表示 |
 | D | デバッグパネル開閉 |
-| Escape | ポップアップメニューを閉じる |
+| Escape | ポップアップを閉じる |
 
 ---
 
 ## ロードマップ
 - [x] Phase 1: グレーボックスでコアループ検証
-- [x] Phase 2: 設置点システム・タップポップアップUI・ファミリーリレー
-- [ ] Phase 3: ゾンビ移動見た目改善（8方向化 or パス平滑化）、一斉再計算スパイク対策
-- [ ] Phase 4: waypoints による寄り道システム（強制寄り道の予兆演出含む）
-- [ ] Phase 5: 実スプライト・音声差し替え（ファイル配置のみ・コード変更不要）
-  - 起動時の試し読み込み（170+ リクエスト発生）を `manifest.json` 列挙方式に変更予定
-- [ ] Phase 6: お母さんバリアント追加（`ESCORT_VARIANTS` に mom 追加、JSON 更新のみ）
-- [ ] Phase 7: ステージ追加・バランス調整
+- [x] Phase 2: 設置点システム・タップポップアップUI
+- [x] Phase 3: ファミリーリレーシステム（escorts配列・即敗北判定・星評価）
+- [x] Phase 4: balance.json 数値一元管理・布石フィールド
+- [ ] Phase 5: 寄り道・誘導システム（仕様書01）
+  - 強制寄り道・lureable寄り道・タイムセール看板・滞在ラッシュ
+- [ ] Phase 6: タワーリテーマ＋新タワー（仕様書03）
+  - テニスボールマシン・ゴムパチンコ・BBQグリル・ぐるぐるバット（初期4種）
+  - スプリンクラー・漫画ラック（ジェム解放）
+- [ ] Phase 7: 特殊ゾンビ第1陣（仕様書04）
+  - おでぶゾンビ（タンク）・電動キックボードゾンビ（俊足）
+- [ ] Phase 8: ロースター拡張（仕様書02）
+  - 母・息子・猫バリアント追加（ESCORT_VARIANTS と スプライト）
+- [ ] Phase 9: 特殊ゾンビ第2〜4陣・ボス（仕様書04）
 
 ---
 
