@@ -13,8 +13,8 @@
       "hp": 100,
       "speed": 80,
       "waves": [
-        { "startDelay": 6000, "spawnInterval": 2500, "count": 4,  "enemy": { "type": "normal",         "hp": 30, "speed": 55, "damage": 10, "reward": 20 } },
-        { "startDelay": 4000, "spawnInterval": 2000, "count": 7,  "enemy": { "type": "normal_cap",     "hp": 45, "speed": 62, "damage": 13, "reward": 25 } }
+        { "startDelay": 6000, "spawnInterval": 2500, "count": 4,  "enemy": { "type": "normal" } },
+        { "startDelay": 4000, "spawnInterval": 2000, "count": 7,  "enemy": { "type": "normal_cap" } }
       ]
     },
     {
@@ -25,8 +25,8 @@
       "hp": 80,
       "speed": 45,
       "waves": [
-        { "startDelay": 3000, "spawnInterval": 1800, "count": 8,  "enemy": { "type": "normal_helmet",  "hp": 55, "speed": 65, "damage": 16, "reward": 28 } },
-        { "startDelay": 3500, "spawnInterval": 1500, "count": 12, "enemy": { "type": "normal_helmet",  "hp": 65, "speed": 72, "damage": 20, "reward": 32 } }
+        { "startDelay": 3000, "spawnInterval": 1800, "count": 8,  "enemy": { "type": "normal_helmet", "hpMul": 0.9 } },
+        { "startDelay": 3500, "spawnInterval": 1500, "count": 12, "enemy": { "type": "normal_helmet", "hpMul": 1.1, "speedMul": 1.05 } }
       ]
     }
   ],

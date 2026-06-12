@@ -29,7 +29,18 @@ const TOWER_DEFS = {
   sniper: { label:'狙撃', color:0x44ff88, textColor:'#55ffaa', cost:200, sell:100, range:4.5, fireRate:1600, damage:70, durability:null },
 };
 
-// balance.json の数値を TOWER_DEFS に反映する（BootScene から呼ぶ）
+// ─── ゾンビ基準値 ────────────────────────────────────────────
+// balance.json が読めない場合のフォールバック。数値は balance.json を正とする
+const ZOMBIE_BASE = {
+  normal:        { hp: 30, speed: 55, damage: 10, reward: 20 },
+  normal_cap:    { hp: 45, speed: 62, damage: 13, reward: 25 },
+  normal_helmet: { hp: 60, speed: 70, damage: 18, reward: 30 },
+  alt:           { hp: 35, speed: 58, damage: 11, reward: 22 },
+  alt_helmet:    { hp: 65, speed: 68, damage: 19, reward: 32 },
+  alt_cap:       { hp: 50, speed: 64, damage: 15, reward: 27 },
+};
+
+// balance.json の数値を TOWER_DEFS と ZOMBIE_BASE に反映する（BootScene から呼ぶ）
 function applyBalance(b) {
   if (!b) return;
   const sellRate = b.sellRate ?? 0.5;
@@ -37,6 +48,11 @@ function applyBalance(b) {
     if (!TOWER_DEFS[type]) return;
     Object.assign(TOWER_DEFS[type], stats);
     TOWER_DEFS[type].sell = Math.floor(TOWER_DEFS[type].cost * sellRate);
+  });
+  Object.entries(b.zombies ?? {}).forEach(([type, stats]) => {
+    // flags は別枠のため数値フィールドのみマージ
+    const { hp, speed, damage, reward } = stats;
+    ZOMBIE_BASE[type] = { ...ZOMBIE_BASE[type], hp, speed, damage, reward };
   });
 }
 

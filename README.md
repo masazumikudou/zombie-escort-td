@@ -51,10 +51,28 @@ assets/audio/coin.wav / clear.wav / gameover.wav
 balance.json
 ├── sellRate          … 売却還元率（初期 0.70）
 ├── towers.*          … タワーごとの cost / range / fireRate / damage / durability
-├── zombies.*         … ゾンビ種ごとの hp / speed / damage / reward / flags
+├── zombies.*         … ゾンビ種ごとの hp / speed / damage / reward / flags（基準値）
 ├── economy           … 初期資金デフォルト・星ボーナスジェム数
 └── items             … 看板コスト等
 ```
+
+### ゾンビ数値の優先順位
+ゾンビのステータスは **balance.json の基準値が正**。ステージ側で強さを変えたい場合は
+倍率（`hpMul` / `speedMul` / `damageMul` / `rewardMul`）で指定する。
+
+```json
+// NG：直値は廃止
+{ "type": "normal_helmet", "hp": 65, "speed": 72 }
+
+// OK：倍率で基準値からの差分を表現
+{ "type": "normal_helmet", "hpMul": 1.1, "speedMul": 1.05 }
+
+// OK：type のみ（倍率省略 = 基準値をそのまま使用）
+{ "type": "normal" }
+```
+
+倍率を省略した場合は各倍率が 1.0 として扱われる。
+基準値の変更は `balance.json` の `zombies.*` を編集するだけでステージ全体に反映される。
 
 ---
 

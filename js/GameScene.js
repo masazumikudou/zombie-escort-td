@@ -611,7 +611,17 @@ class GameScene extends Phaser.Scene {
   }
 
   // ─── ゾンビスポーン ──────────────────────────────────────
-  _spawnZombie(col, row, def, waveNum) {
+  // enemyDef: { type, hpMul?, speedMul?, damageMul?, rewardMul? }
+  // 数値は ZOMBIE_BASE の基準値に倍率を掛けて確定する
+  _spawnZombie(col, row, enemyDef, waveNum) {
+    const base = ZOMBIE_BASE[enemyDef.type] ?? ZOMBIE_BASE.normal;
+    const def  = {
+      type:   enemyDef.type,
+      hp:     Math.round(base.hp     * (enemyDef.hpMul     ?? 1)),
+      speed:              base.speed  * (enemyDef.speedMul  ?? 1),
+      damage: Math.round(base.damage * (enemyDef.damageMul ?? 1)),
+      reward: Math.round(base.reward * (enemyDef.rewardMul ?? 1)),
+    };
     const z = new Zombie(this, col, row, def, this.pf, waveNum);
     const origOnDeath = z.onDeath;
     z.onDeath = () => {
