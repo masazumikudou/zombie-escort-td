@@ -559,25 +559,6 @@ function clearAll() {
   redraw();
 }
 
-// ─── 起動時：stage_01.json の props を読み込む ───────────────
-fetch('stages/stage_01.json')
-  .then(r => r.json())
-  .then(data => {
-    if (!Array.isArray(data.props)) return;
-    for (const p of data.props) {
-      const def = PROP_DEFS[p.type];
-      if (!def) continue;
-      // 境界チェック
-      if (p.col + def.cols > COLS || p.row + def.rows > ROWS) continue;
-      props.push({ type: p.type, col: p.col, row: p.row });
-      for (let dc = 0; dc < def.cols; dc++)
-        for (let dr = 0; dr < def.rows; dr++)
-          propOccupied.add(cellKey(p.col + dc, p.row + dr));
-    }
-    redraw();
-  })
-  .catch(() => { /* stage_01.json が読めない場合は無視 */ });
-
 // プロップ種別ボタン生成・初期描画
 buildPropTypeButtons();
 redraw();
