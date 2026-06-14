@@ -1,0 +1,8 @@
+{
+  "shop":     { "cols": 4, "rows": 4 },
+  "house":    { "cols": 3, "rows": 3 },
+  "hospital": { "cols": 4, "rows": 3 },
+  "police":   { "cols": 3, "rows": 3 },
+  "zombie":   { "cols": 1, "rows": 2 },
+  "escort":   { "cols": 1, "rows": 2 }
+}
