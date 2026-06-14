@@ -33,7 +33,9 @@ const TOWER_DEFS = {
 // アセットパス: assets/sprites/prop/{type}.png
 // col/row はステージ JSON でのプロップ左上セル座標
 const PROP_DEFS = {
-  shop: { texture: 'prop/shop.png', cols: 4, rows: 4 },
+  shop:       { texture: 'prop/shop.png',       cols: 4, rows: 4 },
+  shop_front: { texture: 'prop/shop_front.png', cols: 4, rows: 4 },
+  shop_back:  { texture: 'prop/shop_back.png',  cols: 4, rows: 4 },
 };
 
 // ─── ゾンビ基準値 ────────────────────────────────────────────
