@@ -1,7 +1,7 @@
 {
   "shop":       { "cols": 4, "rows": 4 },
-  "shop_front": { "cols": 4, "rows": 4 },
-  "shop_back":  { "cols": 4, "rows": 4 },
+  "shop_front": { "cols": 3, "rows": 3 },
+  "shop_back":  { "cols": 3, "rows": 3 },
   "house":    { "cols": 3, "rows": 3 },
   "hospital": { "cols": 4, "rows": 3 },
   "police":   { "cols": 3, "rows": 3 },
