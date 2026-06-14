@@ -23,6 +23,13 @@
     .mode-btn.active { background:#2a4060; border-color:#5599ff; color:#aaddff; }
     .mode-btn:hover  { background:#253040; }
 
+    .prop-type-btn {
+      padding:5px 8px; border:1px solid #446; background:#1e2a3a; color:#9ab; cursor:pointer;
+      border-radius:3px; font-size:11px; text-align:left;
+    }
+    .prop-type-btn.active { background:#2a4a2a; border-color:#55cc55; color:#aaffaa; }
+    .prop-type-btn:hover  { background:#253040; }
+
     .sep { border-top:1px solid #334; margin:4px 0; }
 
     label { font-size:11px; color:#778; }
@@ -32,16 +39,18 @@
     }
     .field-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 
-    #export-btn, #copy-btn, #clear-btn {
+    #export-btn, #copy-btn, #clear-btn, #copy-props-btn {
       padding:7px 10px; border:none; cursor:pointer; border-radius:3px;
       font-size:12px; width:100%;
     }
-    #export-btn { background:#2a5080; color:#9cf; }
-    #copy-btn   { background:#285038; color:#9c9; margin-top:4px; }
-    #clear-btn  { background:#503030; color:#f99; margin-top:4px; }
-    #export-btn:hover { background:#3060a0; }
-    #copy-btn:hover   { background:#306050; }
-    #clear-btn:hover  { background:#703030; }
+    #export-btn      { background:#2a5080; color:#9cf; }
+    #copy-btn        { background:#285038; color:#9c9; margin-top:4px; }
+    #clear-btn       { background:#503030; color:#f99; margin-top:4px; }
+    #copy-props-btn  { background:#2a4a30; color:#afa; margin-top:4px; }
+    #export-btn:hover     { background:#3060a0; }
+    #copy-btn:hover       { background:#306050; }
+    #clear-btn:hover      { background:#703030; }
+    #copy-props-btn:hover { background:#356040; }
 
     textarea {
       width:100%; height:120px; background:#0d0d18; border:1px solid #446; color:#8c8;
@@ -51,7 +60,8 @@
     #canvas-wrap { flex:1; overflow:auto; display:flex; align-items:flex-start; justify-content:flex-start; padding:12px; }
     canvas { cursor:crosshair; border:1px solid #334; display:block; }
 
-    #status { font-size:11px; color:#667; margin-top:4px; min-height:14px; }
+    #status      { font-size:11px; color:#667; margin-top:4px; min-height:14px; }
+    #props-copy-status { font-size:11px; color:#6c6; display:block; min-height:14px; margin-top:2px; }
     .legend { display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; }
     .leg-item { display:flex; align-items:center; gap:4px; font-size:11px; color:#889; }
     .leg-swatch { width:12px; height:12px; border-radius:2px; }
@@ -76,6 +86,16 @@
     <button class="mode-btn"        id="btn-start"      onclick="setMode('start')">🟢 護衛スタート</button>
     <button class="mode-btn"        id="btn-goal"       onclick="setMode('goal')">🏁 護衛ゴール</button>
     <button class="mode-btn"        id="btn-spawn"      onclick="setMode('spawn')">🔴 ゾンビスポーン（最大4）</button>
+    <button class="mode-btn"        id="btn-prop"       onclick="setMode('prop')">🏠 プロップ配置</button>
+  </div>
+
+  <!-- プロップ配置モード時のみ表示 -->
+  <div id="prop-type-panel" style="display:none">
+    <div class="sep"></div>
+    <h2>プロップ種別</h2>
+    <div id="prop-type-btns" class="mode-group"></div>
+    <button id="copy-props-btn" onclick="copyPropsJSON()">📋 props JSON をコピー</button>
+    <span id="props-copy-status"></span>
   </div>
 
   <div class="sep"></div>
@@ -98,6 +118,7 @@
     <div class="leg-item"><div class="leg-swatch" style="background:#00ff88;opacity:0.5"></div>スタート</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#ffff00;opacity:0.5"></div>ゴール</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#ff3300;opacity:0.6"></div>スポーン</div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#ff9944;opacity:0.7"></div>プロップ</div>
   </div>
 
   <div class="sep"></div>
@@ -155,6 +176,57 @@ let mode = 'obstacle';
 let isDragging = false;
 let dragAction = null; // 'add' | 'remove'
 
+// ─── プロップ ───────────────────────────────────────────────
+// config.js の PROP_DEFS と同期を保つこと
+const PROP_DEFS = {
+  shop:     { cols: 4, rows: 4 },
+  house:    { cols: 3, rows: 3 },
+  hospital: { cols: 4, rows: 3 },
+  police:   { cols: 3, rows: 3 },
+};
+
+const PROP_COLORS = {
+  shop:     '#ff9944',
+  house:    '#44aaff',
+  hospital: '#ff4488',
+  police:   '#6688ff',
+};
+function propColor(type) { return PROP_COLORS[type] || '#aaaaaa'; }
+
+let props        = [];         // { type, col, row }
+let propOccupied = new Set();  // "col,row" — 全プロップ占有セル
+let hoverCell    = null;       // { col, row } | null
+let selectedPropType = Object.keys(PROP_DEFS)[0];
+
+// プロップ画像プリロード（なければフォールバック描画）
+const propImages = {};
+for (const type of Object.keys(PROP_DEFS)) {
+  const img = new Image();
+  img.onload = () => { propImages[type] = img; redraw(); };
+  img.src = `assets/sprites/prop/${type}.png`;
+}
+
+// プロップ種別ボタンを動的生成
+function buildPropTypeButtons() {
+  const container = document.getElementById('prop-type-btns');
+  container.innerHTML = '';
+  for (const type of Object.keys(PROP_DEFS)) {
+    const btn = document.createElement('button');
+    btn.className = 'prop-type-btn' + (type === selectedPropType ? ' active' : '');
+    btn.id = `prop-type-${type}`;
+    btn.textContent = `${type}  (${PROP_DEFS[type].cols}×${PROP_DEFS[type].rows})`;
+    btn.onclick = () => selectPropType(type);
+    container.appendChild(btn);
+  }
+}
+
+function selectPropType(type) {
+  selectedPropType = type;
+  document.querySelectorAll('.prop-type-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`prop-type-${type}`)?.classList.add('active');
+}
+
+// ─── 汎用 ───────────────────────────────────────────────────
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
 
@@ -173,9 +245,34 @@ function setMode(m) {
   mode = m;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`btn-${m}`)?.classList.add('active');
+  document.getElementById('prop-type-panel').style.display = (m === 'prop') ? 'block' : 'none';
+  hoverCell = null;
+  redraw();
 }
 
 function cellKey(c, r) { return `${c},${r}`; }
+
+// プロップの占有セルにヒットするか（削除用）
+function findPropAt(col, row) {
+  return props.findIndex(p => {
+    const def = PROP_DEFS[p.type];
+    return col >= p.col && col < p.col + def.cols &&
+           row >= p.row && row < p.row + def.rows;
+  });
+}
+
+// プロップ配置可否チェック（out=true→範囲外, occupied=true→占有済み）
+function canPlaceProp(col, row, type) {
+  const def = PROP_DEFS[type];
+  for (let dc = 0; dc < def.cols; dc++) {
+    for (let dr = 0; dr < def.rows; dr++) {
+      if (col + dc >= COLS || row + dr >= ROWS) return false;
+      if (col + dc < 0   || row + dr < 0)       return false;
+      if (propOccupied.has(cellKey(col + dc, row + dr))) return false;
+    }
+  }
+  return true;
+}
 
 function handleCell(col, row, isDown) {
   if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
@@ -187,6 +284,7 @@ function handleCell(col, row, isDown) {
     }
     if (dragAction === 'add')    obstacles.add(k);
     if (dragAction === 'remove') obstacles.delete(k);
+
   } else if (mode === 'buildspot') {
     const k = cellKey(col, row);
     if (isDown) {
@@ -194,10 +292,13 @@ function handleCell(col, row, isDown) {
     }
     if (dragAction === 'add')    buildSpots.add(k);
     if (dragAction === 'remove') buildSpots.delete(k);
+
   } else if (mode === 'start') {
     startCell = { col, row };
+
   } else if (mode === 'goal') {
     goalCell = { col, row };
+
   } else if (mode === 'spawn') {
     const k = cellKey(col, row);
     const idx = spawns.findIndex(s => s.col === col && s.row === row);
@@ -208,22 +309,47 @@ function handleCell(col, row, isDown) {
     } else {
       document.getElementById('status').textContent = 'スポーンは最大4つまで';
     }
+
+  } else if (mode === 'prop' && isDown) {
+    // 既存プロップをクリック → 削除
+    const existingIdx = findPropAt(col, row);
+    if (existingIdx >= 0) {
+      const p   = props[existingIdx];
+      const def = PROP_DEFS[p.type];
+      for (let dc = 0; dc < def.cols; dc++)
+        for (let dr = 0; dr < def.rows; dr++)
+          propOccupied.delete(cellKey(p.col + dc, p.row + dr));
+      props.splice(existingIdx, 1);
+    } else {
+      // 新規配置
+      if (!canPlaceProp(col, row, selectedPropType)) return;
+      props.push({ type: selectedPropType, col, row });
+      const def = PROP_DEFS[selectedPropType];
+      for (let dc = 0; dc < def.cols; dc++)
+        for (let dr = 0; dr < def.rows; dr++)
+          propOccupied.add(cellKey(col + dc, row + dr));
+    }
   }
+
   redraw();
 }
 
 canvas.addEventListener('mousedown', e => {
-  isDragging  = true;
+  isDragging = true;
   const [col, row] = screenToCell(e);
   handleCell(col, row, true);
 });
 canvas.addEventListener('mousemove', e => {
-  if (!isDragging) return;
   const [col, row] = screenToCell(e);
-  handleCell(col, row, false);
+  hoverCell = { col, row };
+  if (isDragging && mode !== 'prop') {
+    handleCell(col, row, false);
+  } else {
+    redraw();
+  }
 });
-canvas.addEventListener('mouseup', () => { isDragging = false; dragAction = null; });
-canvas.addEventListener('mouseleave', () => { isDragging = false; dragAction = null; });
+canvas.addEventListener('mouseup',    () => { isDragging = false; dragAction = null; });
+canvas.addEventListener('mouseleave', () => { isDragging = false; dragAction = null; hoverCell = null; redraw(); });
 
 function screenToCell(e) {
   const rect = canvas.getBoundingClientRect();
@@ -231,6 +357,7 @@ function screenToCell(e) {
   return [Math.floor(x / CELL), Math.floor(y / CELL)];
 }
 
+// ─── 描画 ───────────────────────────────────────────────────
 function redraw() {
   canvas.width  = COLS * CELL;
   canvas.height = ROWS * CELL;
@@ -273,6 +400,35 @@ function redraw() {
     ctx.fill();
   }
 
+  // プロップ描画
+  for (const p of props) {
+    drawProp(p, 1.0);
+  }
+
+  // プロップモード：ホバープレビュー
+  if (mode === 'prop' && hoverCell) {
+    const { col, row } = hoverCell;
+    const def = PROP_DEFS[selectedPropType];
+    const canPlace = canPlaceProp(col, row, selectedPropType)
+                  && findPropAt(col, row) < 0;
+    const pw = def.cols * CELL;
+    const ph = def.rows * CELL;
+    const px = col * CELL;
+    const py = row * CELL;
+
+    if (canPlace) {
+      ctx.fillStyle = 'rgba(100,220,180,0.25)';
+      ctx.fillRect(px, py, pw, ph);
+      ctx.strokeStyle = 'rgba(100,220,180,0.9)';
+    } else {
+      ctx.fillStyle = 'rgba(255,60,60,0.25)';
+      ctx.fillRect(px, py, pw, ph);
+      ctx.strokeStyle = 'rgba(255,80,80,0.9)';
+    }
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+  }
+
   // グリッド線
   ctx.strokeStyle = '#2a2a4a';
   ctx.lineWidth = 0.5;
@@ -294,6 +450,37 @@ function redraw() {
   }
 }
 
+function drawProp(p, alpha) {
+  const def = PROP_DEFS[p.type];
+  if (!def) return;
+  const px = p.col * CELL;
+  const py = p.row * CELL;
+  const pw = def.cols * CELL;
+  const ph = def.rows * CELL;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  if (propImages[p.type]) {
+    ctx.drawImage(propImages[p.type], px, py, pw, ph);
+  } else {
+    // フォールバック：色付き矩形＋テキスト
+    const col = propColor(p.type);
+    ctx.fillStyle = col + '55';
+    ctx.fillRect(px + 2, py + 2, pw - 4, ph - 4);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 2, py + 2, pw - 4, ph - 4);
+    ctx.fillStyle = col;
+    ctx.font = `bold ${Math.min(14, pw / p.type.length * 1.4)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(p.type, px + pw / 2, py + ph / 2 + 4);
+  }
+
+  ctx.restore();
+}
+
+// ─── JSON エクスポート（既存） ───────────────────────────────
 function buildJSON() {
   const obsArr = [];
   for (const k of obstacles) {
@@ -347,15 +534,50 @@ function copyJSON() {
   });
 }
 
+// ─── props JSON のみコピー ───────────────────────────────────
+function copyPropsJSON() {
+  const arr = props.map(p => ({ type: p.type, col: p.col, row: p.row }));
+  const text = '"props": ' + JSON.stringify(arr, null, 2);
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('props-copy-status');
+    el.textContent = 'コピーしました！';
+    setTimeout(() => { el.textContent = ''; }, 2000);
+  }).catch(() => {
+    document.getElementById('props-copy-status').textContent = 'コピー失敗';
+  });
+}
+
 function clearAll() {
   if (!confirm('全消去しますか？')) return;
   obstacles.clear();
   buildSpots.clear();
+  props = [];
+  propOccupied.clear();
   spawns = [{ col:0, row:0 }, { col:COLS-1, row:0 }, { col:0, row:ROWS-1 }, { col:COLS-1, row:ROWS-1 }];
   redraw();
 }
 
-// 初期描画
+// ─── 起動時：stage_01.json の props を読み込む ───────────────
+fetch('stages/stage_01.json')
+  .then(r => r.json())
+  .then(data => {
+    if (!Array.isArray(data.props)) return;
+    for (const p of data.props) {
+      const def = PROP_DEFS[p.type];
+      if (!def) continue;
+      // 境界チェック
+      if (p.col + def.cols > COLS || p.row + def.rows > ROWS) continue;
+      props.push({ type: p.type, col: p.col, row: p.row });
+      for (let dc = 0; dc < def.cols; dc++)
+        for (let dr = 0; dr < def.rows; dr++)
+          propOccupied.add(cellKey(p.col + dc, p.row + dr));
+    }
+    redraw();
+  })
+  .catch(() => { /* stage_01.json が読めない場合は無視 */ });
+
+// プロップ種別ボタン生成・初期描画
+buildPropTypeButtons();
 redraw();
 </script>
 </body>
