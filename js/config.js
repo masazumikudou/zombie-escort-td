@@ -40,6 +40,7 @@ const PROP_DEFS = {
   house_back:   { texture: 'prop/house_back.png',   cols: 3, rows: 3 },
   guardrail_h:  { texture: 'prop/guardrail_h.png',  cols: 1, rows: 1 },
   guardrail_v:  { texture: 'prop/guardrail_v.png',  cols: 1, rows: 1 },
+  tree:         { texture: 'prop/tree.png',          cols: 1, rows: 1 },
 };
 
 // ─── ゾンビ基準値 ────────────────────────────────────────────
