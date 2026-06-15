@@ -211,8 +211,9 @@ class GameScene extends Phaser.Scene {
   _drawGroundLayer() {
     const groundType = this.stageData.ground_base || 'grass';
     const texKey     = `ground_${groundType}`;
-    const FALLBACK   = { grass: 0x3a7a2a, dirt: 0x8b6914 };
+    const FALLBACK   = { grass: 0x3a7a2a, dirt: 0x8b6914, asphalt: 0x444444 };
 
+    // ベース地面
     if (this.textures.exists(texKey)) {
       for (let col = 0; col < COLS; col++) {
         for (let row = 0; row < ROWS; row++) {
@@ -226,6 +227,25 @@ class GameScene extends Phaser.Scene {
       this.add.graphics().setDepth(-2)
         .fillStyle(color, 1)
         .fillRect(0, 0, MAP_W, MAP_H);
+    }
+
+    // セル別地面上書き
+    const cellGrounds = this.stageData.ground_cells || [];
+    const byType = {};
+    for (const cell of cellGrounds) {
+      const ck = `ground_${cell.type}`;
+      if (this.textures.exists(ck)) {
+        this.add.image(cell.col * CELL + CELL / 2, cell.row * CELL + CELL / 2, ck)
+          .setDisplaySize(CELL, CELL).setDepth(-2);
+      } else {
+        if (!byType[cell.type]) byType[cell.type] = [];
+        byType[cell.type].push(cell);
+      }
+    }
+    for (const [type, cells] of Object.entries(byType)) {
+      const color = FALLBACK[type] ?? 0x2a3a25;
+      const g = this.add.graphics().setDepth(-2).fillStyle(color, 1);
+      for (const cell of cells) g.fillRect(cell.col * CELL, cell.row * CELL, CELL, CELL);
     }
   }
 

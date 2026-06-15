@@ -106,6 +106,19 @@
     <button class="mode-btn"        id="btn-spawn"      onclick="setMode('spawn')">🔴 ゾンビスポーン（最大4）</button>
     <button class="mode-btn"        id="btn-prop"       onclick="setMode('prop')">🏠 プロップ配置</button>
     <button class="mode-btn"        id="btn-road"       onclick="setMode('road')">🛣 道路配置</button>
+    <button class="mode-btn"        id="btn-paint"      onclick="setMode('paint')">🎨 地面ペイント</button>
+  </div>
+
+  <!-- 地面ペイントモード時のみ表示 -->
+  <div id="paint-type-panel" style="display:none">
+    <div class="sep"></div>
+    <h2>ペイント色</h2>
+    <div class="field-row" style="gap:4px">
+      <button class="sub-btn"        id="paint-btn-grass"   onclick="selectPaintType('grass')">🌿 grass</button>
+      <button class="sub-btn active" id="paint-btn-dirt"    onclick="selectPaintType('dirt')">🟫 dirt</button>
+      <button class="sub-btn"        id="paint-btn-asphalt" onclick="selectPaintType('asphalt')">🔲 asph</button>
+    </div>
+    <div style="font-size:10px;color:#557;margin-top:4px">ドラッグで範囲を塗る<br>ベースと同色＝上書き削除</div>
   </div>
 
   <!-- プロップ配置モード時のみ表示 -->
@@ -215,6 +228,10 @@ let hRoads = new Set(); // 横道：行番号（row）の Set
 let vRoads = new Set(); // 縦道：列番号（col）の Set
 let roadAxis = 'h';     // 現在の道路向き
 
+let cellGrounds    = new Map(); // "col,row" → groundType（セル別地面上書き）
+let paintType      = 'dirt';
+let paintDragStart = null, paintDragEnd = null;
+
 const GROUND_COLORS = {
   grass:   '#2d6b2a',
   dirt:    '#7a5a2a',
@@ -233,6 +250,12 @@ function selectRoadAxis(axis) {
   roadAxis = axis;
   document.getElementById('road-axis-h').classList.toggle('active', axis === 'h');
   document.getElementById('road-axis-v').classList.toggle('active', axis === 'v');
+}
+
+function selectPaintType(type) {
+  paintType = type;
+  document.querySelectorAll('[id^="paint-btn-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById(`paint-btn-${type}`)?.classList.add('active');
 }
 
 // ─── プロップ ───────────────────────────────────────────────
@@ -309,8 +332,9 @@ function setMode(m) {
   mode = m;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`btn-${m}`)?.classList.add('active');
-  document.getElementById('prop-type-panel').style.display  = (m === 'prop') ? 'block' : 'none';
-  document.getElementById('road-axis-panel').style.display  = (m === 'road') ? 'block' : 'none';
+  document.getElementById('prop-type-panel').style.display   = (m === 'prop')  ? 'block' : 'none';
+  document.getElementById('road-axis-panel').style.display   = (m === 'road')  ? 'block' : 'none';
+  document.getElementById('paint-type-panel').style.display  = (m === 'paint') ? 'block' : 'none';
   hoverCell = null;
   redraw();
 }
@@ -403,24 +427,62 @@ function handleCell(col, row, isDown) {
 canvas.addEventListener('mousedown', e => {
   isDragging = true;
   const [col, row] = screenToCell(e);
-  handleCell(col, row, true);
+  if (mode === 'paint') {
+    paintDragStart = { col, row };
+    paintDragEnd   = { col, row };
+    redraw();
+  } else {
+    handleCell(col, row, true);
+  }
 });
 canvas.addEventListener('mousemove', e => {
   const [col, row] = screenToCell(e);
   hoverCell = { col, row };
-  if (isDragging && mode !== 'prop' && mode !== 'road') {
+  if (isDragging && mode === 'paint') {
+    paintDragEnd = { col, row };
+    redraw();
+  } else if (isDragging && mode !== 'prop' && mode !== 'road') {
     handleCell(col, row, false);
   } else {
     redraw();
   }
 });
-canvas.addEventListener('mouseup',    () => { isDragging = false; dragAction = null; });
-canvas.addEventListener('mouseleave', () => { isDragging = false; dragAction = null; hoverCell = null; redraw(); });
+canvas.addEventListener('mouseup', () => {
+  if (mode === 'paint' && paintDragStart) applyPaint();
+  isDragging = false; dragAction = null;
+  paintDragStart = null; paintDragEnd = null;
+});
+canvas.addEventListener('mouseleave', () => {
+  if (mode === 'paint' && isDragging && paintDragStart) applyPaint();
+  isDragging = false; dragAction = null;
+  paintDragStart = null; paintDragEnd = null;
+  hoverCell = null; redraw();
+});
 
 function screenToCell(e) {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left, y = e.clientY - rect.top;
   return [Math.floor(x / CELL), Math.floor(y / CELL)];
+}
+
+function applyPaint() {
+  if (!paintDragStart || !paintDragEnd) return;
+  const minCol = Math.min(paintDragStart.col, paintDragEnd.col);
+  const maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
+  const minRow = Math.min(paintDragStart.row, paintDragEnd.row);
+  const maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
+  for (let col = minCol; col <= maxCol; col++) {
+    for (let row = minRow; row <= maxRow; row++) {
+      if (col < 0 || col >= COLS || row < 0 || row >= ROWS) continue;
+      const k = cellKey(col, row);
+      if (paintType === groundBase) {
+        cellGrounds.delete(k);  // ベースと同色はセル上書きを削除
+      } else {
+        cellGrounds.set(k, paintType);
+      }
+    }
+  }
+  redraw();
 }
 
 // ─── 道路描画 ─────────────────────────────────────────────────
@@ -505,6 +567,13 @@ function redraw() {
   ctx.fillStyle = groundColor();
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // セル別地面上書き
+  for (const [key, type] of cellGrounds) {
+    const [c, r] = key.split(',').map(Number);
+    ctx.fillStyle = GROUND_COLORS[type] ?? '#1a1a2e';
+    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+  }
+
   // 道路（地面の上、その他の要素の下）
   drawRoads();
 
@@ -563,6 +632,23 @@ function redraw() {
     }
     ctx.lineWidth = 2;
     ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+  }
+
+  // ペイントモード：ドラッグ矩形プレビュー
+  if (mode === 'paint' && paintDragStart && paintDragEnd) {
+    const minCol = Math.min(paintDragStart.col, paintDragEnd.col);
+    const maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
+    const minRow = Math.min(paintDragStart.row, paintDragEnd.row);
+    const maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
+    const px = minCol * CELL, py = minRow * CELL;
+    const pw = (maxCol - minCol + 1) * CELL, ph = (maxRow - minRow + 1) * CELL;
+    ctx.fillStyle = 'rgba(220,200,120,0.28)';
+    ctx.fillRect(px, py, pw, ph);
+    ctx.strokeStyle = 'rgba(230,210,130,0.95)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+    ctx.setLineDash([]);
   }
 
   // グリッド線
@@ -685,7 +771,17 @@ function copyStageJSON() {
   for (const col of [...vRoads].sort((a, b) => a - b)) {
     roadsArr.push({ axis: 'v', line: col, from: 0, to: ROWS - 1 });
   }
-  const text = `"ground_base": "${groundBase}",\n"roads": ${JSON.stringify(roadsArr, null, 2)}`;
+  const cellGroundsArr = [];
+  for (const [key, type] of cellGrounds) {
+    const [col, row] = key.split(',').map(Number);
+    cellGroundsArr.push({ col, row, type });
+  }
+  cellGroundsArr.sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col);
+
+  let text = `"ground_base": "${groundBase}",\n"roads": ${JSON.stringify(roadsArr, null, 2)}`;
+  if (cellGroundsArr.length > 0) {
+    text += `,\n"ground_cells": ${JSON.stringify(cellGroundsArr, null, 2)}`;
+  }
   navigator.clipboard.writeText(text).then(() => {
     const el = document.getElementById('stage-copy-status');
     el.textContent = 'コピーしました！';
@@ -703,6 +799,7 @@ function clearAll() {
   propOccupied.clear();
   hRoads.clear();
   vRoads.clear();
+  cellGrounds.clear();
   spawns = [{ col:0, row:0 }, { col:COLS-1, row:0 }, { col:0, row:ROWS-1 }, { col:COLS-1, row:ROWS-1 }];
   selectGroundBase('grass');
   redraw();
@@ -718,8 +815,13 @@ fetch('stages/stage_01.json')
         if (road.axis === 'h') hRoads.add(road.line);
         else if (road.axis === 'v') vRoads.add(road.line);
       }
-      redraw();
     }
+    if (Array.isArray(data.ground_cells)) {
+      for (const cell of data.ground_cells) {
+        cellGrounds.set(`${cell.col},${cell.row}`, cell.type);
+      }
+    }
+    redraw();
   })
   .catch(() => {});
 
