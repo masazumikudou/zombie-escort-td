@@ -30,6 +30,13 @@
     .prop-type-btn.active { background:#2a4a2a; border-color:#55cc55; color:#aaffaa; }
     .prop-type-btn:hover  { background:#253040; }
 
+    .sub-btn {
+      padding:5px 8px; border:1px solid #446; background:#1e2a3a; color:#9ab; cursor:pointer;
+      border-radius:3px; font-size:11px; flex:1;
+    }
+    .sub-btn.active { background:#2a4a2a; border-color:#55cc55; color:#aaffaa; }
+    .sub-btn:hover  { background:#253040; }
+
     .sep { border-top:1px solid #334; margin:4px 0; }
 
     label { font-size:11px; color:#778; }
@@ -39,18 +46,20 @@
     }
     .field-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 
-    #export-btn, #copy-btn, #clear-btn, #copy-props-btn {
+    #export-btn, #copy-btn, #clear-btn, #copy-props-btn, #copy-stage-btn {
       padding:7px 10px; border:none; cursor:pointer; border-radius:3px;
       font-size:12px; width:100%;
     }
-    #export-btn      { background:#2a5080; color:#9cf; }
-    #copy-btn        { background:#285038; color:#9c9; margin-top:4px; }
-    #clear-btn       { background:#503030; color:#f99; margin-top:4px; }
-    #copy-props-btn  { background:#2a4a30; color:#afa; margin-top:4px; }
+    #export-btn       { background:#2a5080; color:#9cf; }
+    #copy-btn         { background:#285038; color:#9c9; margin-top:4px; }
+    #clear-btn        { background:#503030; color:#f99; margin-top:4px; }
+    #copy-props-btn   { background:#2a4a30; color:#afa; margin-top:4px; }
+    #copy-stage-btn   { background:#283050; color:#aac; margin-top:4px; }
     #export-btn:hover     { background:#3060a0; }
     #copy-btn:hover       { background:#306050; }
     #clear-btn:hover      { background:#703030; }
     #copy-props-btn:hover { background:#356040; }
+    #copy-stage-btn:hover { background:#384060; }
 
     textarea {
       width:100%; height:120px; background:#0d0d18; border:1px solid #446; color:#8c8;
@@ -60,8 +69,9 @@
     #canvas-wrap { flex:1; overflow:auto; display:flex; align-items:flex-start; justify-content:flex-start; padding:12px; }
     canvas { cursor:crosshair; border:1px solid #334; display:block; }
 
-    #status      { font-size:11px; color:#667; margin-top:4px; min-height:14px; }
+    #status            { font-size:11px; color:#667; margin-top:4px; min-height:14px; }
     #props-copy-status { font-size:11px; color:#6c6; display:block; min-height:14px; margin-top:2px; }
+    #stage-copy-status { font-size:11px; color:#99c; display:block; min-height:14px; margin-top:2px; }
     .legend { display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; }
     .leg-item { display:flex; align-items:center; gap:4px; font-size:11px; color:#889; }
     .leg-swatch { width:12px; height:12px; border-radius:2px; }
@@ -79,6 +89,14 @@
   </div>
 
   <div class="sep"></div>
+  <h2>地面ベース</h2>
+  <div class="field-row" style="gap:4px">
+    <button class="sub-btn active" id="ground-btn-grass"    onclick="selectGroundBase('grass')">🌿 grass</button>
+    <button class="sub-btn"       id="ground-btn-dirt"     onclick="selectGroundBase('dirt')">🟫 dirt</button>
+    <button class="sub-btn"       id="ground-btn-asphalt"  onclick="selectGroundBase('asphalt')">🔲 asph</button>
+  </div>
+
+  <div class="sep"></div>
   <h2>ツール</h2>
   <div class="mode-group">
     <button class="mode-btn active" id="btn-obstacle"   onclick="setMode('obstacle')">🧱 遮蔽物（クリック＝配置/削除）</button>
@@ -87,6 +105,7 @@
     <button class="mode-btn"        id="btn-goal"       onclick="setMode('goal')">🏁 護衛ゴール</button>
     <button class="mode-btn"        id="btn-spawn"      onclick="setMode('spawn')">🔴 ゾンビスポーン（最大4）</button>
     <button class="mode-btn"        id="btn-prop"       onclick="setMode('prop')">🏠 プロップ配置</button>
+    <button class="mode-btn"        id="btn-road"       onclick="setMode('road')">🛣 道路配置</button>
   </div>
 
   <!-- プロップ配置モード時のみ表示 -->
@@ -96,6 +115,17 @@
     <div id="prop-type-btns" class="mode-group"></div>
     <button id="copy-props-btn" onclick="copyPropsJSON()">📋 props JSON をコピー</button>
     <span id="props-copy-status"></span>
+  </div>
+
+  <!-- 道路配置モード時のみ表示 -->
+  <div id="road-axis-panel" style="display:none">
+    <div class="sep"></div>
+    <h2>道路の向き</h2>
+    <div class="field-row" style="gap:4px">
+      <button class="sub-btn active" id="road-axis-h" onclick="selectRoadAxis('h')">↔ 横道(h)</button>
+      <button class="sub-btn"        id="road-axis-v" onclick="selectRoadAxis('v')">↕ 縦道(v)</button>
+    </div>
+    <div style="font-size:10px;color:#557;margin-top:4px">クリック＝配置／再クリック＝削除</div>
   </div>
 
   <div class="sep"></div>
@@ -119,6 +149,7 @@
     <div class="leg-item"><div class="leg-swatch" style="background:#ffff00;opacity:0.5"></div>ゴール</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#ff3300;opacity:0.6"></div>スポーン</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#ff9944;opacity:0.7"></div>プロップ</div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#888888"></div>道路</div>
   </div>
 
   <div class="sep"></div>
@@ -152,9 +183,11 @@
   </select>
 
   <div class="sep"></div>
-  <button id="export-btn" onclick="exportJSON()">▼ JSON 生成</button>
-  <button id="copy-btn"   onclick="copyJSON()">📋 クリップボードにコピー</button>
-  <button id="clear-btn"  onclick="clearAll()">🗑 全消去</button>
+  <button id="export-btn"     onclick="exportJSON()">▼ JSON 生成</button>
+  <button id="copy-btn"       onclick="copyJSON()">📋 クリップボードにコピー</button>
+  <button id="copy-stage-btn" onclick="copyStageJSON()">🗺 ステージ設定 JSON をコピー</button>
+  <span id="stage-copy-status"></span>
+  <button id="clear-btn"      onclick="clearAll()">🗑 全消去</button>
   <textarea id="json-out" readonly placeholder="ここにJSONが表示されます"></textarea>
   <div id="status"></div>
 </div>
@@ -176,20 +209,46 @@ let mode = 'obstacle';
 let isDragging = false;
 let dragAction = null; // 'add' | 'remove'
 
+// ─── 地面・道路 ──────────────────────────────────────────────
+let groundBase = 'grass';
+let hRoads = new Set(); // 横道：行番号（row）の Set
+let vRoads = new Set(); // 縦道：列番号（col）の Set
+let roadAxis = 'h';     // 現在の道路向き
+
+const GROUND_COLORS = {
+  grass:   '#2d6b2a',
+  dirt:    '#7a5a2a',
+  asphalt: '#3a3a3a',
+};
+function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
+
+function selectGroundBase(type) {
+  groundBase = type;
+  document.querySelectorAll('[id^="ground-btn-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById(`ground-btn-${type}`)?.classList.add('active');
+  redraw();
+}
+
+function selectRoadAxis(axis) {
+  roadAxis = axis;
+  document.getElementById('road-axis-h').classList.toggle('active', axis === 'h');
+  document.getElementById('road-axis-v').classList.toggle('active', axis === 'v');
+}
+
 // ─── プロップ ───────────────────────────────────────────────
 // config.js の PROP_DEFS と同期を保つこと
 const PROP_DEFS = {
-  shop:       { cols: 4, rows: 4 },
+  shop:        { cols: 4, rows: 4 },
   shop_front:  { cols: 3, rows: 3 },
   shop_back:   { cols: 3, rows: 3 },
-  house_front:  { cols: 3, rows: 3 },
-  house_back:   { cols: 3, rows: 3 },
-  guardrail_h:  { cols: 1, rows: 1 },
-  guardrail_v:  { cols: 1, rows: 1 },
-  tree:         { cols: 1, rows: 1 },
-  house:      { cols: 3, rows: 3 },
-  hospital:   { cols: 4, rows: 3 },
-  police:     { cols: 3, rows: 3 },
+  house_front: { cols: 3, rows: 3 },
+  house_back:  { cols: 3, rows: 3 },
+  guardrail_h: { cols: 1, rows: 1 },
+  guardrail_v: { cols: 1, rows: 1 },
+  tree:        { cols: 1, rows: 1 },
+  house:       { cols: 3, rows: 3 },
+  hospital:    { cols: 4, rows: 3 },
+  police:      { cols: 3, rows: 3 },
 };
 
 const PROP_COLORS = {
@@ -200,12 +259,11 @@ const PROP_COLORS = {
 };
 function propColor(type) { return PROP_COLORS[type] || '#aaaaaa'; }
 
-let props        = [];         // { type, col, row }
-let propOccupied = new Set();  // "col,row" — 全プロップ占有セル
-let hoverCell    = null;       // { col, row } | null
+let props        = [];
+let propOccupied = new Set();
+let hoverCell    = null;
 let selectedPropType = Object.keys(PROP_DEFS)[0];
 
-// プロップ画像プリロード（なければフォールバック描画）
 const propImages = {};
 for (const type of Object.keys(PROP_DEFS)) {
   const img = new Image();
@@ -213,7 +271,6 @@ for (const type of Object.keys(PROP_DEFS)) {
   img.src = `assets/sprites/prop/${type}.png`;
 }
 
-// プロップ種別ボタンを動的生成
 function buildPropTypeButtons() {
   const container = document.getElementById('prop-type-btns');
   container.innerHTML = '';
@@ -252,14 +309,14 @@ function setMode(m) {
   mode = m;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`btn-${m}`)?.classList.add('active');
-  document.getElementById('prop-type-panel').style.display = (m === 'prop') ? 'block' : 'none';
+  document.getElementById('prop-type-panel').style.display  = (m === 'prop') ? 'block' : 'none';
+  document.getElementById('road-axis-panel').style.display  = (m === 'road') ? 'block' : 'none';
   hoverCell = null;
   redraw();
 }
 
 function cellKey(c, r) { return `${c},${r}`; }
 
-// プロップの占有セルにヒットするか（削除用）
 function findPropAt(col, row) {
   return props.findIndex(p => {
     const def = PROP_DEFS[p.type];
@@ -268,7 +325,6 @@ function findPropAt(col, row) {
   });
 }
 
-// プロップ配置可否チェック（out=true→範囲外, occupied=true→占有済み）
 function canPlaceProp(col, row, type) {
   const def = PROP_DEFS[type];
   for (let dc = 0; dc < def.cols; dc++) {
@@ -286,17 +342,13 @@ function handleCell(col, row, isDown) {
 
   if (mode === 'obstacle') {
     const k = cellKey(col, row);
-    if (isDown) {
-      dragAction = obstacles.has(k) ? 'remove' : 'add';
-    }
+    if (isDown) dragAction = obstacles.has(k) ? 'remove' : 'add';
     if (dragAction === 'add')    obstacles.add(k);
     if (dragAction === 'remove') obstacles.delete(k);
 
   } else if (mode === 'buildspot') {
     const k = cellKey(col, row);
-    if (isDown) {
-      dragAction = buildSpots.has(k) ? 'remove' : 'add';
-    }
+    if (isDown) dragAction = buildSpots.has(k) ? 'remove' : 'add';
     if (dragAction === 'add')    buildSpots.add(k);
     if (dragAction === 'remove') buildSpots.delete(k);
 
@@ -307,7 +359,7 @@ function handleCell(col, row, isDown) {
     goalCell = { col, row };
 
   } else if (mode === 'spawn') {
-    const k = cellKey(col, row);
+    const k   = cellKey(col, row);
     const idx = spawns.findIndex(s => s.col === col && s.row === row);
     if (idx >= 0) {
       spawns.splice(idx, 1);
@@ -318,7 +370,6 @@ function handleCell(col, row, isDown) {
     }
 
   } else if (mode === 'prop' && isDown) {
-    // 既存プロップをクリック → 削除
     const existingIdx = findPropAt(col, row);
     if (existingIdx >= 0) {
       const p   = props[existingIdx];
@@ -328,13 +379,21 @@ function handleCell(col, row, isDown) {
           propOccupied.delete(cellKey(p.col + dc, p.row + dr));
       props.splice(existingIdx, 1);
     } else {
-      // 新規配置
       if (!canPlaceProp(col, row, selectedPropType)) return;
       props.push({ type: selectedPropType, col, row });
       const def = PROP_DEFS[selectedPropType];
       for (let dc = 0; dc < def.cols; dc++)
         for (let dr = 0; dr < def.rows; dr++)
           propOccupied.add(cellKey(col + dc, row + dr));
+    }
+
+  } else if (mode === 'road' && isDown) {
+    if (roadAxis === 'h') {
+      if (hRoads.has(row)) hRoads.delete(row);
+      else hRoads.add(row);
+    } else {
+      if (vRoads.has(col)) vRoads.delete(col);
+      else vRoads.add(col);
     }
   }
 
@@ -349,7 +408,7 @@ canvas.addEventListener('mousedown', e => {
 canvas.addEventListener('mousemove', e => {
   const [col, row] = screenToCell(e);
   hoverCell = { col, row };
-  if (isDragging && mode !== 'prop') {
+  if (isDragging && mode !== 'prop' && mode !== 'road') {
     handleCell(col, row, false);
   } else {
     redraw();
@@ -364,14 +423,68 @@ function screenToCell(e) {
   return [Math.floor(x / CELL), Math.floor(y / CELL)];
 }
 
+// ─── 道路描画 ─────────────────────────────────────────────────
+function drawRoads() {
+  // 道路帯（グレー）
+  ctx.fillStyle = '#888888';
+  for (const row of hRoads) {
+    ctx.fillRect(0, row * CELL, canvas.width, CELL);
+  }
+  for (const col of vRoads) {
+    ctx.fillRect(col * CELL, 0, CELL, canvas.height);
+  }
+
+  // 白破線（setLineDash を使用、交差セルはスキップ）
+  const DASH = Math.round(28 * CELL / 64);
+  const GAP  = Math.round(24 * CELL / 64);
+  ctx.strokeStyle = 'rgba(235,235,225,0.85)';
+  ctx.lineWidth = Math.max(2, Math.round(6 * CELL / 64));
+  ctx.setLineDash([DASH, GAP]);
+
+  for (const row of hRoads) {
+    const y = row * CELL + CELL / 2;
+    for (let col = 0; col < COLS; col++) {
+      if (vRoads.has(col)) continue; // 交差セルはスキップ
+      ctx.beginPath();
+      ctx.moveTo(col * CELL, y);
+      ctx.lineTo((col + 1) * CELL, y);
+      ctx.stroke();
+    }
+  }
+  for (const col of vRoads) {
+    const x = col * CELL + CELL / 2;
+    for (let row = 0; row < ROWS; row++) {
+      if (hRoads.has(row)) continue; // 交差セルはスキップ
+      ctx.beginPath();
+      ctx.moveTo(x, row * CELL);
+      ctx.lineTo(x, (row + 1) * CELL);
+      ctx.stroke();
+    }
+  }
+  ctx.setLineDash([]);
+
+  // 道路モード：ホバーハイライト
+  if (mode === 'road' && hoverCell) {
+    ctx.fillStyle = 'rgba(200,200,200,0.25)';
+    if (roadAxis === 'h') {
+      ctx.fillRect(0, hoverCell.row * CELL, canvas.width, CELL);
+    } else {
+      ctx.fillRect(hoverCell.col * CELL, 0, CELL, canvas.height);
+    }
+  }
+}
+
 // ─── 描画 ───────────────────────────────────────────────────
 function redraw() {
   canvas.width  = COLS * CELL;
   canvas.height = ROWS * CELL;
 
-  // 背景
-  ctx.fillStyle = '#1a1a2e';
+  // 地面ベース
+  ctx.fillStyle = groundColor();
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 道路（地面の上、その他の要素の下）
+  drawRoads();
 
   // スタート・ゴール
   ctx.fillStyle = 'rgba(0,255,136,0.25)';
@@ -416,20 +529,14 @@ function redraw() {
   if (mode === 'prop' && hoverCell) {
     const { col, row } = hoverCell;
     const def = PROP_DEFS[selectedPropType];
-    const canPlace = canPlaceProp(col, row, selectedPropType)
-                  && findPropAt(col, row) < 0;
-    const pw = def.cols * CELL;
-    const ph = def.rows * CELL;
-    const px = col * CELL;
-    const py = row * CELL;
-
+    const canPlace = canPlaceProp(col, row, selectedPropType) && findPropAt(col, row) < 0;
+    const pw = def.cols * CELL, ph = def.rows * CELL;
+    const px = col * CELL,      py = row * CELL;
     if (canPlace) {
-      ctx.fillStyle = 'rgba(100,220,180,0.25)';
-      ctx.fillRect(px, py, pw, ph);
+      ctx.fillStyle = 'rgba(100,220,180,0.25)'; ctx.fillRect(px, py, pw, ph);
       ctx.strokeStyle = 'rgba(100,220,180,0.9)';
     } else {
-      ctx.fillStyle = 'rgba(255,60,60,0.25)';
-      ctx.fillRect(px, py, pw, ph);
+      ctx.fillStyle = 'rgba(255,60,60,0.25)'; ctx.fillRect(px, py, pw, ph);
       ctx.strokeStyle = 'rgba(255,80,80,0.9)';
     }
     ctx.lineWidth = 2;
@@ -437,7 +544,7 @@ function redraw() {
   }
 
   // グリッド線
-  ctx.strokeStyle = '#2a2a4a';
+  ctx.strokeStyle = 'rgba(60,60,80,0.6)';
   ctx.lineWidth = 0.5;
   for (let c = 0; c <= COLS; c++) {
     ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, canvas.height); ctx.stroke();
@@ -460,18 +567,13 @@ function redraw() {
 function drawProp(p, alpha) {
   const def = PROP_DEFS[p.type];
   if (!def) return;
-  const px = p.col * CELL;
-  const py = p.row * CELL;
-  const pw = def.cols * CELL;
-  const ph = def.rows * CELL;
-
+  const px = p.col * CELL, py = p.row * CELL;
+  const pw = def.cols * CELL, ph = def.rows * CELL;
   ctx.save();
   ctx.globalAlpha = alpha;
-
   if (propImages[p.type]) {
     ctx.drawImage(propImages[p.type], px, py, pw, ph);
   } else {
-    // フォールバック：色付き矩形＋テキスト
     const col = propColor(p.type);
     ctx.fillStyle = col + '55';
     ctx.fillRect(px + 2, py + 2, pw - 4, ph - 4);
@@ -483,7 +585,6 @@ function drawProp(p, alpha) {
     ctx.textAlign = 'center';
     ctx.fillText(p.type, px + pw / 2, py + ph / 2 + 4);
   }
-
   ctx.restore();
 }
 
@@ -514,9 +615,9 @@ function buildJSON() {
       hp:    parseInt(document.getElementById('esc-hp').value, 10)    || 100,
       speed: parseInt(document.getElementById('esc-speed').value, 10) || 80,
     },
-    obstacles:   obsArr,
+    obstacles:    obsArr,
     zombieSpawns: spawns.map(s => ({ ...s })),
-    buildSpots:  bsArr,
+    buildSpots:   bsArr,
     waves: [
       { startDelay:6000, spawnInterval:2500, count:4,  enemy:{ type: document.getElementById('w1-type').value, hp:30, speed:55, damage:10, reward:20 } },
       { startDelay:4000, spawnInterval:2000, count:7,  enemy:{ type: document.getElementById('w2-type').value, hp:45, speed:62, damage:13, reward:25 } },
@@ -526,8 +627,7 @@ function buildJSON() {
 }
 
 function exportJSON() {
-  const j = JSON.stringify(buildJSON(), null, 2);
-  document.getElementById('json-out').value = j;
+  document.getElementById('json-out').value = JSON.stringify(buildJSON(), null, 2);
   document.getElementById('status').textContent = '✓ JSON生成完了';
 }
 
@@ -543,7 +643,7 @@ function copyJSON() {
 
 // ─── props JSON のみコピー ───────────────────────────────────
 function copyPropsJSON() {
-  const arr = props.map(p => ({ type: p.type, col: p.col, row: p.row }));
+  const arr  = props.map(p => ({ type: p.type, col: p.col, row: p.row }));
   const text = '"props": ' + JSON.stringify(arr, null, 2);
   navigator.clipboard.writeText(text).then(() => {
     const el = document.getElementById('props-copy-status');
@@ -554,17 +654,54 @@ function copyPropsJSON() {
   });
 }
 
+// ─── ステージ設定 JSON（ground_base + roads）コピー ──────────
+function copyStageJSON() {
+  const roadsArr = [];
+  for (const row of [...hRoads].sort((a, b) => a - b)) {
+    roadsArr.push({ axis: 'h', line: row, from: 0, to: COLS - 1 });
+  }
+  for (const col of [...vRoads].sort((a, b) => a - b)) {
+    roadsArr.push({ axis: 'v', line: col, from: 0, to: ROWS - 1 });
+  }
+  const text = `"ground_base": "${groundBase}",\n"roads": ${JSON.stringify(roadsArr, null, 2)}`;
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('stage-copy-status');
+    el.textContent = 'コピーしました！';
+    setTimeout(() => { el.textContent = ''; }, 2000);
+  }).catch(() => {
+    document.getElementById('stage-copy-status').textContent = 'コピー失敗';
+  });
+}
+
 function clearAll() {
   if (!confirm('全消去しますか？')) return;
   obstacles.clear();
   buildSpots.clear();
   props = [];
   propOccupied.clear();
+  hRoads.clear();
+  vRoads.clear();
   spawns = [{ col:0, row:0 }, { col:COLS-1, row:0 }, { col:0, row:ROWS-1 }, { col:COLS-1, row:ROWS-1 }];
+  selectGroundBase('grass');
   redraw();
 }
 
-// プロップ種別ボタン生成・初期描画
+// ─── 起動時：stage_01.json の ground_base / roads を読み込む ─
+fetch('stages/stage_01.json')
+  .then(r => r.json())
+  .then(data => {
+    if (data.ground_base) selectGroundBase(data.ground_base);
+    if (Array.isArray(data.roads)) {
+      for (const road of data.roads) {
+        if (road.axis === 'h') hRoads.add(road.line);
+        else if (road.axis === 'v') vRoads.add(road.line);
+      }
+      redraw();
+    }
+  })
+  .catch(() => {});
+
+// 初期化
 buildPropTypeButtons();
 redraw();
 </script>
