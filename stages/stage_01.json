@@ -2,6 +2,11 @@
   "id": "stage_01",
   "name": "住宅街ステージ",
   "grid": { "cols": 20, "rows": 15 },
+  "ground_base": "grass",
+  "roads": [
+    { "axis": "h", "line": 5, "from": 0, "to": 18 },
+    { "axis": "v", "line": 9, "from": 0, "to": 11 }
+  ],
   "startMoney": 500,
   "minSurvivors": 1,
   "escorts": [

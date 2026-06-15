@@ -65,6 +65,11 @@ class BootScene extends Phaser.Scene {
     Object.keys(PROP_DEFS).forEach(type => {
       this.load.image(`prop_${type}`, `assets/sprites/prop/${type}.png`);
     });
+
+    // 地面・道路テクスチャ
+    ['grass', 'dirt', 'road'].forEach(type => {
+      this.load.image(`ground_${type}`, `assets/sprites/ground/${type}.png`);
+    });
   }
 
   // ─── 音声試し読み込み ────────────────────────────────────

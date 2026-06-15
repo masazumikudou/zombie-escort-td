@@ -67,6 +67,12 @@ class GameScene extends Phaser.Scene {
     this.hudGfx       = this.add.graphics().setScrollFactor(0).setDepth(10);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
 
+    // 地面レイヤー（depth -2）
+    this._drawGroundLayer();
+
+    // 道路レイヤー（depth -1）
+    this._drawRoadLayer();
+
     // 静的マップ描画
     this._drawMapStatic();
 
@@ -201,13 +207,137 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // ─── 地面レイヤー（depth -2） ────────────────────────────
+  _drawGroundLayer() {
+    const groundType = this.stageData.ground_base || 'grass';
+    const texKey     = `ground_${groundType}`;
+    const FALLBACK   = { grass: 0x3a7a2a, dirt: 0x8b6914 };
+
+    if (this.textures.exists(texKey)) {
+      for (let col = 0; col < COLS; col++) {
+        for (let row = 0; row < ROWS; row++) {
+          this.add.image(col * CELL + CELL / 2, row * CELL + CELL / 2, texKey)
+            .setDisplaySize(CELL, CELL)
+            .setDepth(-2);
+        }
+      }
+    } else {
+      const color = FALLBACK[groundType] ?? 0x2a3a25;
+      this.add.graphics().setDepth(-2)
+        .fillStyle(color, 1)
+        .fillRect(0, 0, MAP_W, MAP_H);
+    }
+  }
+
+  // ─── 道路レイヤー（depth -1） ────────────────────────────
+  _drawRoadLayer() {
+    const roads = this.stageData.roads || [];
+    if (!roads.length) return;
+
+    // 交差セットを構築（h×v の全組み合わせ）
+    const hRoads = roads.filter(r => r.axis === 'h');
+    const vRoads = roads.filter(r => r.axis === 'v');
+    const intersections = new Set();
+    for (const h of hRoads) {
+      for (const v of vRoads) {
+        if (v.line >= h.from && v.line <= h.to &&
+            h.line >= v.from && h.line <= v.to) {
+          intersections.add(`${v.line},${h.line}`); // "col,row"
+        }
+      }
+    }
+
+    // 道路タイル描画（交差セルは重複しないよう1度だけ）
+    const roadKey = 'ground_road';
+    const hasTex  = this.textures.exists(roadKey);
+    const fbGfx   = hasTex ? null : this.add.graphics().setDepth(-1);
+    if (fbGfx) fbGfx.fillStyle(0x888888, 1);
+
+    const drawn = new Set();
+    for (const road of roads) {
+      for (let i = road.from; i <= road.to; i++) {
+        const col = road.axis === 'h' ? i        : road.line;
+        const row = road.axis === 'h' ? road.line : i;
+        const ck  = `${col},${row}`;
+        if (drawn.has(ck)) continue;
+        drawn.add(ck);
+        if (hasTex) {
+          this.add.image(col * CELL + CELL / 2, row * CELL + CELL / 2, roadKey)
+            .setDisplaySize(CELL, CELL)
+            .setDepth(-1);
+        } else {
+          fbGfx.fillRect(col * CELL, row * CELL, CELL, CELL);
+        }
+      }
+    }
+
+    // 白線（コードで描画）
+    const dashGfx = this.add.graphics().setDepth(-1);
+    dashGfx.lineStyle(6, 0xebebE1, 1);
+    this._drawRoadDashes(dashGfx, roads, intersections);
+  }
+
+  // ─── 道路白線（破線、交差セルはスキップ） ─────────────────
+  _drawRoadDashes(g, roads, intersections) {
+    const DASH = 28, GAP = 24;
+
+    for (const road of roads) {
+      if (road.axis === 'h') {
+        const y = road.line * CELL + CELL / 2;
+        let x   = road.from * CELL;
+        const xEnd = (road.to + 1) * CELL;
+        let inDash = true, rem = DASH;
+
+        while (x < xEnd) {
+          const col     = Math.floor(x / CELL);
+          const cellEnd = Math.min((col + 1) * CELL, xEnd);
+
+          if (intersections.has(`${col},${road.line}`)) {
+            x = cellEnd; inDash = true; rem = DASH; continue;
+          }
+          if (inDash) {
+            const end = Math.min(x + rem, cellEnd);
+            g.lineBetween(x, y, end, y);
+            rem -= end - x; x = end;
+            if (rem <= 0) { inDash = false; rem = GAP; }
+          } else {
+            const end = Math.min(x + rem, cellEnd);
+            rem -= end - x; x = end;
+            if (rem <= 0) { inDash = true; rem = DASH; }
+          }
+        }
+      } else { // 'v'
+        const x = road.line * CELL + CELL / 2;
+        let y   = road.from * CELL;
+        const yEnd = (road.to + 1) * CELL;
+        let inDash = true, rem = DASH;
+
+        while (y < yEnd) {
+          const row     = Math.floor(y / CELL);
+          const cellEnd = Math.min((row + 1) * CELL, yEnd);
+
+          if (intersections.has(`${road.line},${row}`)) {
+            y = cellEnd; inDash = true; rem = DASH; continue;
+          }
+          if (inDash) {
+            const end = Math.min(y + rem, cellEnd);
+            g.lineBetween(x, y, x, end);
+            rem -= end - y; y = end;
+            if (rem <= 0) { inDash = false; rem = GAP; }
+          } else {
+            const end = Math.min(y + rem, cellEnd);
+            rem -= end - y; y = end;
+            if (rem <= 0) { inDash = true; rem = DASH; }
+          }
+        }
+      }
+    }
+  }
+
   // ─── 静的マップ描画 ───────────────────────────────────────
   _drawMapStatic() {
     const g = this.mapGfx;
     g.clear();
-
-    g.fillStyle(0x1e2840, 1);
-    g.fillRect(0, 0, MAP_W, MAP_H);
 
     if (this.showGrid) {
       g.lineStyle(1, 0x3a4a6a, 1);
