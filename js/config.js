@@ -36,8 +36,10 @@ const PROP_DEFS = {
   shop:       { texture: 'prop/shop.png',       cols: 4, rows: 4 },
   shop_front:  { texture: 'prop/shop_front.png',  cols: 3, rows: 3 },
   shop_back:   { texture: 'prop/shop_back.png',   cols: 3, rows: 3 },
-  house_front: { texture: 'prop/house_front.png', cols: 3, rows: 3 },
-  house_back:  { texture: 'prop/house_back.png',  cols: 3, rows: 3 },
+  house_front:  { texture: 'prop/house_front.png',  cols: 3, rows: 3 },
+  house_back:   { texture: 'prop/house_back.png',   cols: 3, rows: 3 },
+  guardrail_h:  { texture: 'prop/guardrail_h.png',  cols: 1, rows: 1 },
+  guardrail_v:  { texture: 'prop/guardrail_v.png',  cols: 1, rows: 1 },
 };
 
 // ─── ゾンビ基準値 ────────────────────────────────────────────
