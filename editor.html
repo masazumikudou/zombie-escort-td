@@ -46,7 +46,7 @@
     }
     .field-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 
-    #export-btn, #copy-btn, #clear-btn, #copy-props-btn, #copy-stage-btn {
+    #export-btn, #copy-btn, #clear-btn, #copy-props-btn, #copy-stage-btn, #copy-decals-btn {
       padding:7px 10px; border:none; cursor:pointer; border-radius:3px;
       font-size:12px; width:100%;
     }
@@ -55,11 +55,13 @@
     #clear-btn        { background:#503030; color:#f99; margin-top:4px; }
     #copy-props-btn   { background:#2a4a30; color:#afa; margin-top:4px; }
     #copy-stage-btn   { background:#283050; color:#aac; margin-top:4px; }
-    #export-btn:hover     { background:#3060a0; }
-    #copy-btn:hover       { background:#306050; }
-    #clear-btn:hover      { background:#703030; }
-    #copy-props-btn:hover { background:#356040; }
-    #copy-stage-btn:hover { background:#384060; }
+    #copy-decals-btn  { background:#1a3a50; color:#9cf; margin-top:4px; }
+    #export-btn:hover      { background:#3060a0; }
+    #copy-btn:hover        { background:#306050; }
+    #clear-btn:hover       { background:#703030; }
+    #copy-props-btn:hover  { background:#356040; }
+    #copy-stage-btn:hover  { background:#384060; }
+    #copy-decals-btn:hover { background:#2a4a60; }
 
     textarea {
       width:100%; height:120px; background:#0d0d18; border:1px solid #446; color:#8c8;
@@ -107,6 +109,7 @@
     <button class="mode-btn"        id="btn-prop"       onclick="setMode('prop')">🏠 プロップ配置</button>
     <button class="mode-btn"        id="btn-road"       onclick="setMode('road')">🛣 道路配置</button>
     <button class="mode-btn"        id="btn-paint"      onclick="setMode('paint')">🎨 地面ペイント</button>
+    <button class="mode-btn"        id="btn-decal"      onclick="setMode('decal')">🟦 装飾(decal)配置</button>
   </div>
 
   <!-- 地面ペイントモード時のみ表示 -->
@@ -119,6 +122,15 @@
       <button class="sub-btn"        id="paint-btn-asphalt" onclick="selectPaintType('asphalt')">🔲 asph</button>
     </div>
     <div style="font-size:10px;color:#557;margin-top:4px">ドラッグで範囲を塗る<br>ベースと同色＝上書き削除</div>
+  </div>
+
+  <!-- 装飾配置モード時のみ表示 -->
+  <div id="decal-type-panel" style="display:none">
+    <div class="sep"></div>
+    <h2>デカール種別</h2>
+    <div id="decal-type-btns" class="mode-group"></div>
+    <button id="copy-decals-btn" onclick="copyDecalsJSON()">📋 decals JSON をコピー</button>
+    <span id="decals-copy-status" style="font-size:11px;color:#9cf;display:block;min-height:14px;margin-top:2px"></span>
   </div>
 
   <!-- プロップ配置モード時のみ表示 -->
@@ -258,6 +270,30 @@ function selectPaintType(type) {
   document.getElementById(`paint-btn-${type}`)?.classList.add('active');
 }
 
+// ─── デカール ─────────────────────────────────────────────────
+// config.js の DECAL_DEFS と手動同期すること（当たり判定なし）
+const DECAL_DEFS = {
+  crosswalk_h: { cols: 2, rows: 1 },
+  crosswalk_v: { cols: 1, rows: 2 },
+  manhole:     { cols: 1, rows: 1 },
+};
+const DECAL_COLORS = {
+  crosswalk_h: '#ddcc22',
+  crosswalk_v: '#ddcc22',
+  manhole:     '#aaaaaa',
+};
+function decalColor(type) { return DECAL_COLORS[type] || '#88ccff'; }
+
+let decals = [];
+let selectedDecalType = Object.keys(DECAL_DEFS)[0];
+
+const decalImages = {};
+for (const type of Object.keys(DECAL_DEFS)) {
+  const img = new Image();
+  img.onload = () => { decalImages[type] = img; redraw(); };
+  img.src = `assets/sprites/decal/${type}.png`;
+}
+
 // ─── プロップ ───────────────────────────────────────────────
 // config.js の PROP_DEFS と同期を保つこと
 const PROP_DEFS = {
@@ -309,8 +345,37 @@ function buildPropTypeButtons() {
 
 function selectPropType(type) {
   selectedPropType = type;
-  document.querySelectorAll('.prop-type-btn').forEach(b => b.classList.remove('active'));
+  // ID prefix でフィルタして decal ボタンに干渉しない
+  document.querySelectorAll('.prop-type-btn[id^="prop-type-"]').forEach(b => b.classList.remove('active'));
   document.getElementById(`prop-type-${type}`)?.classList.add('active');
+}
+
+function buildDecalTypeButtons() {
+  const container = document.getElementById('decal-type-btns');
+  container.innerHTML = '';
+  for (const type of Object.keys(DECAL_DEFS)) {
+    const btn = document.createElement('button');
+    btn.className = 'prop-type-btn' + (type === selectedDecalType ? ' active' : '');
+    btn.id = `decal-type-${type}`;
+    btn.textContent = `${type}  (${DECAL_DEFS[type].cols}×${DECAL_DEFS[type].rows})`;
+    btn.onclick = () => selectDecalType(type);
+    container.appendChild(btn);
+  }
+}
+
+function selectDecalType(type) {
+  selectedDecalType = type;
+  document.querySelectorAll('.prop-type-btn[id^="decal-type-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById(`decal-type-${type}`)?.classList.add('active');
+}
+
+function findDecalAt(col, row, type) {
+  return decals.findIndex(d => {
+    if (d.type !== type) return false;
+    const def = DECAL_DEFS[d.type];
+    return col >= d.col && col < d.col + def.cols &&
+           row >= d.row && row < d.row + def.rows;
+  });
 }
 
 // ─── 汎用 ───────────────────────────────────────────────────
@@ -335,6 +400,7 @@ function setMode(m) {
   document.getElementById('prop-type-panel').style.display   = (m === 'prop')  ? 'block' : 'none';
   document.getElementById('road-axis-panel').style.display   = (m === 'road')  ? 'block' : 'none';
   document.getElementById('paint-type-panel').style.display  = (m === 'paint') ? 'block' : 'none';
+  document.getElementById('decal-type-panel').style.display  = (m === 'decal') ? 'block' : 'none';
   hoverCell = null;
   redraw();
 }
@@ -418,6 +484,16 @@ function handleCell(col, row, isDown) {
     } else {
       if (vRoads.has(col)) vRoads.delete(col);
       else vRoads.add(col);
+    }
+
+  } else if (mode === 'decal' && isDown) {
+    const def = DECAL_DEFS[selectedDecalType];
+    if (!def) return;
+    const idx = findDecalAt(col, row, selectedDecalType);
+    if (idx >= 0) {
+      decals.splice(idx, 1);  // トグル削除
+    } else if (col + def.cols <= COLS && row + def.rows <= ROWS) {
+      decals.push({ type: selectedDecalType, col, row });
     }
   }
 
@@ -577,6 +653,9 @@ function redraw() {
   // 道路（地面の上、その他の要素の下）
   drawRoads();
 
+  // デカール（道路の上・obstacles の下）
+  for (const d of decals) drawDecal(d);
+
   // スタート・ゴール
   ctx.fillStyle = 'rgba(0,255,136,0.25)';
   ctx.fillRect(startCell.col * CELL, startCell.row * CELL, CELL, CELL);
@@ -632,6 +711,21 @@ function redraw() {
     }
     ctx.lineWidth = 2;
     ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+  }
+
+  // デカールモード：ホバープレビュー
+  if (mode === 'decal' && hoverCell) {
+    const { col, row } = hoverCell;
+    const def = DECAL_DEFS[selectedDecalType];
+    if (def) {
+      const inBounds = col >= 0 && row >= 0 && col + def.cols <= COLS && row + def.rows <= ROWS;
+      const pw = def.cols * CELL, ph = def.rows * CELL;
+      ctx.fillStyle = inBounds ? 'rgba(100,200,255,0.2)' : 'rgba(255,80,80,0.15)';
+      ctx.fillRect(col * CELL, row * CELL, pw, ph);
+      ctx.strokeStyle = inBounds ? 'rgba(100,200,255,0.8)' : 'rgba(255,80,80,0.7)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(col * CELL + 1, row * CELL + 1, pw - 2, ph - 2);
+    }
   }
 
   // ペイントモード：ドラッグ矩形プレビュー
@@ -694,6 +788,43 @@ function drawProp(p, alpha) {
     ctx.fillText(p.type, px + pw / 2, py + ph / 2 + 4);
   }
   ctx.restore();
+}
+
+function drawDecal(d) {
+  const def = DECAL_DEFS[d.type];
+  if (!def) return;
+  const px = d.col * CELL, py = d.row * CELL;
+  const pw = def.cols * CELL, ph = def.rows * CELL;
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  if (decalImages[d.type]) {
+    ctx.drawImage(decalImages[d.type], px, py, pw, ph);
+  } else {
+    const col = decalColor(d.type);
+    ctx.fillStyle = col + '55';
+    ctx.fillRect(px, py, pw, ph);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+    ctx.fillStyle = col;
+    ctx.font = `bold ${Math.min(11, pw / d.type.length * 1.4)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(d.type, px + pw / 2, py + ph / 2 + 4);
+  }
+  ctx.restore();
+}
+
+// ─── decals JSON コピー ──────────────────────────────────────
+function copyDecalsJSON() {
+  const arr  = decals.map(d => ({ type: d.type, col: d.col, row: d.row }));
+  const text = '"decals": ' + JSON.stringify(arr, null, 2);
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('decals-copy-status');
+    el.textContent = 'コピーしました！';
+    setTimeout(() => { el.textContent = ''; }, 2000);
+  }).catch(() => {
+    document.getElementById('decals-copy-status').textContent = 'コピー失敗';
+  });
 }
 
 // ─── JSON エクスポート（既存） ───────────────────────────────
@@ -800,6 +931,7 @@ function clearAll() {
   hRoads.clear();
   vRoads.clear();
   cellGrounds.clear();
+  decals = [];
   spawns = [{ col:0, row:0 }, { col:COLS-1, row:0 }, { col:0, row:ROWS-1 }, { col:COLS-1, row:ROWS-1 }];
   selectGroundBase('grass');
   redraw();
@@ -821,12 +953,18 @@ fetch('stages/stage_01.json')
         cellGrounds.set(`${cell.col},${cell.row}`, cell.type);
       }
     }
+    if (Array.isArray(data.decals)) {
+      for (const d of data.decals) {
+        decals.push({ type: d.type, col: d.col, row: d.row });
+      }
+    }
     redraw();
   })
   .catch(() => {});
 
 // 初期化
 buildPropTypeButtons();
+buildDecalTypeButtons();
 redraw();
 </script>
 </body>

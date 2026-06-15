@@ -66,6 +66,11 @@ class BootScene extends Phaser.Scene {
       this.load.image(`prop_${type}`, `assets/sprites/prop/${type}.png`);
     });
 
+    // デカール（地面装飾、当たり判定なし）
+    Object.keys(DECAL_DEFS).forEach(type => {
+      this.load.image(`decal_${type}`, `assets/sprites/decal/${type}.png`);
+    });
+
     // 地面・道路テクスチャ
     ['grass', 'dirt', 'road'].forEach(type => {
       this.load.image(`ground_${type}`, `assets/sprites/ground/${type}.png`);

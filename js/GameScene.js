@@ -62,7 +62,7 @@ class GameScene extends Phaser.Scene {
     audioSynth.setScene(this);
 
     // グラフィクスレイヤー
-    this.mapGfx       = this.add.graphics().setDepth(0);
+    this.mapGfx       = this.add.graphics().setDepth(1);
     this.dynGfx       = this.add.graphics().setDepth(3);
     this.hudGfx       = this.add.graphics().setScrollFactor(0).setDepth(10);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
@@ -73,7 +73,10 @@ class GameScene extends Phaser.Scene {
     // 道路レイヤー（depth -1）
     this._drawRoadLayer();
 
-    // 静的マップ描画
+    // デカールレイヤー（depth 0：歩ける装飾、当たり判定なし）
+    this._drawDecalLayer();
+
+    // 静的マップ描画（mapGfx depth 1）
     this._drawMapStatic();
 
     // プロップ描画（depth 2：マップ上・キャラ下）
@@ -347,6 +350,32 @@ class GameScene extends Phaser.Scene {
           drawSegment(road.axis, fixedPos, segFrom * CELL, (segTo + 1) * CELL);
         }
         if (inter !== null) segFrom = inter + 1;
+      }
+    }
+  }
+
+  // ─── デカールレイヤー（depth 0、当たり判定なし） ──────────────
+  _drawDecalLayer() {
+    const decals = this.stageData.decals || [];
+    if (!decals.length) return;
+
+    const FALLBACK = { crosswalk_h: 0xddcc22, crosswalk_v: 0xddcc22, manhole: 0xaaaaaa };
+
+    for (const decal of decals) {
+      const def = DECAL_DEFS[decal.type];
+      if (!def) continue;
+      const pw  = def.cols * CELL;
+      const ph  = def.rows * CELL;
+      const cx  = decal.col * CELL + pw / 2;
+      const cy  = decal.row * CELL + ph / 2;
+      const key = `decal_${decal.type}`;
+      if (this.textures.exists(key)) {
+        this.add.image(cx, cy, key).setDisplaySize(pw, ph).setDepth(0);
+      } else {
+        const color = FALLBACK[decal.type] ?? 0x88ccff;
+        this.add.graphics().setDepth(0)
+          .fillStyle(color, 0.55)
+          .fillRect(decal.col * CELL, decal.row * CELL, pw, ph);
       }
     }
   }

@@ -43,6 +43,15 @@ const PROP_DEFS = {
   tree:         { texture: 'prop/tree.png',          cols: 1, rows: 1 },
 };
 
+// ─── デカール定義（地面装飾、当たり判定なし） ─────────────────
+// アセットパス: assets/sprites/decal/{type}.png
+// editor.html の DECAL_DEFS と手動同期すること
+const DECAL_DEFS = {
+  crosswalk_h: { cols: 2, rows: 1 },
+  crosswalk_v: { cols: 1, rows: 2 },
+  manhole:     { cols: 1, rows: 1 },
+};
+
 // ─── ゾンビ基準値 ────────────────────────────────────────────
 // balance.json が読めない場合のフォールバック。数値は balance.json を正とする
 const ZOMBIE_BASE = {
