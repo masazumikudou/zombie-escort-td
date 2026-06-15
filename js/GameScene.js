@@ -277,59 +277,56 @@ class GameScene extends Phaser.Scene {
     this._drawRoadDashes(dashGfx, roads, intersections);
   }
 
-  // ─── 道路白線（破線、交差セルはスキップ） ─────────────────
+  // ─── 道路白線（破線、交差セルはスキップ・中点アンカー対称） ─
   _drawRoadDashes(g, roads, intersections) {
-    const DASH = 28, GAP = 24;
+    const DASH = 28, GAP = 24, THICK = 6;
+    const cycle = DASH + GAP;
+
+    // セグメント [startPx, endPx] の中点にダッシュ中心を合わせて描画
+    // → 左端と右端（上端と下端）の途切れ量が等しくなり対称に見える
+    const drawSegment = (axis, fixedPos, startPx, endPx) => {
+      if (endPx <= startPx) return;
+      const mid           = (startPx + endPx) / 2;
+      const virtDashStart = mid - DASH / 2;
+      const n             = Math.floor((startPx - virtDashStart) / cycle);
+      let   pos           = virtDashStart + n * cycle;
+
+      g.lineStyle(THICK, 0xebebE1, 1);
+      while (pos < endPx) {
+        const ds = Math.max(pos, startPx);
+        const de = Math.min(pos + DASH, endPx);
+        if (ds < de) {
+          if (axis === 'h') g.lineBetween(ds, fixedPos, de, fixedPos);
+          else               g.lineBetween(fixedPos, ds, fixedPos, de);
+        }
+        pos += cycle;
+      }
+    };
 
     for (const road of roads) {
-      if (road.axis === 'h') {
-        const y = road.line * CELL + CELL / 2;
-        let x   = road.from * CELL;
-        const xEnd = (road.to + 1) * CELL;
-        let inDash = true, rem = DASH;
+      const isH      = road.axis === 'h';
+      const fixedPos = road.line * CELL + CELL / 2;
 
-        while (x < xEnd) {
-          const col     = Math.floor(x / CELL);
-          const cellEnd = Math.min((col + 1) * CELL, xEnd);
-
-          if (intersections.has(`${col},${road.line}`)) {
-            x = cellEnd; inDash = true; rem = DASH; continue;
-          }
-          if (inDash) {
-            const end = Math.min(x + rem, cellEnd);
-            g.lineBetween(x, y, end, y);
-            rem -= end - x; x = end;
-            if (rem <= 0) { inDash = false; rem = GAP; }
-          } else {
-            const end = Math.min(x + rem, cellEnd);
-            rem -= end - x; x = end;
-            if (rem <= 0) { inDash = true; rem = DASH; }
-          }
+      // この道路上の交差点位置（from～to 範囲内、昇順）
+      const interPoints = [];
+      for (const key of intersections) {
+        const [col, row] = key.split(',').map(Number);
+        const along = isH ? col : row;
+        const fixed = isH ? row : col;
+        if (fixed === road.line && along >= road.from && along <= road.to) {
+          interPoints.push(along);
         }
-      } else { // 'v'
-        const x = road.line * CELL + CELL / 2;
-        let y   = road.from * CELL;
-        const yEnd = (road.to + 1) * CELL;
-        let inDash = true, rem = DASH;
+      }
+      interPoints.sort((a, b) => a - b);
 
-        while (y < yEnd) {
-          const row     = Math.floor(y / CELL);
-          const cellEnd = Math.min((row + 1) * CELL, yEnd);
-
-          if (intersections.has(`${road.line},${row}`)) {
-            y = cellEnd; inDash = true; rem = DASH; continue;
-          }
-          if (inDash) {
-            const end = Math.min(y + rem, cellEnd);
-            g.lineBetween(x, y, x, end);
-            rem -= end - y; y = end;
-            if (rem <= 0) { inDash = false; rem = GAP; }
-          } else {
-            const end = Math.min(y + rem, cellEnd);
-            rem -= end - y; y = end;
-            if (rem <= 0) { inDash = true; rem = DASH; }
-          }
+      // 交差点でセグメント分割し、各セグメントを独立して中点アンカー描画
+      let segFrom = road.from;
+      for (const inter of [...interPoints, null]) {
+        const segTo = inter !== null ? inter - 1 : road.to;
+        if (segFrom <= segTo) {
+          drawSegment(road.axis, fixedPos, segFrom * CELL, (segTo + 1) * CELL);
         }
+        if (inter !== null) segFrom = inter + 1;
       }
     }
   }

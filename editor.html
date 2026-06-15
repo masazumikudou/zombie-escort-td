@@ -434,34 +434,56 @@ function drawRoads() {
     ctx.fillRect(col * CELL, 0, CELL, canvas.height);
   }
 
-  // 白破線（setLineDash を使用、交差セルはスキップ）
-  const DASH = Math.round(28 * CELL / 64);
-  const GAP  = Math.round(24 * CELL / 64);
-  ctx.strokeStyle = 'rgba(235,235,225,0.85)';
-  ctx.lineWidth = Math.max(2, Math.round(6 * CELL / 64));
-  ctx.setLineDash([DASH, GAP]);
+  // 白破線（中点アンカー方式：GameScene と同じアルゴリズム）
+  const DASH  = Math.round(28 * CELL / 64);
+  const GAP   = Math.round(24 * CELL / 64);
+  const THICK = Math.max(2, Math.round(6 * CELL / 64));
+  const cycle = DASH + GAP;
+
+  const drawSegment = (axis, fixedPos, startPx, endPx) => {
+    if (endPx <= startPx) return;
+    const mid           = (startPx + endPx) / 2;
+    const virtDashStart = mid - DASH / 2;
+    const n             = Math.floor((startPx - virtDashStart) / cycle);
+    let   pos           = virtDashStart + n * cycle;
+    ctx.strokeStyle = 'rgba(235,235,225,0.85)';
+    ctx.lineWidth   = THICK;
+    ctx.setLineDash([]);
+    while (pos < endPx) {
+      const ds = Math.max(pos, startPx);
+      const de = Math.min(pos + DASH, endPx);
+      if (ds < de) {
+        ctx.beginPath();
+        if (axis === 'h') { ctx.moveTo(ds, fixedPos); ctx.lineTo(de, fixedPos); }
+        else               { ctx.moveTo(fixedPos, ds); ctx.lineTo(fixedPos, de); }
+        ctx.stroke();
+      }
+      pos += cycle;
+    }
+  };
+
+  const sortedVCols = [...vRoads].sort((a, b) => a - b);
+  const sortedHRows = [...hRoads].sort((a, b) => a - b);
 
   for (const row of hRoads) {
     const y = row * CELL + CELL / 2;
-    for (let col = 0; col < COLS; col++) {
-      if (vRoads.has(col)) continue; // 交差セルはスキップ
-      ctx.beginPath();
-      ctx.moveTo(col * CELL, y);
-      ctx.lineTo((col + 1) * CELL, y);
-      ctx.stroke();
+    let segFrom = 0;
+    for (const inter of [...sortedVCols, null]) {
+      const segTo = inter !== null ? inter - 1 : COLS - 1;
+      if (segFrom <= segTo) drawSegment('h', y, segFrom * CELL, (segTo + 1) * CELL);
+      if (inter !== null) segFrom = inter + 1;
     }
   }
+
   for (const col of vRoads) {
     const x = col * CELL + CELL / 2;
-    for (let row = 0; row < ROWS; row++) {
-      if (hRoads.has(row)) continue; // 交差セルはスキップ
-      ctx.beginPath();
-      ctx.moveTo(x, row * CELL);
-      ctx.lineTo(x, (row + 1) * CELL);
-      ctx.stroke();
+    let segFrom = 0;
+    for (const inter of [...sortedHRows, null]) {
+      const segTo = inter !== null ? inter - 1 : ROWS - 1;
+      if (segFrom <= segTo) drawSegment('v', x, segFrom * CELL, (segTo + 1) * CELL);
+      if (inter !== null) segFrom = inter + 1;
     }
   }
-  ctx.setLineDash([]);
 
   // 道路モード：ホバーハイライト
   if (mode === 'road' && hoverCell) {
