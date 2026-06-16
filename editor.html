@@ -235,10 +235,10 @@ let isDragging = false;
 let dragAction = null; // 'add' | 'remove'
 
 // ─── 地面・道路 ──────────────────────────────────────────────
-let groundBase = 'grass';
-let hRoads = new Set(); // 横道：行番号（row）の Set
-let vRoads = new Set(); // 縦道：列番号（col）の Set
-let roadAxis = 'h';     // 現在の道路向き
+let groundBase  = 'grass';
+let hRoadCells = new Set(); // 横道セル："col,row" の Set
+let vRoadCells = new Set(); // 縦道セル："col,row" の Set
+let roadAxis   = 'h';       // 現在の道路向き
 
 let cellGrounds    = new Map(); // "col,row" → groundType（セル別地面上書き）
 let paintType      = 'dirt';
@@ -477,14 +477,12 @@ function handleCell(col, row, isDown) {
           propOccupied.add(cellKey(col + dc, row + dr));
     }
 
-  } else if (mode === 'road' && isDown) {
-    if (roadAxis === 'h') {
-      if (hRoads.has(row)) hRoads.delete(row);
-      else hRoads.add(row);
-    } else {
-      if (vRoads.has(col)) vRoads.delete(col);
-      else vRoads.add(col);
-    }
+  } else if (mode === 'road') {
+    const k     = cellKey(col, row);
+    const cells = roadAxis === 'h' ? hRoadCells : vRoadCells;
+    if (isDown) dragAction = cells.has(k) ? 'remove' : 'add';
+    if (dragAction === 'add')    cells.add(k);
+    if (dragAction === 'remove') cells.delete(k);
 
   } else if (mode === 'decal' && isDown) {
     const def = DECAL_DEFS[selectedDecalType];
