@@ -270,6 +270,14 @@ for (const [type] of Object.entries(GROUND_BLOCK_DEFS)) {
   groundImgs[type] = img;
 }
 
+const roadImg = new Image();
+roadImg.onload = () => redraw();
+roadImg.src = 'assets/sprites/ground/road.png';
+
+const roadManholeImg = new Image();
+roadManholeImg.onload = () => redraw();
+roadManholeImg.src = 'assets/sprites/ground/road_manhole.png';
+
 function drawGroundBlocks(img, blockCells, imagePx) {
   const blockEditorPx = blockCells * CELL;
   const pxPerCell = imagePx / blockCells; // 画像座標系での1セル幅
@@ -339,6 +347,7 @@ const DECAL_DEFS = {
   crosswalk_v: { cols: 1, rows: 2 },
   manhole:     { cols: 1, rows: 1 },
   tree:        { cols: 1, rows: 1 },
+  wood:        { cols: 1, rows: 1 },
 };
 const DECAL_COLORS = {
   crosswalk_h: '#ddcc22',
@@ -639,12 +648,19 @@ function applyPaint() {
 
 // ─── 道路描画 ─────────────────────────────────────────────────
 function drawRoads() {
-  // グレー塗り（全道路セル）
-  ctx.fillStyle = '#888888';
+  // 横道：road.png タイル、縦道：グレー塗り
   for (const k of hRoadCells) {
     const [c, r] = k.split(',').map(Number);
-    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+    const useManhole = (c % 8 === 0) && roadManholeImg.complete && roadManholeImg.naturalWidth > 0;
+    const img = useManhole ? roadManholeImg : roadImg;
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, c * CELL, r * CELL, CELL, CELL);
+    } else {
+      ctx.fillStyle = '#888888';
+      ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+    }
   }
+  ctx.fillStyle = '#888888';
   for (const k of vRoadCells) {
     const [c, r] = k.split(',').map(Number);
     ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
@@ -684,32 +700,7 @@ function drawRoads() {
     }
   };
 
-  // 横道の破線：行ごとに連続セルをセグメント化
-  const hByRow = new Map();
-  for (const k of hRoadCells) {
-    const [c, r] = k.split(',').map(Number);
-    if (!hByRow.has(r)) hByRow.set(r, []);
-    hByRow.get(r).push(c);
-  }
-  for (const [row, cols] of hByRow) {
-    cols.sort((a, b) => a - b);
-    const y = row * CELL + CELL / 2;
-    let i = 0;
-    while (i < cols.length) {
-      let j = i;
-      while (j + 1 < cols.length && cols[j + 1] === cols[j] + 1) j++;
-      const runFrom = cols[i], runTo = cols[j];
-      let segFrom = runFrom;
-      for (let c = runFrom; c <= runTo; c++) {
-        if (intersections.has(`${c},${row}`)) {
-          if (segFrom < c) drawSegment('h', y, segFrom * CELL, c * CELL);
-          segFrom = c + 1;
-        }
-      }
-      if (segFrom <= runTo) drawSegment('h', y, segFrom * CELL, (runTo + 1) * CELL);
-      i = j + 1;
-    }
-  }
+  // 横道の破線：road.png に白線が含まれるためスキップ
 
   // 縦道の破線：列ごとに連続セルをセグメント化
   const vByCol = new Map();
