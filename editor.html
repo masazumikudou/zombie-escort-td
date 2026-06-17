@@ -238,8 +238,8 @@ let dragAction = null; // 'add' | 'remove'
 
 // ─── 地面・道路 ──────────────────────────────────────────────
 let groundBase  = 'grass';
-let hRoads = new Set(); // 横道：行番号の Set
-let vRoads = new Set(); // 縦道：列番号の Set
+let hRoadCells = new Set(); // 横道セル："col,row" の Set
+let vRoadCells = new Set(); // 縦道セル："col,row" の Set
 let roadAxis   = 'h';       // 現在の道路向き
 
 let cellGrounds    = new Map(); // "col,row" → groundType（セル別地面上書き）
@@ -252,6 +252,58 @@ const GROUND_COLORS = {
   asphalt: '#3a3a3a',
 };
 function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
+
+// ─── 地面テクスチャ（ブロック単位敷き並べ） ─────────────────────
+// type別にブロックセル数と画像サイズを定義。
+// imagePx / blockCells = 画像上での1セルあたりのpx数（端ブロックのクロップ計算に使用）。
+// エディタ表示はCELL=40、ゲームはCELL=64で異なるためdrawImageの9引数形式でスケーリング。
+const GROUND_BLOCK_DEFS = {
+  grass:   { blockCells: 4, imagePx: 256 }, // 256/4 = 64px/cell
+  asphalt: { blockCells: 4, imagePx: 256 }, // 256/4 = 64px/cell
+};
+
+const groundImgs = {};
+for (const [type] of Object.entries(GROUND_BLOCK_DEFS)) {
+  const img = new Image();
+  img.onload = () => redraw();
+  img.src = `assets/sprites/ground/${type}.png`;
+  groundImgs[type] = img;
+}
+
+function drawGroundBlocks(img, blockCells, imagePx) {
+  const blockEditorPx = blockCells * CELL;
+  const pxPerCell = imagePx / blockCells; // 画像座標系での1セル幅
+  const fullX  = Math.floor(COLS / blockCells);
+  const remX   = COLS % blockCells;
+  const fullY  = Math.floor(ROWS / blockCells);
+  const remY   = ROWS % blockCells;
+  const totalX = remX > 0 ? fullX + 1 : fullX;
+  const totalY = remY > 0 ? fullY + 1 : fullY;
+  for (let by = 0; by < totalY; by++) {
+    for (let bx = 0; bx < totalX; bx++) {
+      const lastCol = (bx === totalX - 1) && remX > 0;
+      const lastRow = (by === totalY - 1) && remY > 0;
+      const srcW = lastCol ? remX * pxPerCell : imagePx;
+      const srcH = lastRow ? remY * pxPerCell : imagePx;
+      const dstW = lastCol ? remX * CELL : blockEditorPx;
+      const dstH = lastRow ? remY * CELL : blockEditorPx;
+      ctx.drawImage(img, 0, 0, srcW, srcH,
+                    bx * blockEditorPx, by * blockEditorPx, dstW, dstH);
+    }
+  }
+}
+
+function drawGroundBase() {
+  const def = GROUND_BLOCK_DEFS[groundBase];
+  const img = def ? groundImgs[groundBase] : null;
+  if (img && img.complete && img.naturalWidth > 0) {
+    drawGroundBlocks(img, def.blockCells, def.imagePx);
+  } else {
+    // テクスチャ未定義（dirt等）またはロード前：単色フォールバック
+    ctx.fillStyle = groundColor();
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
 
 function selectGroundBase(type) {
   groundBase = type;
@@ -560,10 +612,17 @@ function screenToCell(e) {
 
 function applyPaint() {
   if (!paintDragStart || !paintDragEnd) return;
-  const minCol = Math.min(paintDragStart.col, paintDragEnd.col);
-  const maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
-  const minRow = Math.min(paintDragStart.row, paintDragEnd.row);
-  const maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
+  let minCol = Math.min(paintDragStart.col, paintDragEnd.col);
+  let maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
+  let minRow = Math.min(paintDragStart.row, paintDragEnd.row);
+  let maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
+  // ブロックテクスチャ型かつシングルクリック：左上起点でbc×bcブロック、マップ端クリップ
+  const def = GROUND_BLOCK_DEFS[paintType];
+  if (def && minCol === maxCol && minRow === maxRow) {
+    const bc = def.blockCells;
+    maxCol = Math.min(minCol + bc - 1, COLS - 1);
+    maxRow = Math.min(minRow + bc - 1, ROWS - 1);
+  }
   for (let col = minCol; col <= maxCol; col++) {
     for (let row = minRow; row <= maxRow; row++) {
       if (col < 0 || col >= COLS || row < 0 || row >= ROWS) continue;
@@ -694,14 +753,22 @@ function redraw() {
   canvas.height = ROWS * CELL;
 
   // 地面ベース
-  ctx.fillStyle = groundColor();
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawGroundBase();
 
-  // セル別地面上書き
+  // セル別地面上書き（テクスチャがある種別は対応する位置を切り出して描画）
   for (const [key, type] of cellGrounds) {
     const [c, r] = key.split(',').map(Number);
-    ctx.fillStyle = GROUND_COLORS[type] ?? '#1a1a2e';
-    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+    const def = GROUND_BLOCK_DEFS[type];
+    const img = def ? groundImgs[type] : null;
+    if (img && img.complete && img.naturalWidth > 0) {
+      const pxPerCell = def.imagePx / def.blockCells;
+      const srcX = (c % def.blockCells) * pxPerCell;
+      const srcY = (r % def.blockCells) * pxPerCell;
+      ctx.drawImage(img, srcX, srcY, pxPerCell, pxPerCell, c * CELL, r * CELL, CELL, CELL);
+    } else {
+      ctx.fillStyle = GROUND_COLORS[type] ?? '#1a1a2e';
+      ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+    }
   }
 
   // 道路（地面の上、その他の要素の下）
@@ -782,21 +849,36 @@ function redraw() {
     }
   }
 
-  // ペイントモード：ドラッグ矩形プレビュー
-  if (mode === 'paint' && paintDragStart && paintDragEnd) {
-    const minCol = Math.min(paintDragStart.col, paintDragEnd.col);
-    const maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
-    const minRow = Math.min(paintDragStart.row, paintDragEnd.row);
-    const maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
-    const px = minCol * CELL, py = minRow * CELL;
-    const pw = (maxCol - minCol + 1) * CELL, ph = (maxRow - minRow + 1) * CELL;
-    ctx.fillStyle = 'rgba(220,200,120,0.28)';
-    ctx.fillRect(px, py, pw, ph);
-    ctx.strokeStyle = 'rgba(230,210,130,0.95)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 4]);
-    ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
-    ctx.setLineDash([]);
+  // ペイントモード：ホバープレビュー／ドラッグ矩形プレビュー
+  if (mode === 'paint') {
+    const def = GROUND_BLOCK_DEFS[paintType];
+
+    const drawPaintPreview = (c0, r0, c1, r1) => {
+      const px = c0 * CELL, py = r0 * CELL;
+      const pw = (c1 - c0 + 1) * CELL, ph = (r1 - r0 + 1) * CELL;
+      ctx.fillStyle = 'rgba(220,200,120,0.28)';
+      ctx.fillRect(px, py, pw, ph);
+      ctx.strokeStyle = 'rgba(230,210,130,0.95)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 4]);
+      ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+      ctx.setLineDash([]);
+    };
+
+    if (paintDragStart && paintDragEnd) {
+      // ドラッグ中：自由矩形プレビュー
+      const minCol = Math.min(paintDragStart.col, paintDragEnd.col);
+      const maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
+      const minRow = Math.min(paintDragStart.row, paintDragEnd.row);
+      const maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
+      drawPaintPreview(minCol, minRow, maxCol, maxRow);
+    } else if (hoverCell && def) {
+      // 非ドラッグ：ホバー位置を左上起点にブロック表示（マップ端でクリップ）
+      const bc   = def.blockCells;
+      const endC = Math.min(hoverCell.col + bc - 1, COLS - 1);
+      const endR = Math.min(hoverCell.row + bc - 1, ROWS - 1);
+      drawPaintPreview(hoverCell.col, hoverCell.row, endC, endR);
+    }
   }
 
   // グリッド線
