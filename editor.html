@@ -238,8 +238,8 @@ let dragAction = null; // 'add' | 'remove'
 
 // ─── 地面・道路 ──────────────────────────────────────────────
 let groundBase  = 'grass';
-let hRoadCells = new Set(); // 横道セル："col,row" の Set
-let vRoadCells = new Set(); // 縦道セル："col,row" の Set
+let hRoads = new Set(); // 横道：行番号の Set
+let vRoads = new Set(); // 縦道：列番号の Set
 let roadAxis   = 'h';       // 現在の道路向き
 
 let cellGrounds    = new Map(); // "col,row" → groundType（セル別地面上書き）
@@ -286,6 +286,7 @@ const DECAL_DEFS = {
   crosswalk_h: { cols: 2, rows: 1 },
   crosswalk_v: { cols: 1, rows: 2 },
   manhole:     { cols: 1, rows: 1 },
+  tree:        { cols: 1, rows: 1 },
 };
 const DECAL_COLORS = {
   crosswalk_h: '#ddcc22',
@@ -307,11 +308,13 @@ for (const type of Object.keys(DECAL_DEFS)) {
 // ─── プロップ ───────────────────────────────────────────────
 // config.js の PROP_DEFS と同期を保つこと
 const PROP_DEFS = {
-  shop:        { cols: 4, rows: 4 },
-  shop_front:  { cols: 3, rows: 3 },
-  shop_back:   { cols: 3, rows: 3 },
-  house_front: { cols: 3, rows: 3 },
-  house_back:  { cols: 3, rows: 3 },
+  shop:         { cols: 4, rows: 4 },
+  shop_front:   { cols: 3, rows: 3 },
+  shop_back:    { cols: 3, rows: 3 },
+  house5_front: { cols: 15, rows: 3 },
+  house5_back:  { cols: 15, rows: 3 },
+  house_front:  { cols: 3, rows: 3 },
+  house_back:   { cols: 3, rows: 3 },
   guardrail_h: { cols: 1, rows: 1 },
   guardrail_v: { cols: 1, rows: 1 },
   tree:        { cols: 1, rows: 1 },

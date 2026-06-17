@@ -42,6 +42,8 @@ const PROP_DEFS = {
   guardrail_v:  { texture: 'prop/guardrail_v.png',  cols: 1, rows: 1 },
   tree:         { texture: 'prop/tree.png',          cols: 1, rows: 1 },
   商店街:       { texture: 'prop/商店街.png',         cols: 15, rows: 3 },
+  house5_front: { texture: 'prop/house5_front.png',  cols: 15, rows: 3 },
+  house5_back:  { texture: 'prop/house5_back.png',   cols: 15, rows: 3 },
 };
 
 // ─── デカール定義（地面装飾、当たり判定なし） ─────────────────
@@ -51,6 +53,7 @@ const DECAL_DEFS = {
   crosswalk_h: { cols: 2, rows: 1 },
   crosswalk_v: { cols: 1, rows: 2 },
   manhole:     { cols: 1, rows: 1 },
+  tree:        { cols: 1, rows: 1 },
 };
 
 // ─── ゾンビ基準値 ────────────────────────────────────────────
