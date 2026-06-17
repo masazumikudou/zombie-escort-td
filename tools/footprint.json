@@ -7,6 +7,7 @@
   "guardrail_h":  { "cols": 1, "rows": 1 },
   "guardrail_v":  { "cols": 1, "rows": 1 },
   "tree":         { "cols": 1, "rows": 1 },
+  "商店街":       { "cols": 15, "rows": 3 },
   "house":    { "cols": 3, "rows": 3 },
   "hospital": { "cols": 4, "rows": 3 },
   "police":   { "cols": 3, "rows": 3 },

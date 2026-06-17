@@ -41,6 +41,7 @@ const PROP_DEFS = {
   guardrail_h:  { texture: 'prop/guardrail_h.png',  cols: 1, rows: 1 },
   guardrail_v:  { texture: 'prop/guardrail_v.png',  cols: 1, rows: 1 },
   tree:         { texture: 'prop/tree.png',          cols: 1, rows: 1 },
+  商店街:       { texture: 'prop/商店街.png',         cols: 15, rows: 3 },
 };
 
 // ─── デカール定義（地面装飾、当たり判定なし） ─────────────────

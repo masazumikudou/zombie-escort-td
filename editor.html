@@ -147,10 +147,12 @@
     <div class="sep"></div>
     <h2>道路の向き</h2>
     <div class="field-row" style="gap:4px">
-      <button class="sub-btn active" id="road-axis-h" onclick="selectRoadAxis('h')">↔ 横道(h)</button>
-      <button class="sub-btn"        id="road-axis-v" onclick="selectRoadAxis('v')">↕ 縦道(v)</button>
+      <button class="sub-btn active" id="road-axis-h"   onclick="selectRoadAxis('h')">↔ 横道(h)</button>
+      <button class="sub-btn"        id="road-axis-v"   onclick="selectRoadAxis('v')">↕ 縦道(v)</button>
+      <button class="sub-btn"        id="road-axis-del" onclick="selectRoadAxis('delete')" style="color:#f99">🗑 削除</button>
     </div>
-    <div style="font-size:10px;color:#557;margin-top:4px">クリック＝配置／再クリック＝削除</div>
+    <div style="font-size:10px;color:#557;margin-top:4px">クリック・ドラッグで1マスずつ配置<br>削除モード：クリック・ドラッグで消去</div>
+    <button onclick="clearRoads()" style="margin-top:6px;width:100%;padding:5px 8px;border:1px solid #633;background:#3a1a1a;color:#f99;cursor:pointer;border-radius:3px;font-size:11px">🗑 道路を全消去</button>
   </div>
 
   <div class="sep"></div>
@@ -260,8 +262,16 @@ function selectGroundBase(type) {
 
 function selectRoadAxis(axis) {
   roadAxis = axis;
-  document.getElementById('road-axis-h').classList.toggle('active', axis === 'h');
-  document.getElementById('road-axis-v').classList.toggle('active', axis === 'v');
+  document.getElementById('road-axis-h').classList.toggle('active',   axis === 'h');
+  document.getElementById('road-axis-v').classList.toggle('active',   axis === 'v');
+  document.getElementById('road-axis-del').classList.toggle('active', axis === 'delete');
+}
+
+function clearRoads() {
+  if (!confirm('道路を全消去しますか？')) return;
+  hRoadCells.clear();
+  vRoadCells.clear();
+  redraw();
 }
 
 function selectPaintType(type) {
@@ -305,6 +315,7 @@ const PROP_DEFS = {
   guardrail_h: { cols: 1, rows: 1 },
   guardrail_v: { cols: 1, rows: 1 },
   tree:        { cols: 1, rows: 1 },
+  商店街:      { cols: 15, rows: 3 },
   house:       { cols: 3, rows: 3 },
   hospital:    { cols: 4, rows: 3 },
   police:      { cols: 3, rows: 3 },
@@ -478,11 +489,16 @@ function handleCell(col, row, isDown) {
     }
 
   } else if (mode === 'road') {
-    const k     = cellKey(col, row);
-    const cells = roadAxis === 'h' ? hRoadCells : vRoadCells;
-    if (isDown) dragAction = cells.has(k) ? 'remove' : 'add';
-    if (dragAction === 'add')    cells.add(k);
-    if (dragAction === 'remove') cells.delete(k);
+    const k = cellKey(col, row);
+    if (roadAxis === 'delete') {
+      if (isDown) dragAction = 'remove';
+      if (dragAction === 'remove') { hRoadCells.delete(k); vRoadCells.delete(k); }
+    } else {
+      const cells = roadAxis === 'h' ? hRoadCells : vRoadCells;
+      if (isDown) dragAction = cells.has(k) ? 'remove' : 'add';
+      if (dragAction === 'add')    cells.add(k);
+      if (dragAction === 'remove') cells.delete(k);
+    }
 
   } else if (mode === 'decal' && isDown) {
     const def = DECAL_DEFS[selectedDecalType];
@@ -515,7 +531,7 @@ canvas.addEventListener('mousemove', e => {
   if (isDragging && mode === 'paint') {
     paintDragEnd = { col, row };
     redraw();
-  } else if (isDragging && mode !== 'prop' && mode !== 'road') {
+  } else if (isDragging && mode !== 'prop') {
     handleCell(col, row, false);
   } else {
     redraw();
@@ -561,13 +577,21 @@ function applyPaint() {
 
 // ─── 道路描画 ─────────────────────────────────────────────────
 function drawRoads() {
-  // 道路帯（グレー）
+  // グレー塗り（全道路セル）
   ctx.fillStyle = '#888888';
-  for (const row of hRoads) {
-    ctx.fillRect(0, row * CELL, canvas.width, CELL);
+  for (const k of hRoadCells) {
+    const [c, r] = k.split(',').map(Number);
+    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
   }
-  for (const col of vRoads) {
-    ctx.fillRect(col * CELL, 0, CELL, canvas.height);
+  for (const k of vRoadCells) {
+    const [c, r] = k.split(',').map(Number);
+    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+  }
+
+  // 交差セル（hRoadCells ∩ vRoadCells）
+  const intersections = new Set();
+  for (const k of hRoadCells) {
+    if (vRoadCells.has(k)) intersections.add(k);
   }
 
   // 白破線（中点アンカー方式：GameScene と同じアルゴリズム）
@@ -598,37 +622,66 @@ function drawRoads() {
     }
   };
 
-  const sortedVCols = [...vRoads].sort((a, b) => a - b);
-  const sortedHRows = [...hRoads].sort((a, b) => a - b);
-
-  for (const row of hRoads) {
+  // 横道の破線：行ごとに連続セルをセグメント化
+  const hByRow = new Map();
+  for (const k of hRoadCells) {
+    const [c, r] = k.split(',').map(Number);
+    if (!hByRow.has(r)) hByRow.set(r, []);
+    hByRow.get(r).push(c);
+  }
+  for (const [row, cols] of hByRow) {
+    cols.sort((a, b) => a - b);
     const y = row * CELL + CELL / 2;
-    let segFrom = 0;
-    for (const inter of [...sortedVCols, null]) {
-      const segTo = inter !== null ? inter - 1 : COLS - 1;
-      if (segFrom <= segTo) drawSegment('h', y, segFrom * CELL, (segTo + 1) * CELL);
-      if (inter !== null) segFrom = inter + 1;
+    let i = 0;
+    while (i < cols.length) {
+      let j = i;
+      while (j + 1 < cols.length && cols[j + 1] === cols[j] + 1) j++;
+      const runFrom = cols[i], runTo = cols[j];
+      let segFrom = runFrom;
+      for (let c = runFrom; c <= runTo; c++) {
+        if (intersections.has(`${c},${row}`)) {
+          if (segFrom < c) drawSegment('h', y, segFrom * CELL, c * CELL);
+          segFrom = c + 1;
+        }
+      }
+      if (segFrom <= runTo) drawSegment('h', y, segFrom * CELL, (runTo + 1) * CELL);
+      i = j + 1;
     }
   }
 
-  for (const col of vRoads) {
+  // 縦道の破線：列ごとに連続セルをセグメント化
+  const vByCol = new Map();
+  for (const k of vRoadCells) {
+    const [c, r] = k.split(',').map(Number);
+    if (!vByCol.has(c)) vByCol.set(c, []);
+    vByCol.get(c).push(r);
+  }
+  for (const [col, rows] of vByCol) {
+    rows.sort((a, b) => a - b);
     const x = col * CELL + CELL / 2;
-    let segFrom = 0;
-    for (const inter of [...sortedHRows, null]) {
-      const segTo = inter !== null ? inter - 1 : ROWS - 1;
-      if (segFrom <= segTo) drawSegment('v', x, segFrom * CELL, (segTo + 1) * CELL);
-      if (inter !== null) segFrom = inter + 1;
+    let i = 0;
+    while (i < rows.length) {
+      let j = i;
+      while (j + 1 < rows.length && rows[j + 1] === rows[j] + 1) j++;
+      const runFrom = rows[i], runTo = rows[j];
+      let segFrom = runFrom;
+      for (let r = runFrom; r <= runTo; r++) {
+        if (intersections.has(`${col},${r}`)) {
+          if (segFrom < r) drawSegment('v', x, segFrom * CELL, r * CELL);
+          segFrom = r + 1;
+        }
+      }
+      if (segFrom <= runTo) drawSegment('v', x, segFrom * CELL, (runTo + 1) * CELL);
+      i = j + 1;
     }
   }
 
-  // 道路モード：ホバーハイライト
+  // 道路モード：ホバーハイライト（1マス）
   if (mode === 'road' && hoverCell) {
-    ctx.fillStyle = 'rgba(200,200,200,0.25)';
-    if (roadAxis === 'h') {
-      ctx.fillRect(0, hoverCell.row * CELL, canvas.width, CELL);
-    } else {
-      ctx.fillRect(hoverCell.col * CELL, 0, CELL, canvas.height);
-    }
+    ctx.fillStyle = roadAxis === 'delete'
+      ? 'rgba(255,80,80,0.45)'
+      : 'rgba(200,200,200,0.35)';
+    ctx.fillRect(hoverCell.col * CELL, hoverCell.row * CELL, CELL, CELL);
   }
 }
 
@@ -891,15 +944,50 @@ function copyPropsJSON() {
   });
 }
 
+// ─── セルSetをfrom/toセグメント配列に変換 ─────────────────────
+function buildRoadsArray() {
+  const roads = [];
+
+  const hByRow = new Map();
+  for (const k of hRoadCells) {
+    const [c, r] = k.split(',').map(Number);
+    if (!hByRow.has(r)) hByRow.set(r, []);
+    hByRow.get(r).push(c);
+  }
+  for (const [row, cols] of [...hByRow].sort((a, b) => a[0] - b[0])) {
+    cols.sort((a, b) => a - b);
+    let i = 0;
+    while (i < cols.length) {
+      let j = i;
+      while (j + 1 < cols.length && cols[j + 1] === cols[j] + 1) j++;
+      roads.push({ axis: 'h', line: row, from: cols[i], to: cols[j] });
+      i = j + 1;
+    }
+  }
+
+  const vByCol = new Map();
+  for (const k of vRoadCells) {
+    const [c, r] = k.split(',').map(Number);
+    if (!vByCol.has(c)) vByCol.set(c, []);
+    vByCol.get(c).push(r);
+  }
+  for (const [col, rows] of [...vByCol].sort((a, b) => a[0] - b[0])) {
+    rows.sort((a, b) => a - b);
+    let i = 0;
+    while (i < rows.length) {
+      let j = i;
+      while (j + 1 < rows.length && rows[j + 1] === rows[j] + 1) j++;
+      roads.push({ axis: 'v', line: col, from: rows[i], to: rows[j] });
+      i = j + 1;
+    }
+  }
+
+  return roads;
+}
+
 // ─── ステージ設定 JSON（ground_base + roads）コピー ──────────
 function copyStageJSON() {
-  const roadsArr = [];
-  for (const row of [...hRoads].sort((a, b) => a - b)) {
-    roadsArr.push({ axis: 'h', line: row, from: 0, to: COLS - 1 });
-  }
-  for (const col of [...vRoads].sort((a, b) => a - b)) {
-    roadsArr.push({ axis: 'v', line: col, from: 0, to: ROWS - 1 });
-  }
+  const roadsArr = buildRoadsArray();
   const cellGroundsArr = [];
   for (const [key, type] of cellGrounds) {
     const [col, row] = key.split(',').map(Number);
@@ -926,8 +1014,8 @@ function clearAll() {
   buildSpots.clear();
   props = [];
   propOccupied.clear();
-  hRoads.clear();
-  vRoads.clear();
+  hRoadCells.clear();
+  vRoadCells.clear();
   cellGrounds.clear();
   decals = [];
   spawns = [{ col:0, row:0 }, { col:COLS-1, row:0 }, { col:0, row:ROWS-1 }, { col:COLS-1, row:ROWS-1 }];
@@ -942,8 +1030,11 @@ fetch('stages/stage_01.json')
     if (data.ground_base) selectGroundBase(data.ground_base);
     if (Array.isArray(data.roads)) {
       for (const road of data.roads) {
-        if (road.axis === 'h') hRoads.add(road.line);
-        else if (road.axis === 'v') vRoads.add(road.line);
+        if (road.axis === 'h') {
+          for (let c = road.from; c <= road.to; c++) hRoadCells.add(`${c},${road.line}`);
+        } else if (road.axis === 'v') {
+          for (let r = road.from; r <= road.to; r++) vRoadCells.add(`${road.line},${r}`);
+        }
       }
     }
     if (Array.isArray(data.ground_cells)) {
