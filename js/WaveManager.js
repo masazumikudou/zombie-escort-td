@@ -49,8 +49,8 @@ class WaveManager {
     const spawn = this.spawns[this.spawnSide % this.spawns.length];
     this.spawnSide++;
     const z = spawnFn(spawn.col, spawn.row, wave.enemy, this.waveIdx);
-    // 死亡コールバックを注入
-    z.onDeath = () => { this.deadCount++; };
+    const prevOnDeath = z.onDeath;
+    z.onDeath = () => { this.deadCount++; if (prevOnDeath) prevOnDeath(); };
     this.spawnCount++;
     this.nextSpawnTime = scaledTime + wave.spawnInterval;
 

@@ -970,26 +970,49 @@ function buildJSON() {
   }
   bsArr.sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col);
 
-  return {
-    id:   'stage_custom',
-    name: 'カスタムステージ',
-    grid: { cols: COLS, rows: ROWS },
-    startMoney: parseInt(document.getElementById('start-money').value, 10) || 500,
-    escort: {
-      start: { ...startCell },
-      goal:  { ...goalCell },
-      hp:    parseInt(document.getElementById('esc-hp').value, 10)    || 100,
-      speed: parseInt(document.getElementById('esc-speed').value, 10) || 80,
-    },
+  const cellGroundsArr = [];
+  for (const [key, type] of cellGrounds) {
+    const [col, row] = key.split(',').map(Number);
+    cellGroundsArr.push({ col, row, type });
+  }
+  cellGroundsArr.sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col);
+
+  const waves = [
+    { startDelay:6000, spawnInterval:2500, count:4,  enemy:{ type: document.getElementById('w1-type').value, hp:30, speed:55, damage:10, reward:20 } },
+    { startDelay:4000, spawnInterval:2000, count:7,  enemy:{ type: document.getElementById('w2-type').value, hp:45, speed:62, damage:13, reward:25 } },
+    { startDelay:4000, spawnInterval:1500, count:12, enemy:{ type: document.getElementById('w3-type').value, hp:60, speed:70, damage:18, reward:30 } },
+  ];
+
+  const obj = {
+    id:          'stage_custom',
+    name:        'カスタムステージ',
+    grid:        { cols: COLS, rows: ROWS },
+    ground_base: groundBase,
+    startMoney:  parseInt(document.getElementById('start-money').value, 10) || 500,
+    minSurvivors: 1,
+    escorts: [
+      {
+        variant:      'dad',
+        startTrigger: 'afterPrevious',
+        start: { ...startCell },
+        goal:  { ...goalCell },
+        hp:    parseInt(document.getElementById('esc-hp').value, 10)    || 100,
+        speed: parseInt(document.getElementById('esc-speed').value, 10) || 80,
+        waves,
+      }
+    ],
     obstacles:    obsArr,
     zombieSpawns: spawns.map(s => ({ ...s })),
     buildSpots:   bsArr,
-    waves: [
-      { startDelay:6000, spawnInterval:2500, count:4,  enemy:{ type: document.getElementById('w1-type').value, hp:30, speed:55, damage:10, reward:20 } },
-      { startDelay:4000, spawnInterval:2000, count:7,  enemy:{ type: document.getElementById('w2-type').value, hp:45, speed:62, damage:13, reward:25 } },
-      { startDelay:4000, spawnInterval:1500, count:12, enemy:{ type: document.getElementById('w3-type').value, hp:60, speed:70, damage:18, reward:30 } },
-    ]
   };
+
+  const roadsArr = buildRoadsArray();
+  if (roadsArr.length > 0)        obj.roads        = roadsArr;
+  if (cellGroundsArr.length > 0)  obj.ground_cells = cellGroundsArr;
+  if (props.length > 0)           obj.props        = props.map(p => ({ type: p.type, col: p.col, row: p.row }));
+  if (decals.length > 0)          obj.decals       = decals.map(d => ({ type: d.type, col: d.col, row: d.row }));
+
+  return obj;
 }
 
 function exportJSON() {
