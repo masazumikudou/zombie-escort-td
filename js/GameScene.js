@@ -64,7 +64,6 @@ class GameScene extends Phaser.Scene {
     // グラフィクスレイヤー
     this.mapGfx       = this.add.graphics().setDepth(1);
     this.dynGfx       = this.add.graphics().setDepth(3);
-    this.hudGfx       = this.add.graphics().setScrollFactor(0).setDepth(10);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
 
     // 地面レイヤー（depth -2）
@@ -82,9 +81,24 @@ class GameScene extends Phaser.Scene {
     // プロップ描画（depth 2：マップ上・キャラ下）
     this._drawProps();
 
-    // カメラ設定
+    // カメラ設定（UISceneのヘッダー分だけビューポートを下にオフセット）
+    const HEADER_H = 8 + UI_H; // UIScene の SAFE(8) + UI_H と同値
+    this.cameras.main.setViewport(0, HEADER_H, CANVAS_W, CANVAS_H - HEADER_H);
     this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
     this.cameras.main.setZoom(ZOOM_LEVELS[this.zoomIdx]);
+
+    // UIScene 起動（HUD専用シーン、メインカメラ非依存）
+    if (!this.scene.isActive('UIScene')) {
+      this.scene.launch('UIScene');
+    }
+    this._onUiCycleTime = () => this._cycleTimeMode();
+    this._onUiReturnToEscort = () => { this._returnToEscort(); this.lastInteractionTime = 0; };
+    this.game.events.on('ui_cycleTime',        this._onUiCycleTime);
+    this.game.events.on('ui_returnToEscort',   this._onUiReturnToEscort);
+    this.events.once('shutdown', () => {
+      this.game.events.off('ui_cycleTime',      this._onUiCycleTime);
+      this.game.events.off('ui_returnToEscort', this._onUiReturnToEscort);
+    });
 
     // UI構築
     this._buildUI();
@@ -489,23 +503,12 @@ class GameScene extends Phaser.Scene {
   }
 
   // ─── HUD描画 ─────────────────────────────────────────────
+  // HUD表示はUISceneが担当。ここではregistryへ最新値を書き込むのみ。
   _drawHUD() {
-    if (this.moneyText) this.moneyText.setText(`¥ ${this.money}`);
-    if (this.waveText)  this.waveText.setText(this.waveLabel);
-    if (this.timeText)  this.timeText.setText(TIME_LABELS[this.timeModeIdx]);
-
-    const g = this.hudGfx;
-    g.clear();
-
-    g.fillStyle(0x0a0a1a, 0.92);
-    g.fillRect(0, CANVAS_H - UI_H, CANVAS_W, UI_H);
-    g.lineStyle(1, 0x334455, 1);
-    g.lineBetween(0, CANVAS_H - UI_H, CANVAS_W, CANVAS_H - UI_H);
-
-    if (this.gameState === 'defeat' || this.gameState === 'victory') {
-      g.fillStyle(0x000000, 0.6);
-      g.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    }
+    this.registry.set('hud_money',     this.money);
+    this.registry.set('hud_wave',      this.waveLabel ?? '');
+    this.registry.set('hud_timeIdx',   this.timeModeIdx);
+    this.registry.set('hud_gameState', this.gameState);
   }
 
   // ─── 画面外インジケータ ───────────────────────────────────
@@ -937,55 +940,16 @@ class GameScene extends Phaser.Scene {
   }
 
   _updateRelayHUD() {
-    if (!this.relayStatusText) return;
     const idx     = this.escortIdx;
     const total   = this.escortDefs.length;
     const name    = VARIANT_NAMES[this.escortDefs[idx].variant] ?? this.escortDefs[idx].variant;
     const survivors = `生還 ${this.survivors}/${total}`;
-    this.relayStatusText.setText(`${name} (${idx + 1}/${total})   ${survivors}`);
+    this.registry.set('hud_relay', `${name} (${idx + 1}/${total})   ${survivors}`);
   }
 
   // ─── UI構築 ──────────────────────────────────────────────
+  // HUD（所持金・ウェーブ・タイムモード・リレー状況・護衛ボタン）はUISceneへ移設済み。
   _buildUI() {
-    const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
-    const uy     = CANVAS_H - UI_H;
-
-    // 所持金（左）
-    this.moneyText = this.add.text(10, uy + 10, `¥ ${this.money}`, {
-      ...uiFont, fontSize: '22px', color: '#ffee44',
-      stroke: '#000000', strokeThickness: 4,
-    }).setScrollFactor(0).setDepth(52);
-
-    // ウェーブ（中央）
-    this.waveText = this.add.text(CANVAS_W / 2, uy + 10, this.waveLabel ?? '', {
-      ...uiFont, fontSize: '18px', color: '#ffffff',
-      stroke: '#000000', strokeThickness: 4,
-    }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 0);
-
-    // タイムモード（右）
-    this.timeText = this.add.text(CANVAS_W - 10, uy + 10, TIME_LABELS[this.timeModeIdx], {
-      ...uiFont, fontSize: '18px', color: '#aaddff',
-      stroke: '#000000', strokeThickness: 3,
-    }).setScrollFactor(0).setDepth(52).setOrigin(1, 0).setInteractive();
-    this.timeText.on('pointerdown', () => this._cycleTimeMode());
-
-    // リレーステータス（HUD上のライン）
-    this.relayStatusText = this.add.text(CANVAS_W / 2, uy - 8, '', {
-      ...uiFont, fontSize: '14px', color: '#aabbcc',
-      stroke: '#000000', strokeThickness: 2,
-    }).setScrollFactor(0).setDepth(52).setOrigin(0.5, 1);
-
-    // 護衛へ戻るボタン
-    const homeBtn = this.add.text(CANVAS_W - 10, uy - 10, '⌂ 護衛', {
-      ...uiFont, fontSize: '18px', color: '#aaddff', backgroundColor: '#1a2a3a',
-      padding: { x: 10, y: 6 },
-    }).setScrollFactor(0).setDepth(52).setOrigin(1, 1).setInteractive();
-    homeBtn.on('pointerdown', () => {
-      this._returnToEscort();
-      this.lastInteractionTime = 0;
-    });
-
-    // デバッグパネル
     this._buildDebugPanel();
   }
 
