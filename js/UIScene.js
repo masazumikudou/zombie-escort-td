@@ -56,6 +56,12 @@ class UIScene extends Phaser.Scene {
     }).setDepth(52).setOrigin(1, 0).setInteractive();
     homeBtn.on('pointerdown', () => this.game.events.emit('ui_returnToEscort'));
 
+    // 建設ポップアップ（UISceneで管理：カメラズームの影響を受けないため）
+    this._buildPopupObjs = [];
+    this.game.events.on('openBuildMenu',       (data) => this._openBuildPopup(data));
+    this.game.events.on('closeBuildMenu',      ()     => this._closeBuildPopup());
+    this.game.events.on('openDirectionPicker', (data) => this._openDirectionPicker(data));
+
     // FPSカウンター（右下・タップでON/OFF）
     this._showFps = false;
     this.fpsText = this.add.text(CANVAS_W - 8, CANVAS_H - 8, '', {
@@ -68,6 +74,121 @@ class UIScene extends Phaser.Scene {
     });
     // 初期表示（タップできると気づけるよう小さく表示）
     this.fpsText.setText('FPS');
+  }
+
+  _openBuildPopup({ col, row, sx, sy, cellHalfPx, money }) {
+    this._closeBuildPopup();
+    const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
+    const BW = 88, BH = 60, GAP = 5, PAD = 7;
+    const types = Object.keys(TOWER_DEFS);
+    const popW  = types.length * BW + (types.length - 1) * GAP + PAD * 2;
+    const popH  = BH + PAD * 2;
+
+    let px = sx - popW / 2;
+    let py = sy - cellHalfPx - popH - 6;
+    px = Math.max(6, Math.min(CANVAS_W - popW - 6, px));
+    if (py < 6) py = sy + cellHalfPx + 6;
+    py = Math.max(6, Math.min(CANVAS_H - UI_H - popH - 6, py));
+
+    // 暗幕オーバーレイ
+    const overlay = this.add.rectangle(CANVAS_W / 2, CANVAS_H / 2, CANVAS_W, CANVAS_H, 0x000000, 0.72).setDepth(69);
+    this._buildPopupObjs.push(overlay);
+
+    // 背景
+    const bg = this.add.rectangle(px + popW / 2, py + popH / 2, popW, popH, 0x050510, 0.96)
+      .setDepth(70).setStrokeStyle(1, 0x3a5070);
+    this._buildPopupObjs.push(bg);
+
+    types.forEach((type, i) => {
+      const def       = TOWER_DEFS[type];
+      const canAfford = money >= def.cost;
+      const bx        = px + PAD + i * (BW + GAP);
+      const by        = py + PAD;
+
+      const btn = this.add.rectangle(bx + BW / 2, by + BH / 2, BW, BH,
+        canAfford ? def.color : 0x2a2a2a, canAfford ? 0.22 : 0.18)
+        .setDepth(71)
+        .setStrokeStyle(1.5, canAfford ? def.color : 0x444444, canAfford ? 0.7 : 0.35);
+      if (canAfford) {
+        btn.setInteractive();
+        btn.on('pointerover',  () => btn.setFillStyle(def.color, 0.44));
+        btn.on('pointerout',   () => btn.setFillStyle(def.color, 0.22));
+        btn.on('pointerdown',  () => this.game.events.emit('ui_buildPlace', { col, row, type }));
+      }
+
+      const nameText = this.add.text(bx + BW / 2, by + 7, def.label, {
+        ...uiFont, fontSize: '16px', fontStyle: 'bold',
+        color: canAfford ? def.textColor : '#555555',
+        stroke: '#000000', strokeThickness: 2,
+      }).setDepth(72).setOrigin(0.5, 0);
+
+      const rangeText = this.add.text(bx + BW / 2, by + 28, `射程${def.range}C`, {
+        ...uiFont, fontSize: '12px', color: canAfford ? '#99aabb' : '#444444',
+      }).setDepth(72).setOrigin(0.5, 0);
+
+      const priceText = this.add.text(bx + BW / 2, by + BH - 16, `¥${def.cost}`, {
+        ...uiFont, fontSize: '14px',
+        color: canAfford ? '#ffffff' : '#555555',
+        stroke: '#000000', strokeThickness: 2,
+      }).setDepth(72).setOrigin(0.5, 0);
+
+      this._buildPopupObjs.push(btn, nameText, rangeText, priceText);
+    });
+  }
+
+  _closeBuildPopup() {
+    this._buildPopupObjs.forEach(o => o.destroy());
+    this._buildPopupObjs = [];
+  }
+
+  _openDirectionPicker({ col, row, sx, sy }) {
+    // 方向選択ポップアップ（2×2グリッド）
+    if (!this._dirPickerObjs) this._dirPickerObjs = [];
+    this._dirPickerObjs.forEach(o => o.destroy());
+    this._dirPickerObjs = [];
+
+    const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
+    const BW = 72, BH = 52, GAP = 4, PAD = 6;
+    const popW = BW * 2 + GAP + PAD * 2;
+    const popH = BH * 2 + GAP + PAD * 2;
+
+    let px = sx - popW / 2;
+    let py = sy - popH / 2;
+    px = Math.max(6, Math.min(CANVAS_W - popW - 6, px));
+    py = Math.max(6, Math.min(CANVAS_H - UI_H - popH - 6, py));
+
+    const overlay = this.add.rectangle(CANVAS_W / 2, CANVAS_H / 2, CANVAS_W, CANVAS_H, 0x000000, 0.72).setDepth(69);
+    const bg = this.add.rectangle(px + popW / 2, py + popH / 2, popW, popH, 0x050510, 0.96)
+      .setDepth(70).setStrokeStyle(1, 0xff2266);
+    const title = this.add.text(px + popW / 2, py + 3, 'レーザー方向', {
+      ...uiFont, fontSize: '13px', color: '#ff88aa', stroke: '#000', strokeThickness: 2,
+    }).setDepth(72).setOrigin(0.5, 0);
+    this._dirPickerObjs.push(overlay, bg, title);
+
+    const dirs = [
+      { key: 'up',    label: '↑ 上', gi: 0, gj: 0 },
+      { key: 'right', label: '→ 右', gi: 1, gj: 0 },
+      { key: 'left',  label: '← 左', gi: 0, gj: 1 },
+      { key: 'down',  label: '↓ 下', gi: 1, gj: 1 },
+    ];
+    dirs.forEach(({ key, label, gi, gj }) => {
+      const bx = px + PAD + gi * (BW + GAP);
+      const by = py + PAD + 20 + gj * (BH + GAP);
+      const btn = this.add.rectangle(bx + BW / 2, by + BH / 2, BW, BH, 0xff2266, 0.22)
+        .setDepth(71).setStrokeStyle(1.5, 0xff2266, 0.7).setInteractive();
+      btn.on('pointerover',  () => btn.setFillStyle(0xff2266, 0.5));
+      btn.on('pointerout',   () => btn.setFillStyle(0xff2266, 0.22));
+      btn.on('pointerdown',  () => {
+        this.game.events.emit('ui_laserDir', { col, row, dir: key });
+        this._dirPickerObjs.forEach(o => o.destroy());
+        this._dirPickerObjs = [];
+      });
+      const txt = this.add.text(bx + BW / 2, by + BH / 2, label, {
+        ...uiFont, fontSize: '18px', fontStyle: 'bold', color: '#ffffff',
+        stroke: '#000', strokeThickness: 3,
+      }).setDepth(72).setOrigin(0.5, 0.5);
+      this._dirPickerObjs.push(btn, txt);
+    });
   }
 
   update() {

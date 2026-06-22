@@ -20,7 +20,8 @@ class WaveManager {
     this._groupRemaining = 0;
     this._groupNextTime  = Infinity;
     this._groupSpawn     = null;
-    this._warningSpawn   = null;  // 3秒前に確定するスポーン地点
+    this._warningSpawn   = null;
+    this._prevGroupZombie = null;  // チェーン用：直前にスポーンしたゾンビ
     this.allDone         = false;
     this._onWaveStart    = null;
   }
@@ -65,13 +66,15 @@ class WaveManager {
 
     // ─ グループ内の連鎖スポーン ─
     if (this._groupRemaining > 0 && scaledTime >= this._groupNextTime) {
-      spawnFn(this._groupSpawn.col, this._groupSpawn.row, wave.enemy, this.waveIdx);
+      const z = spawnFn(this._groupSpawn.col, this._groupSpawn.row, wave.enemy, this.waveIdx, this._prevGroupZombie);
+      this._prevGroupZombie = z;  // 次のゾンビはこいつを追う
       this._groupRemaining--;
       this._groupNextTime = scaledTime + (wave.groupInterval ?? 800);
       // 最後の1体が出た瞬間から spawnInterval を待つ
       if (this._groupRemaining === 0) {
-        this.nextGroupTime  = scaledTime + (wave.spawnInterval ?? 7000);
-        this._warningSpawn  = null;  // 次グループの予告をリセット
+        this.nextGroupTime    = scaledTime + (wave.spawnInterval ?? 7000);
+        this._warningSpawn    = null;
+        this._prevGroupZombie = null;  // 次グループのチェーンをリセット
       }
     }
 
@@ -79,11 +82,12 @@ class WaveManager {
     if (this._groupRemaining === 0 && scaledTime >= this.nextGroupTime) {
       const sorted = this._sortedSpawns();
       if (sorted.length === 0) return;
-      this._groupSpawn     = this._warningSpawn ?? sorted[0];  // 確定地点を使う
-      this._warningSpawn   = null;
-      this._groupRemaining = wave.groupSize ?? 1;
-      this._groupNextTime  = scaledTime;
-      this.nextGroupTime   = Infinity;
+      this._groupSpawn      = this._warningSpawn ?? sorted[0];
+      this._warningSpawn    = null;
+      this._prevGroupZombie = null;
+      this._groupRemaining  = wave.groupSize ?? 1;
+      this._groupNextTime   = scaledTime;
+      this.nextGroupTime    = Infinity;
     }
   }
 

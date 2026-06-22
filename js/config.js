@@ -28,6 +28,7 @@ const TOWER_DEFS = {
   basic:  { label:'基本', color:0x4488ff, textColor:'#5599ff', cost:100, sell:50,  range:2.5, fireRate:900,  damage:25, durability:null },
   rapid:  { label:'速射', color:0xff8800, textColor:'#ff9933', cost:150, sell:75,  range:2.0, fireRate:250,  damage:10, durability:null },
   sniper: { label:'狙撃', color:0x44ff88, textColor:'#55ffaa', cost:200, sell:100, range:4.5, fireRate:1600, damage:70, durability:null },
+  laser:  { label:'レーザー', color:0xff2266, textColor:'#ff88aa', cost:350, sell:175, range:999, fireRate:2200, damage:60, durability:null },
 };
 
 // ─── プロップ定義 ────────────────────────────────────────────

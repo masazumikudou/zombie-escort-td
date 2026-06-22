@@ -3,7 +3,7 @@
 // ファイルがなければ緑の円（グレーボックス）で自動フォールバック
 // type は stage JSON の waves[].enemy.type と一致させること
 class Zombie {
-  constructor(scene, spawnCol, spawnRow, def, waveNum) {
+  constructor(scene, spawnCol, spawnRow, def, waveNum, leader = null) {
     const { x, y } = cellCenter(spawnCol, spawnRow);
     this.scene         = scene;
     this.x             = x;
@@ -19,9 +19,10 @@ class Zombie {
     this.rewarded      = false;
     this.path          = [];
     this.wpIdx         = 0;
-    this._ffVersion    = -1;  // フローフィールドのバージョン追跡
+    this._ffVersion    = -1;
+    this.leader        = leader;  // チェーンリーダー（null = 自分がリーダー）
     this.lastAttack    = -9999;
-    this.lastDx        = 1;
+    this.lastDx        = 0;
     this.lastDy        = 0;
     this.hitFlash      = 0;
     this._animTime     = 0;
@@ -61,14 +62,23 @@ class Zombie {
     this._animTime  += dt;
     this._animFrame  = Math.floor(this._animTime / (1000 / zombieFps(this.type))) % zombieFrameCount(this.type) + 1;
 
-    // フローフィールドを参照して次の1セルを目標にする（A*個別計算の代替）
-    const ff = this.scene.flowField;
-    if (this.wpIdx >= this.path.length || this._ffVersion !== ff.version) {
-      this._ffVersion = ff.version;
-      const next = ff.getNextCell(this.col, this.row);
-      if (next) {
-        this.path  = [cellCenter(next.col, next.row)];
-        this.wpIdx = 0;
+    // リーダー死亡時は自分がリーダーに昇格
+    if (this.leader !== null && !this.leader.alive) this.leader = null;
+
+    if (this.leader !== null) {
+      // フォロワー：リーダーの現在座標を追う（groupIntervalの時間差が自然なスペースを生む）
+      this.path  = [{ x: this.leader.x, y: this.leader.y }];
+      this.wpIdx = 0;
+    } else {
+      // リーダー：FlowFieldで経路取得
+      const ff = this.scene.flowField;
+      if (this.wpIdx >= this.path.length || this._ffVersion !== ff.version) {
+        this._ffVersion = ff.version;
+        const next = ff.getNextCell(this.col, this.row);
+        if (next) {
+          this.path  = [cellCenter(next.col, next.row)];
+          this.wpIdx = 0;
+        }
       }
     }
 

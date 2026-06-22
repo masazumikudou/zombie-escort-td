@@ -102,13 +102,22 @@ class GameScene extends Phaser.Scene {
     if (!this.scene.isActive('UIScene')) {
       this.scene.launch('UIScene');
     }
-    this._onUiCycleTime = () => this._cycleTimeMode();
+    this._onUiCycleTime      = () => this._cycleTimeMode();
     this._onUiReturnToEscort = () => { this._returnToEscort(); this.lastInteractionTime = 0; };
-    this.game.events.on('ui_cycleTime',        this._onUiCycleTime);
-    this.game.events.on('ui_returnToEscort',   this._onUiReturnToEscort);
+    this._onUiBuildPlace     = ({ col, row, type }) => { this._popupJustActed = true; this._tryPlace(col, row, type); this._closePopup(); };
+    this._onUiLaserDir       = ({ col, row, dir }) => {
+      const t = this.towers.find(t => t.col === col && t.row === row);
+      if (t) t.direction = dir;
+    };
+    this.game.events.on('ui_cycleTime',      this._onUiCycleTime);
+    this.game.events.on('ui_returnToEscort', this._onUiReturnToEscort);
+    this.game.events.on('ui_buildPlace',     this._onUiBuildPlace);
+    this.game.events.on('ui_laserDir',       this._onUiLaserDir);
     this.events.once('shutdown', () => {
       this.game.events.off('ui_cycleTime',      this._onUiCycleTime);
       this.game.events.off('ui_returnToEscort', this._onUiReturnToEscort);
+      this.game.events.off('ui_buildPlace',     this._onUiBuildPlace);
+      this.game.events.off('ui_laserDir',       this._onUiLaserDir);
     });
 
     // UI構築
@@ -217,7 +226,7 @@ class GameScene extends Phaser.Scene {
       this.bullets = this.bullets.filter(b => b.active);
       this.bullets.forEach(b => b.update(dt));
 
-      this.waveManager.update(this.scaledTime, (col, row, def, wn) => this._spawnZombie(col, row, def, wn));
+      this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader));
 
       this.zombies.forEach(z => { if (!z.alive) z.cleanup(); });
       this.zombies = this.zombies.filter(z => z.alive);
@@ -446,6 +455,16 @@ class GameScene extends Phaser.Scene {
 
   // ─── プロップ描画（静的、一度だけ） ────────────────────────
   _drawProps() {
+    // レーザー用：プロップが占有する全セルをSetで管理
+    this.propCells = new Set();
+    for (const prop of (this.stageData.props || [])) {
+      const def = PROP_DEFS[prop.type];
+      if (!def) continue;
+      for (let dc = 0; dc < def.cols; dc++)
+        for (let dr = 0; dr < def.rows; dr++)
+          this.propCells.add(`${prop.col + dc},${prop.row + dr}`);
+    }
+
     for (const prop of (this.stageData.props || [])) {
       const def = PROP_DEFS[prop.type];
       if (!def) continue;
@@ -785,68 +804,20 @@ class GameScene extends Phaser.Scene {
   // ─── 建設メニュー ────────────────────────────────────────
   _openBuildMenu(col, row) {
     this._closePopup();
+    this._preBuildTimeIdx = this.timeModeIdx;
+    this.timeModeIdx = 1;  // 0.25倍スロー
 
-    const cam  = this.cameras.main;
-    const sx   = (col * CELL + CELL / 2 - cam.scrollX) * cam.zoom;
-    const sy   = (row * CELL + CELL / 2 - cam.scrollY) * cam.zoom;
-
-    const BW = 88, BH = 60, GAP = 5, PAD = 7;
-    const types = Object.keys(TOWER_DEFS);
-    const popW  = types.length * BW + (types.length - 1) * GAP + PAD * 2;
-    const popH  = BH + PAD * 2;
-
-    let px = sx - popW / 2;
-    let py = sy - (CELL * cam.zoom) / 2 - popH - 6;
-    px = clamp(px, 6, CANVAS_W - popW - 6);
-    if (py < 6) py = sy + (CELL * cam.zoom) / 2 + 6;
-    py = clamp(py, 6, CANVAS_H - UI_H - popH - 6);
+    // スクリーン座標を計算してUISceneに委譲（カメラズームの影響を排除するため）
+    const cam        = this.cameras.main;
+    const HEADER_H   = 8 + UI_H;
+    const sx         = (col * CELL + CELL / 2 - cam.scrollX) * cam.zoom;
+    const sy         = (row * CELL + CELL / 2 - cam.scrollY) * cam.zoom + HEADER_H;
+    const cellHalfPx = (CELL * cam.zoom) / 2;
 
     this.popupState   = { type: 'build', col, row };
     this.popupObjects = [];
 
-    const bg = this.add.rectangle(px + popW / 2, py + popH / 2, popW, popH, 0x050510, 0.96)
-      .setScrollFactor(0).setDepth(70).setStrokeStyle(1, 0x3a5070);
-    this.popupObjects.push(bg);
-
-    types.forEach((type, i) => {
-      const def       = TOWER_DEFS[type];
-      const canAfford = this.money >= def.cost;
-      const bx        = px + PAD + i * (BW + GAP);
-      const by        = py + PAD;
-
-      const btn = this.add.rectangle(bx + BW / 2, by + BH / 2, BW, BH,
-        canAfford ? def.color : 0x2a2a2a, canAfford ? 0.22 : 0.18)
-        .setScrollFactor(0).setDepth(71)
-        .setStrokeStyle(1.5, canAfford ? def.color : 0x444444, canAfford ? 0.7 : 0.35);
-      if (canAfford) {
-        btn.setInteractive();
-        btn.on('pointerover',  () => btn.setFillStyle(def.color, 0.44));
-        btn.on('pointerout',   () => btn.setFillStyle(def.color, 0.22));
-        btn.on('pointerdown',  () => {
-          this._popupJustActed = true;
-          this._tryPlace(col, row, type);
-        });
-      }
-
-      const nameText = this.add.text(bx + BW / 2, by + 7, def.label, {
-        fontSize: '16px', fontStyle: 'bold', fontFamily: 'Arial, Helvetica, sans-serif',
-        color: canAfford ? def.textColor : '#555555',
-        stroke: '#000000', strokeThickness: 2,
-      }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0);
-
-      const rangeText = this.add.text(bx + BW / 2, by + 28, `射程${def.range}C`, {
-        fontSize: '12px', fontFamily: 'Arial, Helvetica, sans-serif',
-        color: canAfford ? '#99aabb' : '#444444',
-      }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0);
-
-      const priceText = this.add.text(bx + BW / 2, by + BH - 16, `¥${def.cost}`, {
-        fontSize: '14px', fontFamily: 'Arial, Helvetica, sans-serif',
-        color: canAfford ? '#ffffff' : '#555555',
-        stroke: '#000000', strokeThickness: 2,
-      }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0);
-
-      this.popupObjects.push(btn, nameText, rangeText, priceText);
-    });
+    this.game.events.emit('openBuildMenu', { col, row, sx, sy, cellHalfPx, money: this.money });
   }
 
   // ─── 売却メニュー ────────────────────────────────────────
@@ -910,6 +881,12 @@ class GameScene extends Phaser.Scene {
     if (this.popupState?.type === 'sell') {
       this.popupState.tower.selected = false;
     }
+    // 建設メニューを閉じたら元の速度に戻す・UISceneのポップアップも閉じる
+    if (this.popupState?.type === 'build' && this._preBuildTimeIdx !== undefined) {
+      this.timeModeIdx = this._preBuildTimeIdx;
+      this._preBuildTimeIdx = undefined;
+      this.game.events.emit('closeBuildMenu');
+    }
     this.popupState = null;
   }
 
@@ -928,6 +905,14 @@ class GameScene extends Phaser.Scene {
     this.towers.push(new Tower(this, col, row, type));
     audioSynth.coin();
     this._closePopup();
+    // レーザーは設置後に方向選択ポップアップを表示
+    if (type === 'laser') {
+      const cam      = this.cameras.main;
+      const HEADER_H = 8 + UI_H;
+      const sx       = (col * CELL + CELL / 2 - cam.scrollX) * cam.zoom;
+      const sy       = (row * CELL + CELL / 2 - cam.scrollY) * cam.zoom + HEADER_H;
+      this.game.events.emit('openDirectionPicker', { col, row, sx, sy });
+    }
   }
 
   _sellTower(tower) {
@@ -941,7 +926,7 @@ class GameScene extends Phaser.Scene {
   // ─── ゾンビスポーン ──────────────────────────────────────
   // enemyDef: { type, hpMul?, speedMul?, damageMul?, rewardMul? }
   // 数値は ZOMBIE_BASE の基準値に倍率を掛けて確定する
-  _spawnZombie(col, row, enemyDef, waveNum) {
+  _spawnZombie(col, row, enemyDef, waveNum, leader = null) {
     if (this.zombies.length >= MAX_ZOMBIES) return null;
     const base = ZOMBIE_BASE[enemyDef.type] ?? ZOMBIE_BASE.normal;
     const def  = {
@@ -951,7 +936,7 @@ class GameScene extends Phaser.Scene {
       damage: Math.round(enemyDef.damage != null ? enemyDef.damage : base.damage * (enemyDef.damageMul ?? 1)),
       reward: Math.round(enemyDef.reward != null ? enemyDef.reward : base.reward * (enemyDef.rewardMul ?? 1)),
     };
-    const z = new Zombie(this, col, row, def, waveNum);
+    const z = new Zombie(this, col, row, def, waveNum, leader);
     const origOnDeath = z.onDeath;
     z.onDeath = () => {
       this.money += z.reward;
