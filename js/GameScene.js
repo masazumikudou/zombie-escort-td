@@ -710,19 +710,29 @@ class GameScene extends Phaser.Scene {
     this.input.on('pointermove', (p) => {
       this.lastInteractionTime = this.time.now;
 
+      const p1 = this.input.pointer1;
       const p2 = this.input.pointer2;
-      if (p2.isDown) {
-        const dx   = p.x - p2.x, dy = p.y - p2.y;
+      if (p1.isDown && p2.isDown) {
+        const dx   = p1.x - p2.x, dy = p1.y - p2.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (!this.pinching) {
           this.pinching   = true;
           this.pinchStart = { dist, zoom: this.cameras.main.zoom };
-        } else {
-          const nz = clamp(
+        } else if (dist > 0) {
+          const cam    = this.cameras.main;
+          const oldZ   = cam.zoom;
+          const newZ   = clamp(
             this.pinchStart.zoom * (dist / this.pinchStart.dist),
             ZOOM_LEVELS[0], ZOOM_LEVELS[ZOOM_LEVELS.length - 1]
           );
-          this.cameras.main.setZoom(nz);
+          // 2本指の中点をワールド座標にアンカーしてからズーム
+          const midX = (p1.x + p2.x) / 2;
+          const midY = (p1.y + p2.y) / 2;
+          const wx = cam.scrollX + (midX - cam.x) / oldZ;
+          const wy = cam.scrollY + (midY - cam.y) / oldZ;
+          cam.setZoom(newZ);
+          cam.scrollX = wx - (midX - cam.x) / newZ;
+          cam.scrollY = wy - (midY - cam.y) / newZ;
         }
         return;
       }
