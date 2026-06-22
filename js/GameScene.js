@@ -94,9 +94,16 @@ class GameScene extends Phaser.Scene {
 
     // カメラ設定（UISceneのヘッダー分だけビューポートを下にオフセット）
     const HEADER_H = 8 + UI_H; // UIScene の SAFE(8) + UI_H と同値
-    this.cameras.main.setViewport(0, HEADER_H, CANVAS_W, CANVAS_H - HEADER_H);
+    this._headerH = HEADER_H;
+    this.cameras.main.setViewport(0, HEADER_H, this.scale.width, this.scale.height - HEADER_H);
     this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
     this.cameras.main.setZoom(ZOOM_LEVELS[this.zoomIdx]);
+
+    // UISceneのリサイズに合わせてカメラビューポートを追従
+    this._onUiResize = ({ w, h }) => {
+      this.cameras.main.setViewport(0, this._headerH, w, h - this._headerH);
+    };
+    this.game.events.on('ui_resize', this._onUiResize);
 
     // UIScene 起動（HUD専用シーン、メインカメラ非依存）
     if (!this.scene.isActive('UIScene')) {
@@ -118,6 +125,7 @@ class GameScene extends Phaser.Scene {
       this.game.events.off('ui_returnToEscort', this._onUiReturnToEscort);
       this.game.events.off('ui_buildPlace',     this._onUiBuildPlace);
       this.game.events.off('ui_laserDir',       this._onUiLaserDir);
+      this.game.events.off('ui_resize',         this._onUiResize);
     });
 
     // UI構築

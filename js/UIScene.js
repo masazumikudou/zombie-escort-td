@@ -15,46 +15,43 @@ class UIScene extends Phaser.Scene {
   }
 
   create() {
-    const uiFont  = { fontFamily: 'Arial, Helvetica, sans-serif' };
-    const SAFE    = 8;          // 上端セーフエリアマージン（ノッチ・ステータスバー対策）
-    const barH    = SAFE + UI_H; // ヘッダーバー全高
-    const textY   = SAFE + 10;  // バー内テキストのY基準
+    const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
 
     // ヘッダーバー背景 + 勝敗オーバーレイ
     this.hudGfx     = this.add.graphics().setDepth(10);
     this.overlayGfx = this.add.graphics().setDepth(11);
 
     // 所持金（左）
-    this.moneyText = this.add.text(10, textY, '¥ 0', {
+    this.moneyText = this.add.text(0, 0, '¥ 0', {
       ...uiFont, fontSize: '22px', color: '#ffee44',
       stroke: '#000000', strokeThickness: 4,
     }).setDepth(52);
 
     // ウェーブ（中央）
-    this.waveText = this.add.text(CANVAS_W / 2, textY, '', {
+    this.waveText = this.add.text(0, 0, '', {
       ...uiFont, fontSize: '18px', color: '#ffffff',
       stroke: '#000000', strokeThickness: 4,
     }).setDepth(52).setOrigin(0.5, 0);
 
     // タイムモード（右）
-    this.timeText = this.add.text(CANVAS_W - 10, textY, TIME_LABELS[2], {
+    this.timeText = this.add.text(0, 0, TIME_LABELS[2], {
       ...uiFont, fontSize: '18px', color: '#aaddff',
       stroke: '#000000', strokeThickness: 3,
     }).setDepth(52).setOrigin(1, 0).setInteractive();
     this.timeText.on('pointerdown', () => this.game.events.emit('ui_cycleTime'));
 
     // リレーステータス（ヘッダー直下）
-    this.relayStatusText = this.add.text(CANVAS_W / 2, barH + 6, '', {
+    this.relayStatusText = this.add.text(0, 0, '', {
       ...uiFont, fontSize: '14px', color: '#aabbcc',
       stroke: '#000000', strokeThickness: 2,
     }).setDepth(52).setOrigin(0.5, 0);
 
     // 護衛へ戻るボタン（ヘッダー直下・右）
-    const homeBtn = this.add.text(CANVAS_W - 10, barH + 6, '⌂ 護衛', {
+    this.homeBtn = this.add.text(0, 0, '⌂ 護衛', {
       ...uiFont, fontSize: '18px', color: '#aaddff', backgroundColor: '#1a2a3a',
       padding: { x: 10, y: 6 },
     }).setDepth(52).setOrigin(1, 0).setInteractive();
-    homeBtn.on('pointerdown', () => this.game.events.emit('ui_returnToEscort'));
+    this.homeBtn.on('pointerdown', () => this.game.events.emit('ui_returnToEscort'));
 
     // 建設ポップアップ（UISceneで管理：カメラズームの影響を受けないため）
     this._buildPopupObjs = [];
@@ -64,7 +61,7 @@ class UIScene extends Phaser.Scene {
 
     // FPSカウンター（右下・タップでON/OFF）
     this._showFps = false;
-    this.fpsText = this.add.text(CANVAS_W - 8, CANVAS_H - 8, '', {
+    this.fpsText = this.add.text(0, 0, '', {
       ...uiFont, fontSize: '14px', color: '#00ff88',
       stroke: '#000000', strokeThickness: 3,
     }).setDepth(60).setOrigin(1, 1).setInteractive();
@@ -72,8 +69,32 @@ class UIScene extends Phaser.Scene {
       this._showFps = !this._showFps;
       if (!this._showFps) this.fpsText.setText('FPS');
     });
-    // 初期表示（タップできると気づけるよう小さく表示）
     this.fpsText.setText('FPS');
+
+    // 初回レイアウト + リサイズ対応
+    this._layout(this.scale.width, this.scale.height);
+    this.scale.on('resize', (gameSize) => {
+      this._layout(gameSize.width, gameSize.height);
+    });
+  }
+
+  // 画面サイズが変わるたびに全HUD要素を再配置する
+  _layout(w, h) {
+    this._w = w;
+    this._h = h;
+    const SAFE = 8;
+    const barH = SAFE + UI_H;
+    const textY = SAFE + 10;
+
+    this.moneyText.setPosition(10, textY);
+    this.waveText.setPosition(w / 2, textY);
+    this.timeText.setPosition(w - 10, textY);
+    this.relayStatusText.setPosition(w / 2, barH + 6);
+    this.homeBtn.setPosition(w - 10, barH + 6);
+    this.fpsText.setPosition(w - 8, h - 8);
+
+    // ゲームカメラのビューポートも合わせて更新
+    this.game.events.emit('ui_resize', { w, h });
   }
 
   _openBuildPopup({ col, row, sx, sy, cellHalfPx, money }) {
@@ -83,15 +104,16 @@ class UIScene extends Phaser.Scene {
     const types = Object.keys(TOWER_DEFS);
     const popW  = types.length * BW + (types.length - 1) * GAP + PAD * 2;
     const popH  = BH + PAD * 2;
+    const W = this.scale.width, H = this.scale.height;
 
     let px = sx - popW / 2;
     let py = sy - cellHalfPx - popH - 6;
-    px = Math.max(6, Math.min(CANVAS_W - popW - 6, px));
+    px = Math.max(6, Math.min(W - popW - 6, px));
     if (py < 6) py = sy + cellHalfPx + 6;
-    py = Math.max(6, Math.min(CANVAS_H - UI_H - popH - 6, py));
+    py = Math.max(6, Math.min(H - UI_H - popH - 6, py));
 
     // 暗幕オーバーレイ
-    const overlay = this.add.rectangle(CANVAS_W / 2, CANVAS_H / 2, CANVAS_W, CANVAS_H, 0x000000, 0.72).setDepth(69);
+    const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72).setDepth(69);
     this._buildPopupObjs.push(overlay);
 
     // 背景
@@ -142,7 +164,6 @@ class UIScene extends Phaser.Scene {
   }
 
   _openDirectionPicker({ col, row, sx, sy }) {
-    // 方向選択ポップアップ（2×2グリッド）
     if (!this._dirPickerObjs) this._dirPickerObjs = [];
     this._dirPickerObjs.forEach(o => o.destroy());
     this._dirPickerObjs = [];
@@ -151,13 +172,14 @@ class UIScene extends Phaser.Scene {
     const BW = 72, BH = 52, GAP = 4, PAD = 6;
     const popW = BW * 2 + GAP + PAD * 2;
     const popH = BH * 2 + GAP + PAD * 2;
+    const W = this.scale.width, H = this.scale.height;
 
     let px = sx - popW / 2;
     let py = sy - popH / 2;
-    px = Math.max(6, Math.min(CANVAS_W - popW - 6, px));
-    py = Math.max(6, Math.min(CANVAS_H - UI_H - popH - 6, py));
+    px = Math.max(6, Math.min(W - popW - 6, px));
+    py = Math.max(6, Math.min(H - UI_H - popH - 6, py));
 
-    const overlay = this.add.rectangle(CANVAS_W / 2, CANVAS_H / 2, CANVAS_W, CANVAS_H, 0x000000, 0.72).setDepth(69);
+    const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72).setDepth(69);
     const bg = this.add.rectangle(px + popW / 2, py + popH / 2, popW, popH, 0x050510, 0.96)
       .setDepth(70).setStrokeStyle(1, 0xff2266);
     const title = this.add.text(px + popW / 2, py + 3, 'レーザー方向', {
@@ -193,6 +215,8 @@ class UIScene extends Phaser.Scene {
 
   update() {
     const r    = this.registry;
+    const w    = this._w ?? this.scale.width;
+    const h    = this._h ?? this.scale.height;
     const SAFE = 8;
     const barH = SAFE + UI_H;
 
@@ -205,9 +229,9 @@ class UIScene extends Phaser.Scene {
     const g = this.hudGfx;
     g.clear();
     g.fillStyle(0x0a0a1a, 0.92);
-    g.fillRect(0, 0, CANVAS_W, barH);
+    g.fillRect(0, 0, w, barH);
     g.lineStyle(1, 0x334455, 1);
-    g.lineBetween(0, barH, CANVAS_W, barH);
+    g.lineBetween(0, barH, w, barH);
 
     // FPS表示
     if (this._showFps) {
@@ -220,7 +244,7 @@ class UIScene extends Phaser.Scene {
     ov.clear();
     if (gameState === 'defeat' || gameState === 'victory') {
       ov.fillStyle(0x000000, 0.6);
-      ov.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ov.fillRect(0, 0, w, h);
     }
   }
 }

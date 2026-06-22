@@ -1,14 +1,14 @@
 // Phaser 設定 & 起動
 const PhaserConfig = {
   type:       Phaser.AUTO,
-  width:      CANVAS_W,
-  height:     CANVAS_H,
+  width:      window.innerWidth,
+  height:     window.innerHeight,
   backgroundColor: '#1e2840',
   parent:     'game-container',
   scene:      [BootScene, GameScene, UIScene],
   resolution: window.devicePixelRatio || 1,  // HiDPI対応：フォントを鮮明に
   scale: {
-    mode:       Phaser.Scale.FIT,
+    mode:       Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   render: {
