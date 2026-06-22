@@ -708,24 +708,22 @@ class GameScene extends Phaser.Scene {
     });
 
     this.input.on('pointermove', (p) => {
-      this.lastInteractionTime = this.time.now;
-
       const p1 = this.input.pointer1;
       const p2 = this.input.pointer2;
       if (p1.isDown && p2.isDown) {
+        this.lastInteractionTime = this.time.now;
         const dx   = p1.x - p2.x, dy = p1.y - p2.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (!this.pinching) {
           this.pinching   = true;
           this.pinchStart = { dist, zoom: this.cameras.main.zoom };
         } else if (dist > 0) {
-          const cam    = this.cameras.main;
-          const oldZ   = cam.zoom;
-          const newZ   = clamp(
+          const cam  = this.cameras.main;
+          const oldZ = cam.zoom;
+          const newZ = clamp(
             this.pinchStart.zoom * (dist / this.pinchStart.dist),
             ZOOM_LEVELS[0], ZOOM_LEVELS[ZOOM_LEVELS.length - 1]
           );
-          // 2本指の中点をワールド座標にアンカーしてからズーム
           const midX = (p1.x + p2.x) / 2;
           const midY = (p1.y + p2.y) / 2;
           const wx = cam.scrollX + (midX - cam.x) / oldZ;
@@ -740,9 +738,14 @@ class GameScene extends Phaser.Scene {
       if (this.pinching) {
         this._snapZoomIdx();
         this.pinching = false;
+        // ピンチ終了時に基準点をリセット（古い downX/prevPosition による跳びを防ぐ）
+        downX = p.x; downY = p.y;
+        isDrag = false;
+        return;
       }
 
       if (p.isDown) {
+        this.lastInteractionTime = this.time.now;
         const ddx = Math.abs(p.x - downX), ddy = Math.abs(p.y - downY);
         if (ddx > 8 || ddy > 8) {
           isDrag = true;
