@@ -55,6 +55,19 @@ class UIScene extends Phaser.Scene {
       padding: { x: 10, y: 6 },
     }).setDepth(52).setOrigin(1, 0).setInteractive();
     homeBtn.on('pointerdown', () => this.game.events.emit('ui_returnToEscort'));
+
+    // FPSカウンター（右下・タップでON/OFF）
+    this._showFps = false;
+    this.fpsText = this.add.text(CANVAS_W - 8, CANVAS_H - 8, '', {
+      ...uiFont, fontSize: '14px', color: '#00ff88',
+      stroke: '#000000', strokeThickness: 3,
+    }).setDepth(60).setOrigin(1, 1).setInteractive();
+    this.fpsText.on('pointerdown', () => {
+      this._showFps = !this._showFps;
+      if (!this._showFps) this.fpsText.setText('FPS');
+    });
+    // 初期表示（タップできると気づけるよう小さく表示）
+    this.fpsText.setText('FPS');
   }
 
   update() {
@@ -74,6 +87,11 @@ class UIScene extends Phaser.Scene {
     g.fillRect(0, 0, CANVAS_W, barH);
     g.lineStyle(1, 0x334455, 1);
     g.lineBetween(0, barH, CANVAS_W, barH);
+
+    // FPS表示
+    if (this._showFps) {
+      this.fpsText.setText(`${Math.round(this.game.loop.actualFps)} fps`);
+    }
 
     // 勝敗オーバーレイ
     const gameState = r.get('hud_gameState') ?? 'playing';

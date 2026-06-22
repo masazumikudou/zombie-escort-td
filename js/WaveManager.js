@@ -1,77 +1,119 @@
-// ウェーブ管理：スポーン制御・クリア判定
+// ─── WaveManager ─────────────────────────────────────────────
+// グループスポーン方式：護衛がゴールするまでスポーンし続ける
+//
+// JSONパラメーター（waves[]各要素）:
+//   startDelay    : waves[0]のみ有効。初回グループまでの待機時間(ms)
+//   duration      : このウェーブを何秒間継続するか（次のウェーブへの切替タイミング）
+//   spawnInterval : グループとグループの間隔(ms)
+//   groupSize     : 1グループの人数
+//   groupInterval : グループ内の個体間隔(ms)
+//   enemy         : 敵パラメーター
+
 class WaveManager {
-  constructor(waves, spawns) {
-    this.waves    = waves;
-    this.spawns   = spawns;
-    this.waveIdx  = 0;
-    this.spawnCount   = 0;
-    this.deadCount    = 0;
-    this.spawnSide    = 0;       // スポーン地点をローテーション
-    this.nextSpawnTime = Infinity;
-    this.waitingClear  = false;
-    this.allDone       = false;
-    this._onWaveStart  = null;   // コールバック (waveNum, total) => {}
-    this._onAllDone    = null;   // コールバック () => {}
+  constructor(waves, spawns, escort) {
+    this.waves     = waves;
+    this.spawns    = spawns;
+    this.escort    = escort;
+    this.waveIdx   = 0;
+    this.startTime = 0;
+    this.nextGroupTime   = Infinity;
+    this._groupRemaining = 0;
+    this._groupNextTime  = Infinity;
+    this._groupSpawn     = null;
+    this._warningSpawn   = null;  // 3秒前に確定するスポーン地点
+    this.allDone         = false;
+    this._onWaveStart    = null;
   }
 
   get currentWaveNum() { return this.waveIdx + 1; }
   get totalWaves()     { return this.waves.length; }
 
   onWaveStart(cb) { this._onWaveStart = cb; }
-  onAllDone(cb)   { this._onAllDone   = cb; }
 
-  // timeOffset: scaledTime の現在値（2人目以降の護衛用）
   start(timeOffset = 0) {
     const w = this.waves[0];
     if (!w) { this.allDone = true; return; }
-    this.nextSpawnTime = timeOffset + w.startDelay;
+    // startDelay 後を elapsed=0 の基準にする（duration がズレなくなる）
+    this.startTime     = timeOffset + (w.startDelay ?? 0);
+    this.nextGroupTime = timeOffset + (w.startDelay ?? 0);
     if (this._onWaveStart) this._onWaveStart(1, this.waves.length);
   }
 
-  // spawnFn: (col, row, def, waveNum) => Zombie
   update(scaledTime, spawnFn) {
     if (this.allDone) return;
+    if (!this.escort || !this.escort.alive || this.escort.reached) return;
 
-    const wave = this.waves[this.waveIdx];
-    if (!wave) { this.allDone = true; if (this._onAllDone) this._onAllDone(); return; }
-
-    // クリア待ち：全員死亡チェック
-    if (this.waitingClear) {
-      if (this.deadCount >= this.spawnCount) {
-        this._advance(scaledTime);
-      }
-      return;
+    // 時間経過でウェーブ進行
+    const elapsed    = scaledTime - this.startTime;
+    const newWaveIdx = this._calcWaveIdx(elapsed);
+    if (newWaveIdx !== this.waveIdx) {
+      this.waveIdx = newWaveIdx;
+      if (this._onWaveStart) this._onWaveStart(this.waveIdx + 1, this.waves.length);
     }
 
-    if (scaledTime < this.nextSpawnTime) return;
+    const wave = this.waves[this.waveIdx];
+    if (!wave) return;
 
-    // 1体スポーン
-    const spawn = this.spawns[this.spawnSide % this.spawns.length];
-    this.spawnSide++;
-    const z = spawnFn(spawn.col, spawn.row, wave.enemy, this.waveIdx);
-    const prevOnDeath = z.onDeath;
-    z.onDeath = () => { this.deadCount++; if (prevOnDeath) prevOnDeath(); };
-    this.spawnCount++;
-    this.nextSpawnTime = scaledTime + wave.spawnInterval;
+    // ─ 3秒前予告：スポーン地点を確定してロック ─
+    if (this._groupRemaining === 0 && this.nextGroupTime !== Infinity) {
+      const remaining = this.nextGroupTime - scaledTime;
+      if (remaining <= 3000 && remaining > 0 && this._warningSpawn === null) {
+        const sorted = this._sortedSpawns();
+        this._warningSpawn = sorted[0] ?? null;
+      }
+    }
 
-    if (this.spawnCount >= wave.count) {
-      this.waitingClear = true;
+    // ─ グループ内の連鎖スポーン ─
+    if (this._groupRemaining > 0 && scaledTime >= this._groupNextTime) {
+      spawnFn(this._groupSpawn.col, this._groupSpawn.row, wave.enemy, this.waveIdx);
+      this._groupRemaining--;
+      this._groupNextTime = scaledTime + (wave.groupInterval ?? 800);
+      // 最後の1体が出た瞬間から spawnInterval を待つ
+      if (this._groupRemaining === 0) {
+        this.nextGroupTime  = scaledTime + (wave.spawnInterval ?? 7000);
+        this._warningSpawn  = null;  // 次グループの予告をリセット
+      }
+    }
+
+    // ─ 次グループの発火 ─
+    if (this._groupRemaining === 0 && scaledTime >= this.nextGroupTime) {
+      const sorted = this._sortedSpawns();
+      if (sorted.length === 0) return;
+      this._groupSpawn     = this._warningSpawn ?? sorted[0];  // 確定地点を使う
+      this._warningSpawn   = null;
+      this._groupRemaining = wave.groupSize ?? 1;
+      this._groupNextTime  = scaledTime;
+      this.nextGroupTime   = Infinity;
     }
   }
 
-  _advance(scaledTime) {
-    this.waveIdx++;
-    this.spawnCount   = 0;
-    this.deadCount    = 0;
-    this.waitingClear = false;
+  // 3秒前に確定したスポーン地点と残り時間を返す（確定前 or スポーン中はnull）
+  getWarning(scaledTime) {
+    if (this.allDone || !this.escort?.alive || this.escort?.reached) return null;
+    if (this._groupRemaining > 0) return null;
+    if (!this._warningSpawn) return null;
+    const remaining = this.nextGroupTime - scaledTime;
+    if (remaining <= 0) return null;
+    return { spawn: this._warningSpawn, remaining };
+  }
 
-    if (this.waveIdx >= this.waves.length) {
-      this.allDone = true;
-      if (this._onAllDone) this._onAllDone();
-      return;
+  _calcWaveIdx(elapsedMs) {
+    let acc = 0;
+    for (let i = 0; i < this.waves.length - 1; i++) {
+      acc += (this.waves[i].duration ?? 9999) * 1000;
+      if (elapsedMs < acc) return i;
     }
+    return this.waves.length - 1;
+  }
 
-    this.nextSpawnTime = scaledTime + this.waves[this.waveIdx].startDelay;
-    if (this._onWaveStart) this._onWaveStart(this.waveIdx + 1, this.waves.length);
+  _sortedSpawns() {
+    if (!this.escort || this.spawns.length === 0) return [...this.spawns];
+    const ex = this.escort.x / CELL;
+    const ey = this.escort.y / CELL;
+    return [...this.spawns].sort((a, b) => {
+      const da = (a.col - ex) ** 2 + (a.row - ey) ** 2;
+      const db = (b.col - ex) ** 2 + (b.row - ey) ** 2;
+      return da - db;
+    });
   }
 }

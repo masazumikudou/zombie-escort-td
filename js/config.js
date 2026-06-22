@@ -1,9 +1,10 @@
 // ─── グリッド ───────────────────────────────────────────────
 const CELL    = 64;   // 1マスのピクセルサイズ
-const COLS    = 20;
-const ROWS    = 15;
-const MAP_W   = CELL * COLS;  // 1280
-const MAP_H   = CELL * ROWS;  // 960
+const MAX_ZOMBIES = 120; // 同時存在ゾンビ数の安全上限（クラッシュ防止用、難易度調整ではない）
+let COLS    = 20;
+let ROWS    = 15;
+let MAP_W   = CELL * COLS;
+let MAP_H   = CELL * ROWS;
 
 // ─── キャンバス ─────────────────────────────────────────────
 const CANVAS_W = 960;

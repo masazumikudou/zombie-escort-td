@@ -59,12 +59,13 @@ class Tower {
   }
 
   _findNearest(zombies) {
-    let nearest = null, minDist = Infinity;
+    const range2 = this.range * this.range;
+    let nearest = null, minDist2 = Infinity;
     for (const z of zombies) {
       if (!z.alive) continue;
       const dx = z.x - this.x, dy = z.y - this.y;
-      const d  = Math.sqrt(dx * dx + dy * dy);
-      if (d <= this.range && d < minDist) { minDist = d; nearest = z; }
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= range2 && d2 < minDist2) { minDist2 = d2; nearest = z; }
     }
     return nearest;
   }

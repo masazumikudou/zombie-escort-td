@@ -12,6 +12,14 @@ class GameScene extends Phaser.Scene {
   create() {
     const sd = this.stageData;
 
+    // グリッドサイズをJSONから上書き
+    if (sd.grid) {
+      COLS  = sd.grid.cols;
+      ROWS  = sd.grid.rows;
+      MAP_W = CELL * COLS;
+      MAP_H = CELL * ROWS;
+    }
+
     // ゲーム状態
     this.scaledTime   = 0;
     this.timeModeIdx  = 2;
@@ -52,6 +60,9 @@ class GameScene extends Phaser.Scene {
         }
       }
     }
+
+    // フローフィールド（全ゾンビ共有の距離マップ）
+    this.flowField = new FlowField(this.pf);
 
     // エンティティ
     this.zombies = [];
@@ -123,9 +134,8 @@ class GameScene extends Phaser.Scene {
     cam.pan(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2, 600, 'Power2');
 
     // ウェーブマネージャー
-    this.waveManager = new WaveManager(def.waves, this.stageData.zombieSpawns);
+    this.waveManager = new WaveManager(def.waves, this.stageData.zombieSpawns, this.escort);
     this.waveManager.onWaveStart((n, t) => this._setWaveLabel(n, t));
-    this.waveManager.onAllDone(() => {});
     this.waveManager.start(timeOffset);
 
     this._setWaveLabel(1, def.waves.length);
@@ -185,12 +195,21 @@ class GameScene extends Phaser.Scene {
   update(time, delta) {
     const scale = TIME_SCALES[this.timeModeIdx];
     const dt    = delta * scale;
+    this._dt    = dt;  // _drawDynamic から矢印アニメに使う
     if (scale > 0) this.scaledTime += delta * scale;
 
     if (this.gameState === 'playing' && dt > 0) {
       this.escort.update(dt);
 
       // インターバル中はnullを渡しゾンビを既存パスで継続移動させる
+      // フローフィールドを護衛の現在セルで更新（護衛がセルを移動したときのみ再計算）
+      if (this.escort.alive && !this.escort.reached) {
+        this.flowField.update(
+          Math.floor(this.escort.x / CELL),
+          Math.floor(this.escort.y / CELL)
+        );
+      }
+
       const escortTarget = this.relayPhase === 'active' ? this.escort : null;
       this.zombies.forEach(z => z.update(this.scaledTime, dt, escortTarget));
       this.towers.forEach(t  => t.update(this.scaledTime, dt, this.zombies, this.bullets));
@@ -483,6 +502,29 @@ class GameScene extends Phaser.Scene {
   }
 
   // ─── 動的描画 ─────────────────────────────────────────────
+  // 経路ポイント列から累積弧長配列を生成
+  _buildArcLengths(pts) {
+    const arcs = [0];
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i].x - pts[i-1].x, dy = pts[i].y - pts[i-1].y;
+      arcs.push(arcs[i-1] + Math.sqrt(dx*dx + dy*dy));
+    }
+    return arcs;
+  }
+
+  // 弧長パラメータ t → world座標 + 接線方向
+  _arcLengthInterp(pts, arcs, t) {
+    let lo = 0, hi = arcs.length - 1;
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1;
+      if (arcs[mid] <= t) lo = mid; else hi = mid;
+    }
+    const segLen = arcs[hi] - arcs[lo];
+    const frac   = segLen > 0 ? (t - arcs[lo]) / segLen : 0;
+    const a = pts[lo], b = pts[hi];
+    return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac, dx: b.x - a.x, dy: b.y - a.y };
+  }
+
   _drawDynamic() {
     const g = this.dynGfx;
     g.clear();
@@ -493,6 +535,69 @@ class GameScene extends Phaser.Scene {
         const a = this.escort.path[i], b = this.escort.path[i + 1];
         g.lineBetween(a.x, a.y, b.x, b.y);
       }
+    }
+
+    // 護衛ルートテレグラフ（Gへ流れる矢印）
+    if (this.escort && this.escort.alive && !this.escort.reached) {
+      const remaining = this.escort.path.slice(this.escort.wpIdx);
+      if (remaining.length > 0) {
+        const SPEED   = 55;  // 流れ速度 px/s
+        const SPACING = 80;  // 矢印間隔 px
+        const SZ      = 10;  // 矢印サイズ px
+
+        const pts      = [{ x: this.escort.x, y: this.escort.y }, ...remaining];
+        const arcs     = this._buildArcLengths(pts);
+        const totalLen = arcs[arcs.length - 1];
+
+        if (totalLen > 0) {
+          this._chevronT = (this._chevronT ?? 0) + SPEED * (this._dt ?? 0) / 1000;
+          // ゴール到達 or 経路短縮で行き過ぎたら護衛位置からリスタート
+          if (this._chevronT >= totalLen) this._chevronT = 0;
+
+          // 極薄の基線（経路の正確な形を示す）
+          g.lineStyle(1, 0xffffff, 0.18);
+          for (let i = 0; i < pts.length - 1; i++) {
+            g.lineBetween(pts[i].x, pts[i].y, pts[i+1].x, pts[i+1].y);
+          }
+
+          // 流れる矢印（1個のみ）
+          const count = 1;
+          for (let i = 0; i < count; i++) {
+            const t   = (this._chevronT + i * SPACING) % totalLen;
+            const pos = this._arcLengthInterp(pts, arcs, t);
+            const len = Math.sqrt(pos.dx ** 2 + pos.dy ** 2) || 1;
+            const nx  = pos.dx / len, ny = pos.dy / len;   // 進行方向
+            const px  = -ny,          py = nx;             // 垂直方向
+
+            const tipX = pos.x + nx * SZ;
+            const tipY = pos.y + ny * SZ;
+            const lx   = pos.x - nx * SZ * 0.5 + px * SZ * 0.65;
+            const ly   = pos.y - ny * SZ * 0.5 + py * SZ * 0.65;
+            const rx   = pos.x - nx * SZ * 0.5 - px * SZ * 0.65;
+            const ry   = pos.y - ny * SZ * 0.5 - py * SZ * 0.65;
+
+            // 暗い縁取り（少し後退させてオフセット）
+            g.fillStyle(0x000000, 0.55);
+            g.fillTriangle(tipX, tipY, lx - nx * 2, ly - ny * 2, rx - nx * 2, ry - ny * 2);
+            // 白い矢印本体
+            g.fillStyle(0xffffff, 0.92);
+            g.fillTriangle(tipX, tipY, lx, ly, rx, ry);
+          }
+        }
+      }
+    }
+
+    // スポーン予告点滅（3秒前から残り時間に応じて点滅が速くなる）
+    const warning = this.waveManager?.getWarning(this.scaledTime);
+    if (warning) {
+      const { spawn, remaining } = warning;
+      const wx = spawn.col * CELL, wy = spawn.row * CELL;
+      const freq  = 1 + (1 - remaining / 3000) * 4;  // 1Hz→5Hz
+      const alpha = Math.abs(Math.sin(this.scaledTime * 0.001 * Math.PI * freq));
+      g.lineStyle(3, 0xff4400, alpha * 0.95);
+      g.strokeRect(wx + 2, wy + 2, CELL - 4, CELL - 4);
+      g.fillStyle(0xff4400, alpha * 0.3);
+      g.fillRect(wx + 2, wy + 2, CELL - 4, CELL - 4);
     }
 
     this._drawBuildSpots(g);
@@ -837,6 +942,7 @@ class GameScene extends Phaser.Scene {
   // enemyDef: { type, hpMul?, speedMul?, damageMul?, rewardMul? }
   // 数値は ZOMBIE_BASE の基準値に倍率を掛けて確定する
   _spawnZombie(col, row, enemyDef, waveNum) {
+    if (this.zombies.length >= MAX_ZOMBIES) return null;
     const base = ZOMBIE_BASE[enemyDef.type] ?? ZOMBIE_BASE.normal;
     const def  = {
       type:   enemyDef.type,
@@ -845,7 +951,7 @@ class GameScene extends Phaser.Scene {
       damage: Math.round(enemyDef.damage != null ? enemyDef.damage : base.damage * (enemyDef.damageMul ?? 1)),
       reward: Math.round(enemyDef.reward != null ? enemyDef.reward : base.reward * (enemyDef.rewardMul ?? 1)),
     };
-    const z = new Zombie(this, col, row, def, this.pf, waveNum);
+    const z = new Zombie(this, col, row, def, waveNum);
     const origOnDeath = z.onDeath;
     z.onDeath = () => {
       this.money += z.reward;
