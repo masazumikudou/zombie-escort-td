@@ -49,6 +49,12 @@ class WaveManager {
     const newWaveIdx = this._calcWaveIdx(elapsed);
     if (newWaveIdx !== this.waveIdx) {
       this.waveIdx = newWaveIdx;
+      const newWave = this.waves[this.waveIdx];
+      // 次ウェーブの startDelay 分だけ次グループ発火を遅らせる
+      this.nextGroupTime    = scaledTime + (newWave.startDelay ?? 0);
+      this._groupRemaining  = 0;
+      this._warningSpawn    = null;
+      this._prevGroupZombie = null;
       if (this._onWaveStart) this._onWaveStart(this.waveIdx + 1, this.waves.length);
     }
 
@@ -104,7 +110,10 @@ class WaveManager {
   _calcWaveIdx(elapsedMs) {
     let acc = 0;
     for (let i = 0; i < this.waves.length - 1; i++) {
-      acc += (this.waves[i].duration ?? 9999) * 1000;
+      const w = this.waves[i];
+      // duration 未指定なら count*spawnInterval から自動計算
+      const autoDuration = ((w.count ?? w.groupSize ?? 1) * (w.spawnInterval ?? 7000)) / 1000;
+      acc += (w.duration ?? autoDuration) * 1000;
       if (elapsedMs < acc) return i;
     }
     return this.waves.length - 1;

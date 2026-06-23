@@ -246,9 +246,9 @@ let COLS = 20, ROWS = 15;
 
 let obstacles  = new Set();  // "col,row"
 let buildSpots = new Set();  // "col,row"
-let startCell  = { col: 0,  row: Math.floor(ROWS/2) };
-let goalCell   = { col: COLS-1, row: Math.floor(ROWS/2) };
-let spawns     = [{ col:0, row:0 }, { col:COLS-1, row:0 }, { col:0, row:ROWS-1 }, { col:COLS-1, row:ROWS-1 }];
+let startCell  = null;
+let goalCell   = null;
+let spawns     = [];
 let mode = 'obstacle';
 let isDragging = false;
 let dragAction = null; // 'add' | 'remove'
@@ -324,9 +324,9 @@ function drawGroundBase() {
   if (img && img.complete && img.naturalWidth > 0) {
     drawGroundBlocks(img, def.blockCells, def.imagePx);
   } else {
-    // テクスチャ未定義（dirt等）またはロード前：単色フォールバック
+    // テクスチャ未定義（dirt等）またはロード前：単色フォールバック（内側マップのみ）
     ctx.fillStyle = groundColor();
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, COLS * CELL, ROWS * CELL);
   }
 }
 
@@ -507,9 +507,9 @@ const ctx    = canvas.getContext('2d');
 function resizeGrid() {
   COLS = parseInt(document.getElementById('cols').value, 10);
   ROWS = parseInt(document.getElementById('rows').value, 10);
-  startCell = { col: 0,      row: Math.floor(ROWS/2) };
-  goalCell  = { col: COLS-1, row: Math.floor(ROWS/2) };
-  spawns    = [{ col:0, row:0 }, { col:COLS-1, row:0 }, { col:0, row:ROWS-1 }, { col:COLS-1, row:ROWS-1 }];
+  startCell = null;
+  goalCell  = null;
+  spawns    = [];
   obstacles.clear();
   buildSpots.clear();
   redraw();
@@ -551,6 +551,30 @@ function canPlaceProp(col, row, type) {
 }
 
 function handleCell(col, row, isDown) {
+  // アンダーレイモードは外周のみ
+  if (mode === 'underlay') {
+    if (!isUnderlayBorder(col, row)) return;
+    const k = cellKey(col, row);
+    if (isDown) dragAction = underlayCells.has(k) ? 'remove' : 'add';
+    if (dragAction === 'add')    underlayCells.set(k, underlayType);
+    if (dragAction === 'remove') underlayCells.delete(k);
+    redraw();
+    return;
+  }
+  // デカールモードは内側＋外周ボーダーに配置可能
+  if (mode === 'decal' && isDown) {
+    const def = DECAL_DEFS[selectedDecalType];
+    if (!def) return;
+    const idx = findDecalAt(col, row, selectedDecalType);
+    if (idx >= 0) {
+      decals.splice(idx, 1);
+    } else if (col >= -1 && col + def.cols <= COLS + 1 && row >= -1 && row + def.rows <= ROWS + 1) {
+      decals.push({ type: selectedDecalType, col, row });
+    }
+    redraw();
+    return;
+  }
+  // その他のモードは内側マップのみ
   if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
 
   if (mode === 'obstacle') {
@@ -576,10 +600,8 @@ function handleCell(col, row, isDown) {
     const idx = spawns.findIndex(s => s.col === col && s.row === row);
     if (idx >= 0) {
       spawns.splice(idx, 1);
-    } else if (spawns.length < 4) {
-      spawns.push({ col, row });
     } else {
-      document.getElementById('status').textContent = 'スポーンは最大4つまで';
+      spawns.push({ col, row });
     }
 
   } else if (mode === 'prop' && isDown) {
@@ -607,9 +629,10 @@ function handleCell(col, row, isDown) {
       if (dragAction === 'remove') { hRoadCells.delete(k); vRoadCells.delete(k); }
     } else {
       const cells = roadAxis === 'h' ? hRoadCells : vRoadCells;
-      if (isDown) dragAction = cells.has(k) ? 'remove' : 'add';
+      // どちらの軸に道路があっても「既存あり＝削除」と判定する
+      if (isDown) dragAction = (hRoadCells.has(k) || vRoadCells.has(k)) ? 'remove' : 'add';
       if (dragAction === 'add')    cells.add(k);
-      if (dragAction === 'remove') cells.delete(k);
+      if (dragAction === 'remove') { hRoadCells.delete(k); vRoadCells.delete(k); }
     }
 
   } else if (mode === 'underlay') {
@@ -618,15 +641,6 @@ function handleCell(col, row, isDown) {
     if (dragAction === 'add')    underlayCells.set(k, underlayType);
     if (dragAction === 'remove') underlayCells.delete(k);
 
-  } else if (mode === 'decal' && isDown) {
-    const def = DECAL_DEFS[selectedDecalType];
-    if (!def) return;
-    const idx = findDecalAt(col, row, selectedDecalType);
-    if (idx >= 0) {
-      decals.splice(idx, 1);  // トグル削除
-    } else if (col + def.cols <= COLS && row + def.rows <= ROWS) {
-      decals.push({ type: selectedDecalType, col, row });
-    }
   }
 
   redraw();
@@ -670,7 +684,15 @@ canvas.addEventListener('mouseleave', () => {
 function screenToCell(e) {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left, y = e.clientY - rect.top;
-  return [Math.floor(x / CELL), Math.floor(y / CELL)];
+  return [Math.floor(x / CELL) - 1, Math.floor(y / CELL) - 1];
+}
+
+// 外周1マス（アンダーレイ専用ゾーン）かどうか判定
+function isUnderlayBorder(col, row) {
+  const inC = col >= -1 && col <= COLS;
+  const inR = row >= -1 && row <= ROWS;
+  if (!inC || !inR) return false;
+  return col === -1 || col === COLS || row === -1 || row === ROWS;
 }
 
 function applyPaint() {
@@ -794,13 +816,21 @@ function drawRoads() {
 
 // ─── 描画 ───────────────────────────────────────────────────
 function redraw() {
-  canvas.width  = COLS * CELL;
-  canvas.height = ROWS * CELL;
+  canvas.width  = (COLS + 2) * CELL;
+  canvas.height = (ROWS + 2) * CELL;
+
+  // 外周アンダーレイ帯の背景
+  ctx.fillStyle = '#0d0d18';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // ── 内側マップを (CELL, CELL) オフセットで描画 ──────────────
+  ctx.save();
+  ctx.translate(CELL, CELL);
 
   // 地面ベース
   drawGroundBase();
 
-  // セル別地面上書き（テクスチャがある種別は対応する位置を切り出して描画）
+  // セル別地面上書き
   for (const [key, type] of cellGrounds) {
     const [c, r] = key.split(',').map(Number);
     const def = GROUND_BLOCK_DEFS[type];
@@ -816,31 +846,21 @@ function redraw() {
     }
   }
 
-  // アンダーレイ（地面の上・道路の下）：オレンジ半透明でマーキング
-  for (const [k, type] of underlayCells) {
-    const [c, r] = k.split(',').map(Number);
-    ctx.fillStyle = underlayColor(type) + '55';
-    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
-    ctx.strokeStyle = underlayColor(type) + 'cc';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
-  }
-  if (mode === 'underlay' && hoverCell) {
-    ctx.fillStyle = 'rgba(255,120,0,0.3)';
-    ctx.fillRect(hoverCell.col * CELL, hoverCell.row * CELL, CELL, CELL);
-  }
-
-  // 道路（地面の上、その他の要素の下）
+  // 道路
   drawRoads();
 
-  // デカール（道路の上・obstacles の下）
+  // デカール
   for (const d of decals) drawDecal(d);
 
   // スタート・ゴール
-  ctx.fillStyle = 'rgba(0,255,136,0.25)';
-  ctx.fillRect(startCell.col * CELL, startCell.row * CELL, CELL, CELL);
-  ctx.fillStyle = 'rgba(255,255,0,0.25)';
-  ctx.fillRect(goalCell.col * CELL, goalCell.row * CELL, CELL, CELL);
+  if (startCell) {
+    ctx.fillStyle = 'rgba(0,255,136,0.25)';
+    ctx.fillRect(startCell.col * CELL, startCell.row * CELL, CELL, CELL);
+  }
+  if (goalCell) {
+    ctx.fillStyle = 'rgba(255,255,0,0.25)';
+    ctx.fillRect(goalCell.col * CELL, goalCell.row * CELL, CELL, CELL);
+  }
 
   // スポーン
   for (const sp of spawns) {
@@ -870,13 +890,11 @@ function redraw() {
     ctx.fill();
   }
 
-  // プロップ描画
-  for (const p of props) {
-    drawProp(p, 1.0);
-  }
+  // プロップ
+  for (const p of props) drawProp(p, 1.0);
 
   // プロップモード：ホバープレビュー
-  if (mode === 'prop' && hoverCell) {
+  if (mode === 'prop' && hoverCell && hoverCell.col >= 0 && hoverCell.col < COLS && hoverCell.row >= 0 && hoverCell.row < ROWS) {
     const { col, row } = hoverCell;
     const def = PROP_DEFS[selectedPropType];
     const canPlace = canPlaceProp(col, row, selectedPropType) && findPropAt(col, row) < 0;
@@ -894,7 +912,7 @@ function redraw() {
   }
 
   // デカールモード：ホバープレビュー
-  if (mode === 'decal' && hoverCell) {
+  if (mode === 'decal' && hoverCell && hoverCell.col >= -1 && hoverCell.col <= COLS && hoverCell.row >= -1 && hoverCell.row <= ROWS) {
     const { col, row } = hoverCell;
     const def = DECAL_DEFS[selectedDecalType];
     if (def) {
@@ -911,7 +929,6 @@ function redraw() {
   // ペイントモード：ホバープレビュー／ドラッグ矩形プレビュー
   if (mode === 'paint') {
     const def = GROUND_BLOCK_DEFS[paintType];
-
     const drawPaintPreview = (c0, r0, c1, r1) => {
       const px = c0 * CELL, py = r0 * CELL;
       const pw = (c1 - c0 + 1) * CELL, ph = (r1 - r0 + 1) * CELL;
@@ -923,16 +940,13 @@ function redraw() {
       ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
       ctx.setLineDash([]);
     };
-
     if (paintDragStart && paintDragEnd) {
-      // ドラッグ中：自由矩形プレビュー
       const minCol = Math.min(paintDragStart.col, paintDragEnd.col);
       const maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
       const minRow = Math.min(paintDragStart.row, paintDragEnd.row);
       const maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
       drawPaintPreview(minCol, minRow, maxCol, maxRow);
-    } else if (hoverCell && def) {
-      // 非ドラッグ：ホバー位置を左上起点にブロック表示（マップ端でクリップ）
+    } else if (hoverCell && def && hoverCell.col >= 0 && hoverCell.row >= 0) {
       const bc   = def.blockCells;
       const endC = Math.min(hoverCell.col + bc - 1, COLS - 1);
       const endR = Math.min(hoverCell.row + bc - 1, ROWS - 1);
@@ -940,24 +954,74 @@ function redraw() {
     }
   }
 
-  // グリッド線
+  // 内側マップのグリッド線
   ctx.strokeStyle = 'rgba(60,60,80,0.6)';
   ctx.lineWidth = 0.5;
   for (let c = 0; c <= COLS; c++) {
-    ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, canvas.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, ROWS * CELL); ctx.stroke();
   }
   for (let r = 0; r <= ROWS; r++) {
-    ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(canvas.width, r * CELL); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(COLS * CELL, r * CELL); ctx.stroke();
   }
 
-  // ラベル
-  ctx.fillStyle = '#00ff88'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('S', startCell.col * CELL + CELL/2, startCell.row * CELL + CELL/2 + 4);
-  ctx.fillStyle = '#ffff44';
-  ctx.fillText('G', goalCell.col * CELL + CELL/2, goalCell.row * CELL + CELL/2 + 4);
+  ctx.restore();
+  // ── 内側マップ描画ここまで ────────────────────────────────
+
+  // 内側マップの枠線
+  ctx.strokeStyle = 'rgba(100,130,160,0.9)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(CELL, CELL, COLS * CELL, ROWS * CELL);
+
+  // アンダーレイセル描画（外周帯）：地面ペイントと同じテクスチャを使用
+  for (const [k, type] of underlayCells) {
+    const [c, r] = k.split(',').map(Number);
+    const x = (c + 1) * CELL, y = (r + 1) * CELL;
+    if (type === 'road') {
+      if (roadImg.complete && roadImg.naturalWidth > 0) {
+        ctx.drawImage(roadImg, x, y, CELL, CELL);
+      } else {
+        ctx.fillStyle = '#888888';
+        ctx.fillRect(x, y, CELL, CELL);
+      }
+    } else {
+      const def = GROUND_BLOCK_DEFS[type];
+      const img = def ? groundImgs[type] : null;
+      if (img && img.complete && img.naturalWidth > 0) {
+        const pxPerCell = def.imagePx / def.blockCells;
+        const absC = ((c % def.blockCells) + def.blockCells) % def.blockCells;
+        const absR = ((r % def.blockCells) + def.blockCells) % def.blockCells;
+        ctx.drawImage(img, absC * pxPerCell, absR * pxPerCell, pxPerCell, pxPerCell, x, y, CELL, CELL);
+      } else {
+        ctx.fillStyle = GROUND_COLORS[type] ?? '#1a1a2e';
+        ctx.fillRect(x, y, CELL, CELL);
+      }
+    }
+    // 枠線のみでアンダーレイを示す（塗りなし→テクスチャ色そのまま）
+    ctx.strokeStyle = 'rgba(255,120,0,0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+  }
+
+  // アンダーレイモード：ホバーハイライト
+  if (mode === 'underlay' && hoverCell && isUnderlayBorder(hoverCell.col, hoverCell.row)) {
+    const x = (hoverCell.col + 1) * CELL, y = (hoverCell.row + 1) * CELL;
+    ctx.fillStyle = 'rgba(255,120,0,0.4)';
+    ctx.fillRect(x, y, CELL, CELL);
+  }
+
+  // ラベル（内側マップオフセット適用）
+  ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+  if (startCell) {
+    ctx.fillStyle = '#00ff88';
+    ctx.fillText('S', (startCell.col + 1) * CELL + CELL/2, (startCell.row + 1) * CELL + CELL/2 + 4);
+  }
+  if (goalCell) {
+    ctx.fillStyle = '#ffff44';
+    ctx.fillText('G', (goalCell.col + 1) * CELL + CELL/2, (goalCell.row + 1) * CELL + CELL/2 + 4);
+  }
   ctx.fillStyle = '#ff6633';
   for (let i = 0; i < spawns.length; i++) {
-    ctx.fillText(i + 1, spawns[i].col * CELL + CELL/2, spawns[i].row * CELL + CELL/2 + 4);
+    ctx.fillText(i + 1, (spawns[i].col + 1) * CELL + CELL/2, (spawns[i].row + 1) * CELL + CELL/2 + 4);
   }
 }
 
@@ -1195,38 +1259,12 @@ function clearAll() {
   vRoadCells.clear();
   cellGrounds.clear();
   decals = [];
-  spawns = [{ col:0, row:0 }, { col:COLS-1, row:0 }, { col:0, row:ROWS-1 }, { col:COLS-1, row:ROWS-1 }];
+  underlayCells.clear();
+  spawns = [];
   selectGroundBase('grass');
   redraw();
 }
 
-// ─── 起動時：stage_01.json の ground_base / roads を読み込む ─
-fetch('stages/stage_01.json')
-  .then(r => r.json())
-  .then(data => {
-    if (data.ground_base) selectGroundBase(data.ground_base);
-    if (Array.isArray(data.roads)) {
-      for (const road of data.roads) {
-        if (road.axis === 'h') {
-          for (let c = road.from; c <= road.to; c++) hRoadCells.add(`${c},${road.line}`);
-        } else if (road.axis === 'v') {
-          for (let r = road.from; r <= road.to; r++) vRoadCells.add(`${road.line},${r}`);
-        }
-      }
-    }
-    if (Array.isArray(data.ground_cells)) {
-      for (const cell of data.ground_cells) {
-        cellGrounds.set(`${cell.col},${cell.row}`, cell.type);
-      }
-    }
-    if (Array.isArray(data.decals)) {
-      for (const d of data.decals) {
-        decals.push({ type: d.type, col: d.col, row: d.row });
-      }
-    }
-    redraw();
-  })
-  .catch(() => {});
 
 // 初期化
 buildPropTypeButtons();
