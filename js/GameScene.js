@@ -61,6 +61,33 @@ class GameScene extends Phaser.Scene {
       }
     }
 
+    // 外周1マスを自動ブロック（128pxスプライトのはみ出し防止）
+    // スポーン・護衛の全経路セルとその隣接セルは例外として通行可にする
+    const _perimEx = new Set();
+    for (const sp of (sd.zombieSpawns || [])) {
+      _perimEx.add(`${sp.col},${sp.row}`);
+    }
+    for (const esc of (sd.escorts || [])) {
+      // 護衛の実際の経路を事前計算して全セルを例外に追加
+      const escPath = this.pf.find(esc.start.col, esc.start.row, esc.goal.col, esc.goal.row);
+      if (escPath) escPath.forEach(cell => _perimEx.add(`${cell.col},${cell.row}`));
+      _perimEx.add(`${esc.start.col},${esc.start.row}`);
+      _perimEx.add(`${esc.goal.col},${esc.goal.row}`);
+    }
+    for (const key of [..._perimEx]) {
+      const [ec, er] = key.split(',').map(Number);
+      for (const [dc, dr] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+        _perimEx.add(`${ec + dc},${er + dr}`);
+      }
+    }
+    for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r < ROWS; r++) {
+        if ((c === 0 || c === COLS - 1 || r === 0 || r === ROWS - 1) && !_perimEx.has(`${c},${r}`)) {
+          this.pf.blocked.add(`${c},${r}`);
+        }
+      }
+    }
+
     // フローフィールド（全ゾンビ共有の距離マップ）
     this.flowField = new FlowField(this.pf);
 

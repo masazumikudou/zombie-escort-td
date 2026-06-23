@@ -26,6 +26,32 @@ class BootScene extends Phaser.Scene {
   create() {
     const stageData = this.cache.json.get('stageData');
     applyBalance(this.cache.json.get('balance'));
+
+    if (this.textures.exists('salaryman_right')) {
+      this.anims.create({
+        key: 'salaryman_walk_right',
+        frames: this.anims.generateFrameNumbers('salaryman_right', { frames: [0, 1, 2, 1, 0, 1] }),
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
+    if (this.textures.exists('salaryman_down')) {
+      this.anims.create({
+        key: 'salaryman_walk_down',
+        frames: this.anims.generateFrameNumbers('salaryman_down', { frames: [0, 1, 2, 1, 0, 1] }),
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
+    if (this.textures.exists('salaryman_up')) {
+      this.anims.create({
+        key: 'salaryman_walk_up',
+        frames: this.anims.generateFrameNumbers('salaryman_up', { frames: [0, 1, 2, 1, 0, 1] }),
+        frameRate: 4,
+        repeat: -1,
+      });
+    }
+
     this.scene.start('GameScene', { stageData });
   }
 
@@ -74,6 +100,17 @@ class BootScene extends Phaser.Scene {
     // 地面・道路テクスチャ
     ['grass', 'dirt', 'road', 'asphalt'].forEach(type => {
       this.load.image(`ground_${type}`, `assets/sprites/ground/${type}.png`);
+    });
+
+    // サラリーマンゾンビ（スプライトシート：128×128、3フレーム）
+    this.load.spritesheet('salaryman_right', 'assets/sprites/zombie/salaryman/walk_right.png', {
+      frameWidth: 128, frameHeight: 128,
+    });
+    this.load.spritesheet('salaryman_down', 'assets/sprites/zombie/salaryman/walk_down.png', {
+      frameWidth: 128, frameHeight: 128,
+    });
+    this.load.spritesheet('salaryman_up', 'assets/sprites/zombie/salaryman/walk_up.png', {
+      frameWidth: 128, frameHeight: 128,
     });
   }
 

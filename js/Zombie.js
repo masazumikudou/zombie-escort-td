@@ -122,21 +122,29 @@ class Zombie {
       return;
     }
 
-    const dir       = dirFromVec(this.lastDx, this.lastDy);
-    const spriteDir = dir === 'left' ? 'right' : dir;
-    const baseKey   = zombieTexKey(this.type, spriteDir, 1);
-    const animKey   = zombieTexKey(this.type, spriteDir, this._animFrame);
-    const texKey    = this.scene.textures.exists(animKey) ? animKey : baseKey;
+    const dir = dirFromVec(this.lastDx, this.lastDy);
 
-    if (this.scene.textures.exists(baseKey)) {
-      // ─── スプライットモード ───────────────────────────
-      if (!this._sprite) {
-        this._sprite = this.scene.add.image(this.x, this.y, texKey).setDepth(3);
+    if (this.scene.textures.exists('salaryman_right')) {
+      // ─── スプライトシートモード ───────────────────────────
+      // 方向ごとにスプライト切り替え（upはright/leftのフォールバック）
+      let sheetKey, animKey;
+      if (dir === 'down' && this.scene.textures.exists('salaryman_down')) {
+        sheetKey = 'salaryman_down'; animKey = 'salaryman_walk_down';
+      } else if (dir === 'up' && this.scene.textures.exists('salaryman_up')) {
+        sheetKey = 'salaryman_up';   animKey = 'salaryman_walk_up';
       } else {
-        this._sprite.setPosition(this.x, this.y).setVisible(true);
-        if (this._sprite.texture.key !== texKey) this._sprite.setTexture(texKey);
+        sheetKey = 'salaryman_right'; animKey = 'salaryman_walk_right';
       }
+
+      if (!this._sprite || !this._sprite.anims || this._spriteKey !== sheetKey) {
+        if (this._sprite) this._sprite.destroy();
+        this._sprite    = this.scene.add.sprite(this.x, this.y, sheetKey).setDepth(3);
+        this._spriteKey = sheetKey;
+        if (this.scene.anims.exists(animKey)) this._sprite.play(animKey);
+      }
+      this._sprite.setPosition(this.x, this.y).setVisible(true);
       this._sprite.setFlipX(dir === 'left');
+      this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
     } else {
       // ─── グレーボックス（単色円） ─────────────────────
       if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
