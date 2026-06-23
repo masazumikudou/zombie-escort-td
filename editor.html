@@ -110,6 +110,7 @@
     <button class="mode-btn"        id="btn-road"       onclick="setMode('road')">🛣 道路配置</button>
     <button class="mode-btn"        id="btn-paint"      onclick="setMode('paint')">🎨 地面ペイント</button>
     <button class="mode-btn"        id="btn-decal"      onclick="setMode('decal')">🟦 装飾(decal)配置</button>
+    <button class="mode-btn"        id="btn-underlay"   onclick="setMode('underlay')">🔻 アンダーレイ（はみ出し吸収）</button>
   </div>
 
   <!-- 地面ペイントモード時のみ表示 -->
@@ -122,6 +123,21 @@
       <button class="sub-btn"        id="paint-btn-asphalt" onclick="selectPaintType('asphalt')">🔲 asph</button>
     </div>
     <div style="font-size:10px;color:#557;margin-top:4px">ドラッグで範囲を塗る<br>ベースと同色＝上書き削除</div>
+  </div>
+
+  <!-- アンダーレイモード時のみ表示 -->
+  <div id="underlay-type-panel" style="display:none">
+    <div class="sep"></div>
+    <h2>アンダーレイ種別</h2>
+    <div class="field-row" style="gap:4px">
+      <button class="sub-btn active" id="underlay-btn-road"    onclick="selectUnderlayType('road')">🛣 road</button>
+      <button class="sub-btn"        id="underlay-btn-grass"   onclick="selectUnderlayType('grass')">🌿 grass</button>
+      <button class="sub-btn"        id="underlay-btn-dirt"    onclick="selectUnderlayType('dirt')">🟫 dirt</button>
+      <button class="sub-btn"        id="underlay-btn-asphalt" onclick="selectUnderlayType('asphalt')">🔲 asph</button>
+    </div>
+    <div style="font-size:10px;color:#557;margin-top:4px">クリック・ドラッグで配置/削除<br>depth -3：スプライトはみ出し吸収用</div>
+    <button id="copy-underlay-btn" onclick="copyUnderlayJSON()" style="margin-top:6px;width:100%;padding:7px 10px;border:none;cursor:pointer;border-radius:3px;font-size:12px;background:#1a3a50;color:#9cf">📋 underlay JSON をコピー</button>
+    <span id="underlay-copy-status" style="font-size:11px;color:#9cf;display:block;min-height:14px;margin-top:2px"></span>
   </div>
 
   <!-- 装飾配置モード時のみ表示 -->
@@ -177,6 +193,7 @@
     <div class="leg-item"><div class="leg-swatch" style="background:#ff3300;opacity:0.6"></div>スポーン</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#ff9944;opacity:0.7"></div>プロップ</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#888888"></div>道路</div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#ff6600;opacity:0.5"></div>アンダーレイ</div>
   </div>
 
   <div class="sep"></div>
@@ -340,6 +357,36 @@ function selectPaintType(type) {
   document.getElementById(`paint-btn-${type}`)?.classList.add('active');
 }
 
+// ─── アンダーレイ ─────────────────────────────────────────────
+let underlayCells  = new Map(); // "col,row" → type
+let underlayType   = 'road';
+
+const UNDERLAY_COLORS = { road: '#ff6600', grass: '#44aa44', dirt: '#aa7733', asphalt: '#666666' };
+function underlayColor(type) { return UNDERLAY_COLORS[type] || '#ff6600'; }
+
+function selectUnderlayType(type) {
+  underlayType = type;
+  document.querySelectorAll('[id^="underlay-btn-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById(`underlay-btn-${type}`)?.classList.add('active');
+}
+
+function copyUnderlayJSON() {
+  const arr  = [];
+  for (const [k, t] of underlayCells) {
+    const [col, row] = k.split(',').map(Number);
+    arr.push({ col, row, type: t });
+  }
+  arr.sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col);
+  const text = '"underlay": ' + JSON.stringify(arr, null, 2);
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('underlay-copy-status');
+    el.textContent = 'コピーしました！';
+    setTimeout(() => { el.textContent = ''; }, 2000);
+  }).catch(() => {
+    document.getElementById('underlay-copy-status').textContent = 'コピー失敗';
+  });
+}
+
 // ─── デカール ─────────────────────────────────────────────────
 // config.js の DECAL_DEFS と手動同期すること（当たり判定なし）
 const DECAL_DEFS = {
@@ -472,10 +519,11 @@ function setMode(m) {
   mode = m;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`btn-${m}`)?.classList.add('active');
-  document.getElementById('prop-type-panel').style.display   = (m === 'prop')  ? 'block' : 'none';
-  document.getElementById('road-axis-panel').style.display   = (m === 'road')  ? 'block' : 'none';
-  document.getElementById('paint-type-panel').style.display  = (m === 'paint') ? 'block' : 'none';
-  document.getElementById('decal-type-panel').style.display  = (m === 'decal') ? 'block' : 'none';
+  document.getElementById('prop-type-panel').style.display      = (m === 'prop')     ? 'block' : 'none';
+  document.getElementById('road-axis-panel').style.display      = (m === 'road')     ? 'block' : 'none';
+  document.getElementById('paint-type-panel').style.display     = (m === 'paint')    ? 'block' : 'none';
+  document.getElementById('decal-type-panel').style.display     = (m === 'decal')    ? 'block' : 'none';
+  document.getElementById('underlay-type-panel').style.display  = (m === 'underlay') ? 'block' : 'none';
   hoverCell = null;
   redraw();
 }
@@ -563,6 +611,12 @@ function handleCell(col, row, isDown) {
       if (dragAction === 'add')    cells.add(k);
       if (dragAction === 'remove') cells.delete(k);
     }
+
+  } else if (mode === 'underlay') {
+    const k = cellKey(col, row);
+    if (isDown) dragAction = underlayCells.has(k) ? 'remove' : 'add';
+    if (dragAction === 'add')    underlayCells.set(k, underlayType);
+    if (dragAction === 'remove') underlayCells.delete(k);
 
   } else if (mode === 'decal' && isDown) {
     const def = DECAL_DEFS[selectedDecalType];
@@ -760,6 +814,20 @@ function redraw() {
       ctx.fillStyle = GROUND_COLORS[type] ?? '#1a1a2e';
       ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
     }
+  }
+
+  // アンダーレイ（地面の上・道路の下）：オレンジ半透明でマーキング
+  for (const [k, type] of underlayCells) {
+    const [c, r] = k.split(',').map(Number);
+    ctx.fillStyle = underlayColor(type) + '55';
+    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+    ctx.strokeStyle = underlayColor(type) + 'cc';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
+  }
+  if (mode === 'underlay' && hoverCell) {
+    ctx.fillStyle = 'rgba(255,120,0,0.3)';
+    ctx.fillRect(hoverCell.col * CELL, hoverCell.row * CELL, CELL, CELL);
   }
 
   // 道路（地面の上、その他の要素の下）
@@ -1011,6 +1079,16 @@ function buildJSON() {
   if (cellGroundsArr.length > 0)  obj.ground_cells = cellGroundsArr;
   if (props.length > 0)           obj.props        = props.map(p => ({ type: p.type, col: p.col, row: p.row }));
   if (decals.length > 0)          obj.decals       = decals.map(d => ({ type: d.type, col: d.col, row: d.row }));
+
+  if (underlayCells.size > 0) {
+    const arr = [];
+    for (const [k, t] of underlayCells) {
+      const [col, row] = k.split(',').map(Number);
+      arr.push({ col, row, type: t });
+    }
+    arr.sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col);
+    obj.underlay = arr;
+  }
 
   return obj;
 }

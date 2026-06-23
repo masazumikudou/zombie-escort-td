@@ -103,6 +103,9 @@ class GameScene extends Phaser.Scene {
     this.dynGfx       = this.add.graphics().setDepth(3);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
 
+    // アンダーレイ（depth -3：128pxスプライトのはみ出し吸収用）
+    this._drawUnderlayLayer();
+
     // 地面レイヤー（depth -2）
     this._drawGroundLayer();
 
@@ -278,6 +281,27 @@ class GameScene extends Phaser.Scene {
     this._drawHUD();
     this._drawIndicators();
 
+  }
+
+  // ─── アンダーレイ（depth -3）────────────────────────────
+  // 128pxスプライトが64pxマスからはみ出す領域に道路等を敷いて違和感を消す
+  _drawUnderlayLayer() {
+    const cells = this.stageData.underlay || [];
+    if (!cells.length) return;
+
+    const FALLBACK = { road: 0x888888, grass: 0x2a3a25, dirt: 0x7a5a2a, asphalt: 0x3a3a3a };
+    for (const cell of cells) {
+      const texKey = cell.type === 'road' ? 'ground_road' : `ground_${cell.type}`;
+      if (this.textures.exists(texKey)) {
+        this.add.image(cell.col * CELL + CELL / 2, cell.row * CELL + CELL / 2, texKey)
+          .setDisplaySize(CELL, CELL).setDepth(-3);
+      } else {
+        const color = FALLBACK[cell.type] ?? 0x888888;
+        this.add.graphics().setDepth(-3)
+          .fillStyle(color, 1)
+          .fillRect(cell.col * CELL, cell.row * CELL, CELL, CELL);
+      }
+    }
   }
 
   // ─── 地面レイヤー（depth -2） ────────────────────────────
