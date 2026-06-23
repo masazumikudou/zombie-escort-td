@@ -30,7 +30,6 @@ class GameScene extends Phaser.Scene {
     this.debugOpen    = false;
     this.showGrid     = true;
     this.showPaths    = false;
-    this.lastInteractionTime = 0;
 
     // ポップアップ状態
     this.popupState      = null;
@@ -137,7 +136,7 @@ class GameScene extends Phaser.Scene {
       this.scene.launch('UIScene');
     }
     this._onUiCycleTime      = () => this._cycleTimeMode();
-    this._onUiReturnToEscort = () => { this._returnToEscort(); this.lastInteractionTime = 0; };
+    this._onUiReturnToEscort = () => this._returnToEscort();
     this._onUiBuildPlace     = ({ col, row, type }) => { this._popupJustActed = true; this._tryPlace(col, row, type); this._closePopup(); };
     this._onUiLaserDir       = ({ col, row, dir }) => {
       const t = this.towers.find(t => t.col === col && t.row === row);
@@ -279,12 +278,6 @@ class GameScene extends Phaser.Scene {
     this._drawHUD();
     this._drawIndicators();
 
-    if (this.gameState === 'playing' && !this.popupState && this.lastInteractionTime > 0) {
-      if (time - this.lastInteractionTime > AUTO_RETURN_DELAY) {
-        this._returnToEscort();
-        this.lastInteractionTime = 0;
-      }
-    }
   }
 
   // ─── 地面レイヤー（depth -2） ────────────────────────────
@@ -731,15 +724,13 @@ class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (p) => {
       downX = p.x; downY = p.y; isDrag = false;
-      this.lastInteractionTime = this.time.now;
     });
 
     this.input.on('pointermove', (p) => {
       const p1 = this.input.pointer1;
       const p2 = this.input.pointer2;
       if (p1.isDown && p2.isDown) {
-        this.lastInteractionTime = this.time.now;
-        const dx   = p1.x - p2.x, dy = p1.y - p2.y;
+          const dx   = p1.x - p2.x, dy = p1.y - p2.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (!this.pinching) {
           this.pinching   = true;
@@ -772,8 +763,7 @@ class GameScene extends Phaser.Scene {
       }
 
       if (p.isDown) {
-        this.lastInteractionTime = this.time.now;
-        const ddx = Math.abs(p.x - downX), ddy = Math.abs(p.y - downY);
+          const ddx = Math.abs(p.x - downX), ddy = Math.abs(p.y - downY);
         if (ddx > 8 || ddy > 8) {
           isDrag = true;
           const dx = p.x - p.prevPosition.x;
@@ -794,7 +784,6 @@ class GameScene extends Phaser.Scene {
     this.input.on('wheel', (p, go, dx, dy) => {
       this.zoomIdx = clamp(this.zoomIdx + (dy > 0 ? -1 : 1), 0, ZOOM_LEVELS.length - 1);
       this.cameras.main.setZoom(ZOOM_LEVELS[this.zoomIdx]);
-      this.lastInteractionTime = this.time.now;
     });
 
     this.input.keyboard.on('keydown', (e) => {
