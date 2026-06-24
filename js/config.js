@@ -42,8 +42,11 @@ const PROP_DEFS = {
   house_back:   { texture: 'prop/house_back.png',   cols: 3, rows: 3 },
   guardrail_h:  { texture: 'prop/guardrail_h.png',  cols: 1, rows: 1 },
   guardrail_v:  { texture: 'prop/guardrail_v.png',  cols: 1, rows: 1 },
-  tree:         { texture: 'prop/tree.png',          cols: 1, rows: 1 },
-  商店街:       { texture: 'prop/商店街.png',         cols: 15, rows: 3 },
+  tree:         { texture: 'prop/tree.png',    cols: 1, rows: 1 },
+  木1:          { texture: 'prop/木1.png',     cols: 1, rows: 1 },
+  木2:          { texture: 'prop/木2.png',     cols: 1, rows: 1 },
+  ベンチ:       { texture: 'prop/ベンチ.png',  cols: 1, rows: 1, scale: 0.5 },
+  商店街:       { texture: 'prop/商店街.png',  cols: 15, rows: 3 },
   house5_front: { texture: 'prop/house5_front.png',  cols: 15, rows: 3 },
   house5_back:  { texture: 'prop/house5_back.png',   cols: 15, rows: 3 },
 };
@@ -56,6 +59,9 @@ const DECAL_DEFS = {
   crosswalk_v: { cols: 1, rows: 2 },
   manhole:     { cols: 1, rows: 1 },
   tree:        { cols: 1, rows: 1 },
+  木1:         { cols: 1, rows: 1 },
+  木2:         { cols: 1, rows: 1 },
+  ベンチ:      { cols: 1, rows: 1, scale: 0.5 },
 };
 
 // ─── ゾンビ基準値 ────────────────────────────────────────────

@@ -15,14 +15,14 @@
       "start": { "col": 0,  "row": 0 },
       "goal":  { "col": 14, "row": 7 },
       "hp": 100,
-      "speed": 80,
+      "speed": 40,
       "waves": [
         {
           "startDelay": 6000,
           "groupSize": 3,
           "groupInterval": 1200,
           "spawnInterval": 8000,
-          "enemy": { "type": "normal", "hp": 30, "speed": 55, "damage": 10, "reward": 20 }
+          "enemy": { "type": "normal", "hp": 30, "speed": 28, "damage": 10, "reward": 20 }
         }
       ]
     }

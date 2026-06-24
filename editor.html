@@ -395,6 +395,9 @@ const DECAL_DEFS = {
   manhole:     { cols: 1, rows: 1 },
   tree:        { cols: 1, rows: 1 },
   wood:        { cols: 1, rows: 1 },
+  木1:         { cols: 1, rows: 1 },
+  木2:         { cols: 1, rows: 1 },
+  ベンチ:      { cols: 1, rows: 1, scale: 0.5 },
 };
 const DECAL_COLORS = {
   crosswalk_h: '#ddcc22',
@@ -426,6 +429,9 @@ const PROP_DEFS = {
   guardrail_h: { cols: 1, rows: 1 },
   guardrail_v: { cols: 1, rows: 1 },
   tree:        { cols: 1, rows: 1 },
+  木1:         { cols: 1, rows: 1 },
+  木2:         { cols: 1, rows: 1 },
+  ベンチ:      { cols: 1, rows: 1, scale: 0.5 },
   商店街:      { cols: 15, rows: 3 },
   house:       { cols: 3, rows: 3 },
   hospital:    { cols: 4, rows: 3 },
@@ -1023,6 +1029,7 @@ function redraw() {
   for (let i = 0; i < spawns.length; i++) {
     ctx.fillText(i + 1, (spawns[i].col + 1) * CELL + CELL/2, (spawns[i].row + 1) * CELL + CELL/2 + 4);
   }
+  scheduleAutoSave();
 }
 
 function drawProp(p, alpha) {
@@ -1030,10 +1037,12 @@ function drawProp(p, alpha) {
   if (!def) return;
   const px = p.col * CELL, py = p.row * CELL;
   const pw = def.cols * CELL, ph = def.rows * CELL;
+  const sc = def.scale ?? 1;
+  const dw = pw * sc, dh = ph * sc;
   ctx.save();
   ctx.globalAlpha = alpha;
   if (propImages[p.type]) {
-    ctx.drawImage(propImages[p.type], px, py, pw, ph);
+    ctx.drawImage(propImages[p.type], px + (pw - dw) / 2, py + (ph - dh) / 2, dw, dh);
   } else {
     const col = propColor(p.type);
     ctx.fillStyle = col + '55';
@@ -1054,10 +1063,12 @@ function drawDecal(d) {
   if (!def) return;
   const px = d.col * CELL, py = d.row * CELL;
   const pw = def.cols * CELL, ph = def.rows * CELL;
+  const sc = def.scale ?? 1;
+  const dw = pw * sc, dh = ph * sc;
   ctx.save();
   ctx.globalAlpha = 0.85;
   if (decalImages[d.type]) {
-    ctx.drawImage(decalImages[d.type], px, py, pw, ph);
+    ctx.drawImage(decalImages[d.type], px + (pw - dw) / 2, py + (ph - dh) / 2, dw, dh);
   } else {
     const col = decalColor(d.type);
     ctx.fillStyle = col + '55';
@@ -1155,6 +1166,100 @@ function buildJSON() {
   }
 
   return obj;
+}
+
+// ─── 自動保存・復元 ──────────────────────────────────────────
+const AUTOSAVE_KEY = 'editor_autosave_v1';
+let _autoSaveTimer = null;
+
+function scheduleAutoSave() {
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => {
+    try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(buildJSON())); } catch(e) {}
+  }, 600);
+}
+
+function applyJSON(obj) {
+  if (!obj) return;
+
+  if (obj.grid) {
+    COLS = obj.grid.cols ?? COLS;
+    ROWS = obj.grid.rows ?? ROWS;
+    document.getElementById('cols-input').value = COLS;
+    document.getElementById('rows-input').value = ROWS;
+  }
+
+  if (obj.ground_base) {
+    groundBase = obj.ground_base;
+    document.querySelectorAll('[id^="ground-btn-"]').forEach(b => b.classList.remove('active'));
+    const gb = document.getElementById(`ground-btn-${groundBase}`);
+    if (gb) gb.classList.add('active');
+  }
+
+  hRoadCells.clear(); vRoadCells.clear();
+  for (const r of (obj.roads ?? [])) {
+    for (let i = r.from; i <= r.to; i++) {
+      if (r.axis === 'h') hRoadCells.add(`${i},${r.line}`);
+      else                vRoadCells.add(`${r.line},${i}`);
+    }
+  }
+
+  obstacles.clear();
+  for (const o of (obj.obstacles ?? [])) obstacles.add(`${o.col},${o.row}`);
+
+  buildSpots.clear();
+  for (const b of (obj.buildSpots ?? [])) buildSpots.add(`${b.col},${b.row}`);
+
+  props = []; propOccupied.clear();
+  for (const p of (obj.props ?? [])) {
+    props.push({ ...p });
+    const def = PROP_DEFS[p.type];
+    if (def) {
+      for (let dr = 0; dr < def.rows; dr++)
+        for (let dc = 0; dc < def.cols; dc++)
+          propOccupied.add(`${p.col + dc},${p.row + dr}`);
+    }
+  }
+
+  decals = [];
+  for (const d of (obj.decals ?? [])) decals.push({ ...d });
+
+  spawns = [];
+  for (const s of (obj.zombieSpawns ?? [])) spawns.push({ ...s });
+
+  const s = obj.escorts?.[0]?.start;
+  const g = obj.escorts?.[0]?.goal;
+  startCell = (s && s.col != null) ? { col: s.col, row: s.row } : null;
+  goalCell  = (g && g.col != null) ? { col: g.col, row: g.row } : null;
+
+  underlayCells.clear();
+  for (const u of (obj.underlay ?? [])) underlayCells.set(`${u.col},${u.row}`, u.type);
+
+  cellGrounds.clear();
+  for (const c of (obj.ground_cells ?? [])) cellGrounds.set(`${c.col},${c.row}`, c.type);
+
+  const esc = obj.escorts?.[0];
+  if (esc) {
+    const hp = document.getElementById('esc-hp');
+    const sp = document.getElementById('esc-speed');
+    if (hp && esc.hp    != null) hp.value = esc.hp;
+    if (sp && esc.speed != null) sp.value = esc.speed;
+  }
+  if (obj.startMoney != null) {
+    const el = document.getElementById('start-money');
+    if (el) el.value = obj.startMoney;
+  }
+
+  redraw();
+}
+
+function restoreAutoSave() {
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    if (!raw) return;
+    applyJSON(JSON.parse(raw));
+    document.getElementById('status').textContent = '🔄 前回の作業を復元しました';
+  } catch(e) {}
 }
 
 function exportJSON() {
@@ -1269,7 +1374,7 @@ function clearAll() {
 // 初期化
 buildPropTypeButtons();
 buildDecalTypeButtons();
-redraw();
+restoreAutoSave();
 </script>
 </body>
 </html>

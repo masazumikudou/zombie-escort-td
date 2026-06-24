@@ -92,21 +92,24 @@ class Escort {
       return;
     }
 
-    const dir       = dirFromVec(this.lastDx, this.lastDy);
-    const spriteDir = dir === 'left' ? 'right' : dir;
-    const baseKey   = escortTexKey(this.variant, spriteDir, 1);
-    const animKey   = escortTexKey(this.variant, spriteDir, this._animFrame);
-    const texKey    = this.scene.textures.exists(animKey) ? animKey : baseKey;
+    const dir = dirFromVec(this.lastDx, this.lastDy);
 
-    if (this.scene.textures.exists(baseKey)) {
-      // ─── スプライットモード ───────────────────────────
-      if (!this._sprite) {
-        this._sprite = this.scene.add.image(this.x, this.y, texKey).setDepth(3);
-      } else {
-        this._sprite.setPosition(this.x, this.y).setVisible(true);
-        if (this._sprite.texture.key !== texKey) this._sprite.setTexture(texKey);
+    // バリアント別シートキー（右シートのみ → 左は反転、上下もフォールバック）
+    const sheetKey = `${this.variant}_right`;
+    const animKey  = `${this.variant}_walk_right`;
+
+    if (this.scene.textures.exists(sheetKey)) {
+      // ─── スプライットシートモード ────────────────────
+      if (!this._sprite || this._spriteKey !== sheetKey) {
+        if (this._sprite) this._sprite.destroy();
+        this._sprite    = this.scene.add.sprite(this.x, this.y, sheetKey).setDepth(3);
+        this._spriteKey = sheetKey;
+        if (this.scene.anims.exists(animKey)) this._sprite.play(animKey);
       }
-      this._sprite.setFlipX(dir === 'left');
+      this._sprite.setScale(100 / 256);
+      this._sprite.setPosition(this.x, this.y).setVisible(true);
+      this._sprite.setFlipX(dir !== 'left');
+      this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
     } else {
       // ─── グレーボックス（単色円） ─────────────────────
       if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
