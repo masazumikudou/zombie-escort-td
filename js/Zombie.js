@@ -14,6 +14,7 @@ class Zombie {
     this.damage        = def.damage;
     this.reward        = def.reward ?? 20;
     this.type          = def.type ?? 'normal';
+    this.skin          = def.skin ?? 'salaryman';
     this.waveNum       = waveNum;
     this.alive         = true;
     this.rewarded      = false;
@@ -29,6 +30,11 @@ class Zombie {
     this._animFrame    = 1;
     this.onDeath       = null;
     this._sprite       = null;
+    // トレイル（リーダーのみ記録、フォロワーはリーダーのcellTrailを参照）
+    this.cellTrail     = (leader === null) ? [cellCenter(spawnCol, spawnRow)] : null;
+    this._lastTrailCol = spawnCol;
+    this._lastTrailRow = spawnRow;
+    this._trailIdx     = 0;
   }
 
   get col() { return Math.floor(this.x / CELL); }
@@ -62,15 +68,32 @@ class Zombie {
     this._animTime  += dt;
     this._animFrame  = Math.floor(this._animTime / (1000 / zombieFps(this.type))) % zombieFrameCount(this.type) + 1;
 
-    // リーダー死亡時は自分がリーダーに昇格
-    if (this.leader !== null && !this.leader.alive) this.leader = null;
+    if (this.leader !== null && !this.leader.alive) {
+      this.leader = null;
+      if (this.cellTrail === null) this.cellTrail = [];  // フォロワー→リーダー昇格時に初期化
+    }
 
     if (this.leader !== null) {
-      // フォロワー：リーダーの現在座標を追う（groupIntervalの時間差が自然なスペースを生む）
-      this.path  = [{ x: this.leader.x, y: this.leader.y }];
-      this.wpIdx = 0;
+      // フォロワー：リーダーの実際に歩いたトレイルを追う
+      if (this.wpIdx >= this.path.length) {
+        const trail = this.leader.cellTrail;
+        if (trail && this._trailIdx < trail.length) {
+          this.path  = [trail[this._trailIdx++]];
+          this.wpIdx = 0;
+        } else {
+          // トレイルが追いついていない場合はFlowFieldでフォールバック
+          const ff = this.scene.flowField;
+          const next = ff.getNextCell(this.col, this.row);
+          if (next) { this.path = [cellCenter(next.col, next.row)]; this.wpIdx = 0; }
+        }
+      }
     } else {
-      // リーダー：FlowFieldで経路取得
+      // リーダー：FlowFieldで経路取得 + 通過セルをトレイルに記録
+      if (this.col !== this._lastTrailCol || this.row !== this._lastTrailRow) {
+        this._lastTrailCol = this.col;
+        this._lastTrailRow = this.row;
+        this.cellTrail.push(cellCenter(this.col, this.row));
+      }
       const ff = this.scene.flowField;
       if (this.wpIdx >= this.path.length || this._ffVersion !== ff.version) {
         this._ffVersion = ff.version;
@@ -124,16 +147,19 @@ class Zombie {
 
     const dir = dirFromVec(this.lastDx, this.lastDy);
 
+    const skinKey = (this.skin === 'police' && this.scene.textures.exists('police_right')) ? 'police'
+      : (this.skin === 'worker' && this.scene.textures.exists('worker_right')) ? 'worker'
+      : 'salaryman';
+
     if (this.scene.textures.exists('salaryman_right')) {
       // ─── スプライトシートモード ───────────────────────────
-      // 方向ごとにスプライト切り替え（upはright/leftのフォールバック）
       let sheetKey, animKey;
-      if (dir === 'down' && this.scene.textures.exists('salaryman_down')) {
-        sheetKey = 'salaryman_down'; animKey = 'salaryman_walk_down';
-      } else if (dir === 'up' && this.scene.textures.exists('salaryman_up')) {
-        sheetKey = 'salaryman_up';   animKey = 'salaryman_walk_up';
+      if (dir === 'down' && this.scene.textures.exists(`${skinKey}_down`)) {
+        sheetKey = `${skinKey}_down`; animKey = `${skinKey}_walk_down`;
+      } else if (dir === 'up' && this.scene.textures.exists(`${skinKey}_up`)) {
+        sheetKey = `${skinKey}_up`;   animKey = `${skinKey}_walk_up`;
       } else {
-        sheetKey = 'salaryman_right'; animKey = 'salaryman_walk_right';
+        sheetKey = `${skinKey}_right`; animKey = `${skinKey}_walk_right`;
       }
 
       if (!this._sprite || !this._sprite.anims || this._spriteKey !== sheetKey) {
@@ -142,6 +168,8 @@ class Zombie {
         this._spriteKey = sheetKey;
         if (this.scene.anims.exists(animKey)) this._sprite.play(animKey);
       }
+      const scl = 100 / 256;
+      this._sprite.setScale(scl);
       this._sprite.setPosition(this.x, this.y).setVisible(true);
       this._sprite.setFlipX(dir === 'left');
       this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);

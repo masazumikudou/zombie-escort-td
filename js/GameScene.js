@@ -990,8 +990,12 @@ class GameScene extends Phaser.Scene {
   _spawnZombie(col, row, enemyDef, waveNum, leader = null) {
     if (this.zombies.length >= MAX_ZOMBIES) return null;
     const base = ZOMBIE_BASE[enemyDef.type] ?? ZOMBIE_BASE.normal;
+    this._spawnSkinIdx = (this._spawnSkinIdx ?? 0) + 1;
+    const skins = ['salaryman', 'worker', 'police'];
+    const skin  = skins[this._spawnSkinIdx % skins.length];
     const def  = {
       type:   enemyDef.type,
+      skin,
       hp:     Math.round(enemyDef.hp     != null ? enemyDef.hp     : base.hp     * (enemyDef.hpMul     ?? 1)),
       speed:             enemyDef.speed  != null ? enemyDef.speed  : base.speed  * (enemyDef.speedMul  ?? 1),
       damage: Math.round(enemyDef.damage != null ? enemyDef.damage : base.damage * (enemyDef.damageMul ?? 1)),

@@ -21,7 +21,7 @@ class WaveManager {
     this._groupNextTime  = Infinity;
     this._groupSpawn     = null;
     this._warningSpawn   = null;
-    this._prevGroupZombie = null;  // チェーン用：直前にスポーンしたゾンビ
+    this._groupLeaderZombie = null;  // グループ1体目（全フォロワーの基準リーダー）
     this.allDone         = false;
     this._onWaveStart    = null;
   }
@@ -52,9 +52,9 @@ class WaveManager {
       const newWave = this.waves[this.waveIdx];
       // 次ウェーブの startDelay 分だけ次グループ発火を遅らせる
       this.nextGroupTime    = scaledTime + (newWave.startDelay ?? 0);
-      this._groupRemaining  = 0;
-      this._warningSpawn    = null;
-      this._prevGroupZombie = null;
+      this._groupRemaining    = 0;
+      this._warningSpawn      = null;
+      this._groupLeaderZombie = null;
       if (this._onWaveStart) this._onWaveStart(this.waveIdx + 1, this.waves.length);
     }
 
@@ -72,15 +72,15 @@ class WaveManager {
 
     // ─ グループ内の連鎖スポーン ─
     if (this._groupRemaining > 0 && scaledTime >= this._groupNextTime) {
-      const z = spawnFn(this._groupSpawn.col, this._groupSpawn.row, wave.enemy, this.waveIdx, this._prevGroupZombie);
-      this._prevGroupZombie = z;  // 次のゾンビはこいつを追う
+      const z = spawnFn(this._groupSpawn.col, this._groupSpawn.row, wave.enemy, this.waveIdx, this._groupLeaderZombie);
+      if (this._groupLeaderZombie === null) this._groupLeaderZombie = z;  // 1体目がリーダー
       this._groupRemaining--;
       this._groupNextTime = scaledTime + (wave.groupInterval ?? 800);
       // 最後の1体が出た瞬間から spawnInterval を待つ
       if (this._groupRemaining === 0) {
-        this.nextGroupTime    = scaledTime + (wave.spawnInterval ?? 7000);
-        this._warningSpawn    = null;
-        this._prevGroupZombie = null;  // 次グループのチェーンをリセット
+        this.nextGroupTime      = scaledTime + (wave.spawnInterval ?? 7000);
+        this._warningSpawn      = null;
+        this._groupLeaderZombie = null;  // 次グループのリーダーをリセット
       }
     }
 

@@ -20,7 +20,7 @@
         {
           "startDelay": 6000,
           "groupSize": 3,
-          "groupInterval": 800,
+          "groupInterval": 1200,
           "spawnInterval": 8000,
           "enemy": { "type": "normal", "hp": 30, "speed": 55, "damage": 10, "reward": 20 }
         }

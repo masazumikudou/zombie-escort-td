@@ -52,6 +52,56 @@ class BootScene extends Phaser.Scene {
       });
     }
 
+    if (this.textures.exists('worker_right')) {
+      this.anims.create({
+        key: 'worker_walk_right',
+        frames: this.anims.generateFrameNumbers('worker_right', { frames: [0, 1, 2, 1, 0, 1] }),
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
+    if (this.textures.exists('worker_down')) {
+      this.anims.create({
+        key: 'worker_walk_down',
+        frames: this.anims.generateFrameNumbers('worker_down', { frames: [0, 1, 2, 1, 0, 1] }),
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
+    if (this.textures.exists('worker_up')) {
+      this.anims.create({
+        key: 'worker_walk_up',
+        frames: this.anims.generateFrameNumbers('worker_up', { frames: [0, 1, 2, 1, 0, 1] }),
+        frameRate: 4,
+        repeat: -1,
+      });
+    }
+
+    if (this.textures.exists('police_right')) {
+      this.anims.create({
+        key: 'police_walk_right',
+        frames: this.anims.generateFrameNumbers('police_right', { frames: [0,1,2,3,4,5] }),
+        frameRate: 6,
+        repeat: -1,
+      });
+    }
+    if (this.textures.exists('police_down')) {
+      this.anims.create({
+        key: 'police_walk_down',
+        frames: this.anims.generateFrameNumbers('police_down', { frames: [0,1,2,3,4,5] }),
+        frameRate: 6,
+        repeat: -1,
+      });
+    }
+    if (this.textures.exists('police_up')) {
+      this.anims.create({
+        key: 'police_walk_up',
+        frames: this.anims.generateFrameNumbers('police_up', { frames: [0,1,2,3,4,5] }),
+        frameRate: 6,
+        repeat: -1,
+      });
+    }
+
     this.scene.start('GameScene', { stageData });
   }
 
@@ -102,15 +152,37 @@ class BootScene extends Phaser.Scene {
       this.load.image(`ground_${type}`, `assets/sprites/ground/${type}.png`);
     });
 
-    // サラリーマンゾンビ（スプライトシート：128×128、3フレーム）
+    // サラリーマンゾンビ
     this.load.spritesheet('salaryman_right', 'assets/sprites/zombie/salaryman/walk_right.png', {
-      frameWidth: 128, frameHeight: 128,
+      frameWidth: 256, frameHeight: 256,
     });
     this.load.spritesheet('salaryman_down', 'assets/sprites/zombie/salaryman/walk_down.png', {
-      frameWidth: 128, frameHeight: 128,
+      frameWidth: 256, frameHeight: 256,
     });
     this.load.spritesheet('salaryman_up', 'assets/sprites/zombie/salaryman/walk_up.png', {
-      frameWidth: 128, frameHeight: 128,
+      frameWidth: 256, frameHeight: 256,
+    });
+
+    // 作業員ゾンビ（ファイルが存在すれば読み込む）
+    this.load.spritesheet('worker_right', 'assets/sprites/zombie/worker/walk_right.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+    this.load.spritesheet('worker_down', 'assets/sprites/zombie/worker/walk_down.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+    this.load.spritesheet('worker_up', 'assets/sprites/zombie/worker/walk_up.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+
+    // 警察ゾンビ（6フレーム）
+    this.load.spritesheet('police_right', 'assets/sprites/zombie/police/walk_right.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+    this.load.spritesheet('police_down', 'assets/sprites/zombie/police/walk_down.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+    this.load.spritesheet('police_up', 'assets/sprites/zombie/police/walk_up.png', {
+      frameWidth: 256, frameHeight: 256,
     });
   }
 
