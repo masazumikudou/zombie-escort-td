@@ -1,0 +1,31 @@
+{
+  "name": "zombie-escort-td",
+  "version": "1.0.0",
+  "description": "家族を1人ずつ順番に護衛しながら右端まで連れて行くタワーディフェンス。 グレーボックス（単色図形）でコアループを検証しつつ、 **素材ファイルを置くだけでコード変更ゼロで本素材に切り替わる**仕組み済み。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "sync": "node scripts/build.js && npx cap sync android",
+    "open": "npx cap open android"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/masazumikudou/zombie-escort-td.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/masazumikudou/zombie-escort-td/issues"
+  },
+  "homepage": "https://github.com/masazumikudou/zombie-escort-td#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1"
+  }
+}
