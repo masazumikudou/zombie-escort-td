@@ -94,9 +94,15 @@ class Escort {
 
     const dir = dirFromVec(this.lastDx, this.lastDy);
 
-    // バリアント別シートキー（右シートのみ → 左は反転、上下もフォールバック）
-    const sheetKey = `${this.variant}_right`;
-    const animKey  = `${this.variant}_walk_right`;
+    // 方向別シートキー（down専用あり、up/leftは右シート反転でフォールバック）
+    let sheetKey, animKey;
+    if (dir === 'down' && this.scene.textures.exists(`${this.variant}_down`)) {
+      sheetKey = `${this.variant}_down`;
+      animKey  = `${this.variant}_walk_down`;
+    } else {
+      sheetKey = `${this.variant}_right`;
+      animKey  = `${this.variant}_walk_right`;
+    }
 
     if (this.scene.textures.exists(sheetKey)) {
       // ─── スプライットシートモード ────────────────────
@@ -107,7 +113,8 @@ class Escort {
         if (this.scene.anims.exists(animKey)) this._sprite.play(animKey);
       }
       this._sprite.setScale(100 / 256);
-      this._sprite.setPosition(this.x, this.y).setVisible(true);
+      this._sprite.setOrigin(0.5, 0.75);
+      this._sprite.setPosition(this.x, this.y + 15).setVisible(true);
       this._sprite.setFlipX(dir !== 'left');
       this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
     } else {

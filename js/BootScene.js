@@ -102,12 +102,20 @@ class BootScene extends Phaser.Scene {
       });
     }
 
-    // DAD 護衛キャラ（サイドシート：右・左反転対応）
+    // DAD 護衛キャラ
     if (this.textures.exists('dad_right')) {
       this.anims.create({
         key: 'dad_walk_right',
         frames: this.anims.generateFrameNumbers('dad_right', { frames: [0, 1, 2, 1] }),
         frameRate: 2,
+        repeat: -1,
+      });
+    }
+    if (this.textures.exists('dad_down')) {
+      this.anims.create({
+        key: 'dad_walk_down',
+        frames: this.anims.generateFrameNumbers('dad_down', { frames: [0, 1, 2, 3] }),
+        frameRate: 4,
         repeat: -1,
       });
     }
@@ -157,8 +165,11 @@ class BootScene extends Phaser.Scene {
       this.load.image(`decal_${type}`, `assets/sprites/decal/${type}.png`);
     });
 
-    // DAD 護衛キャラ（サイドシート）
+    // DAD 護衛キャラ
     this.load.spritesheet('dad_right', 'assets/sprites/zombie/DAD/dad_142_sheet.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+    this.load.spritesheet('dad_down', 'assets/sprites/zombie/DAD/dad_down.png', {
       frameWidth: 256, frameHeight: 256,
     });
 

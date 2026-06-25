@@ -170,7 +170,8 @@ class Zombie {
       }
       const scl = 100 / 256;
       this._sprite.setScale(scl);
-      this._sprite.setPosition(this.x, this.y).setVisible(true);
+      this._sprite.setOrigin(0.5, 0.75);
+      this._sprite.setPosition(this.x, this.y + 15).setVisible(true);
       this._sprite.setFlipX(dir === 'left');
       this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
     } else {
