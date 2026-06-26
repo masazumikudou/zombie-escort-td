@@ -566,6 +566,8 @@ function canPlaceProp(col, row, type) {
       if (col + dc >= COLS || row + dr >= ROWS) return false;
       if (col + dc < 0   || row + dr < 0)       return false;
       if (propOccupied.has(cellKey(col + dc, row + dr))) return false;
+      // 護衛導線上には配置不可
+      if (escortPath.some(p => p.col === col + dc && p.row === row + dr)) return false;
     }
   }
   return true;
