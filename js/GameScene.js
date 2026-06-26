@@ -28,7 +28,7 @@ class GameScene extends Phaser.Scene {
     this.gameState    = 'playing';
     this.killCount    = 0;
     this.debugOpen    = false;
-    this.showGrid     = true;
+    this.showGrid     = false;
     this.showPaths    = false;
 
     // ポップアップ状態
@@ -102,6 +102,7 @@ class GameScene extends Phaser.Scene {
     audioSynth.setScene(this);
 
     // グラフィクスレイヤー
+    this.pathGfx      = this.add.graphics().setDepth(0.5); // 導線帯：プロップ(2)・障害物(1)より下
     this.mapGfx       = this.add.graphics().setDepth(1);
     this.dynGfx       = this.add.graphics().setDepth(3);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
@@ -117,6 +118,9 @@ class GameScene extends Phaser.Scene {
 
     // デカールレイヤー（depth 0：歩ける装飾、当たり判定なし）
     this._drawDecalLayer();
+
+    // 導線帯描画（depth 0.5：プロップ・障害物の下）
+    this._drawEscortPathBand();
 
     // 静的マップ描画（mapGfx depth 1）
     this._drawMapStatic();
@@ -483,13 +487,37 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // ─── 導線帯描画（一度だけ・プロップ下） ────────────────────
+  _drawEscortPathBand() {
+    const g = this.pathGfx;
+    g.clear();
+    for (const esc of (this.stageData.escorts ?? [])) {
+      const path = esc.path ?? [];
+      if (path.length < 2) continue;
+      // セル塗り（薄白）
+      g.fillStyle(0xffffff, 0.08);
+      for (const p of path) {
+        g.fillRect(p.col * CELL + 3, p.row * CELL + 3, CELL - 6, CELL - 6);
+      }
+      // 中心線（薄い点線風：短い線分で実現）
+      g.lineStyle(2, 0xffffff, 0.18);
+      for (let i = 0; i < path.length - 1; i++) {
+        const ax = path[i].col * CELL + CELL / 2, ay = path[i].row * CELL + CELL / 2;
+        const bx = path[i+1].col * CELL + CELL / 2, by = path[i+1].row * CELL + CELL / 2;
+        // 点線：区間の前半だけ描画
+        const mx = (ax + bx) / 2, my = (ay + by) / 2;
+        g.lineBetween(ax, ay, mx, my);
+      }
+    }
+  }
+
   // ─── 静的マップ描画 ───────────────────────────────────────
   _drawMapStatic() {
     const g = this.mapGfx;
     g.clear();
 
     if (this.showGrid) {
-      g.lineStyle(1, 0x3a4a6a, 1);
+      g.lineStyle(1, 0x7aaacc, 0.22);
       for (let c = 0; c <= COLS; c++) g.lineBetween(c * CELL, 0, c * CELL, MAP_H);
       for (let r = 0; r <= ROWS; r++) g.lineBetween(0, r * CELL, MAP_W, r * CELL);
     }
@@ -506,6 +534,14 @@ class GameScene extends Phaser.Scene {
     this.add.graphics().setDepth(1)
       .fillStyle(0x00ff88, 0.22).fillRect(s.col * CELL, s.row * CELL, CELL, CELL)
       .fillStyle(0xffff00, 0.22).fillRect(gl.col * CELL, gl.row * CELL, CELL, CELL);
+
+    // S/Gアイコン（暫定テキスト・GPT素材が来たら差し替え）
+    const iconStyle = { fontSize: '20px', fontFamily: '"Arial Black", Arial, sans-serif',
+      stroke: '#000000', strokeThickness: 4, shadow: { blur: 4, color: '#000', fill: true } };
+    this.add.text(s.col  * CELL + CELL / 2, s.row  * CELL + CELL / 2, 'S',
+      { ...iconStyle, color: '#00ff88' }).setOrigin(0.5).setDepth(4);
+    this.add.text(gl.col * CELL + CELL / 2, gl.row * CELL + CELL / 2, 'G',
+      { ...iconStyle, color: '#ffee44' }).setOrigin(0.5).setDepth(4);
 
     const sg = this.add.graphics().setDepth(1);
     sg.lineStyle(2, 0xff3300, 0.6);
@@ -866,10 +902,28 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
+    // プロップ上のタップ → バツマーク＋効果音
+    if (this.propCells?.has(`${col},${row}`)) {
+      this._showPlaceFail(col, row);
+      return;
+    }
+
     const onSpot = this.buildSpots.size === 0 || this.buildSpots.has(`${col},${row}`);
     if (onSpot) {
       this._openBuildMenu(col, row);
     }
+  }
+
+  _showPlaceFail(col, row) {
+    audioSynth.escortHit();  // 暫定音：専用denySEが来たら差し替え
+    const x = col * CELL + CELL / 2;
+    const y = row * CELL + CELL / 2;
+    const g = this.add.graphics().setDepth(20);
+    const s = CELL * 0.32;
+    g.lineStyle(3, 0xff2222, 0.95);
+    g.lineBetween(x - s, y - s, x + s, y + s);
+    g.lineBetween(x + s, y - s, x - s, y + s);
+    this.time.delayedCall(500, () => g.destroy());
   }
 
   // ─── 建設メニュー ────────────────────────────────────────
@@ -877,6 +931,8 @@ class GameScene extends Phaser.Scene {
     this._closePopup();
     this._preBuildTimeIdx = this.timeModeIdx;
     this.timeModeIdx = 1;  // 0.25倍スロー
+    this.showGrid = true;
+    this._drawMapStatic();
 
     // スクリーン座標を計算してUISceneに委譲（カメラズームの影響を排除するため）
     const cam        = this.cameras.main;
@@ -957,6 +1013,8 @@ class GameScene extends Phaser.Scene {
       this.timeModeIdx = this._preBuildTimeIdx;
       this._preBuildTimeIdx = undefined;
       this.game.events.emit('closeBuildMenu');
+      this.showGrid = false;
+      this._drawMapStatic();
     }
     this.popupState = null;
   }
