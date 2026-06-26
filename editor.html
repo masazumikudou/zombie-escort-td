@@ -118,9 +118,9 @@
   <div id="path-type-panel" style="display:none">
     <div class="sep"></div>
     <h2>護衛導線</h2>
-    <div style="font-size:10px;color:#557;margin-top:4px">クリック・ドラッグで経路を引く<br>プロップ・遮蔽物の上は不可<br>既存セルクリック→そこまで切り詰め<br>非隣接クリック→新規開始</div>
+    <div style="font-size:10px;color:#557;margin-top:4px">① 先にSとGを配置<br>② Sのマスからクリック開始<br>③ ドラッグでGまで引く<br>既存セルクリック→そこまで切り詰め<br>※将来：Y(寄り道)はpath内で定義</div>
     <button onclick="clearEscortPath()" style="margin-top:6px;width:100%;padding:5px 8px;border:1px solid #633;background:#3a1a1a;color:#f99;cursor:pointer;border-radius:3px;font-size:11px">🗑 導線クリア</button>
-    <div id="path-info" style="font-size:11px;color:#9cf;margin-top:4px;min-height:14px"></div>
+    <div id="path-info" style="font-size:11px;margin-top:4px;min-height:32px;line-height:1.6"></div>
   </div>
 
   <!-- 地面ペイントモード時のみ表示 -->
@@ -544,6 +544,7 @@ function setMode(m) {
   document.getElementById('decal-type-panel').style.display     = (m === 'decal')    ? 'block' : 'none';
   document.getElementById('underlay-type-panel').style.display  = (m === 'underlay') ? 'block' : 'none';
   document.getElementById('path-type-panel').style.display      = (m === 'path')     ? 'block' : 'none';
+  if (m === 'path') updatePathInfo();
   hoverCell = null;
   redraw();
 }
@@ -657,29 +658,37 @@ function handleCell(col, row, isDown) {
 
   } else if (mode === 'path') {
     const k = cellKey(col, row);
-    if (propOccupied.has(k) || obstacles.has(k)) { redraw(); return; }
+    if (propOccupied.has(k) || obstacles.has(k)) { updatePathInfo(); redraw(); return; }
+
     const existingIdx = escortPath.findIndex(p => p.col === col && p.row === row);
+
     if (existingIdx >= 0) {
+      // 既存セルクリック → 切り詰め
       if (isDown) escortPath = escortPath.slice(0, existingIdx + 1);
     } else if (isDown) {
-      const last = escortPath.length > 0 ? escortPath[escortPath.length - 1] : null;
-      if (!last || Math.abs(col - last.col) + Math.abs(row - last.row) === 1) {
+      if (escortPath.length === 0) {
+        // 新規開始 → Sから始めなければならない
+        if (!startCell || col !== startCell.col || row !== startCell.row) {
+          updatePathInfo('noS');
+          redraw();
+          return;
+        }
         escortPath.push({ col, row });
       } else {
-        escortPath = [{ col, row }];  // 非隣接クリック → 新規スタート
+        const last = escortPath[escortPath.length - 1];
+        if (Math.abs(col - last.col) + Math.abs(row - last.row) === 1) {
+          escortPath.push({ col, row });
+        }
+        // 非隣接クリックは無視（クリアボタンで再スタート）
       }
     } else {
+      // ドラッグ中：隣接のみ追加
       const last = escortPath.length > 0 ? escortPath[escortPath.length - 1] : null;
       if (last && Math.abs(col - last.col) + Math.abs(row - last.row) === 1) {
         escortPath.push({ col, row });
       }
     }
-    if (escortPath.length > 0) {
-      startCell = { ...escortPath[0] };
-      goalCell  = { ...escortPath[escortPath.length - 1] };
-    }
-    const info = document.getElementById('path-info');
-    if (info) info.textContent = escortPath.length > 0 ? `${escortPath.length}セル` : '';
+    updatePathInfo();
 
   } else if (mode === 'underlay') {
     const k = cellKey(col, row);
@@ -910,12 +919,14 @@ function redraw() {
 
   // 護衛導線
   if (escortPath.length > 0) {
+    const complete = _isPathComplete();
+    const lineColor = complete ? 'rgba(80,255,160,0.9)' : 'rgba(0,220,255,0.85)';
     for (const {col, row} of escortPath) {
-      ctx.fillStyle = 'rgba(0,200,255,0.2)';
+      ctx.fillStyle = complete ? 'rgba(80,255,160,0.15)' : 'rgba(0,200,255,0.15)';
       ctx.fillRect(col * CELL, row * CELL, CELL, CELL);
     }
     if (escortPath.length > 1) {
-      ctx.strokeStyle = 'rgba(0,220,255,0.85)';
+      ctx.strokeStyle = lineColor;
       ctx.lineWidth = 3;
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -926,9 +937,10 @@ function redraw() {
       ctx.stroke();
     }
     escortPath.forEach(({col, row}, i) => {
-      ctx.fillStyle = i === 0 ? '#00ff88' : i === escortPath.length - 1 ? '#ffff44' : '#00ccff';
+      const isFirst = i === 0, isLast = i === escortPath.length - 1;
+      ctx.fillStyle = isFirst ? '#00ff88' : (isLast && complete) ? '#44ff88' : isLast ? '#ffcc44' : '#00ccff';
       ctx.beginPath();
-      ctx.arc(col * CELL + CELL / 2, row * CELL + CELL / 2, 4, 0, Math.PI * 2);
+      ctx.arc(col * CELL + CELL / 2, row * CELL + CELL / 2, isFirst || isLast ? 5 : 3, 0, Math.PI * 2);
       ctx.fill();
     });
   }
@@ -1222,7 +1234,8 @@ function buildJSON() {
         startTrigger: 'afterPrevious',
         start: { ...startCell },
         goal:  { ...goalCell },
-        ...(escortPath.length > 0 ? { path: escortPath.map(p => ({ col: p.col, row: p.row })) } : {}),
+        // pathは「S→G接続完了」のときのみ出力（将来: S→Y→G対応予定）
+        ...(_isPathComplete() ? { path: escortPath.map(p => ({ col: p.col, row: p.row })) } : {}),
         hp:    parseInt(document.getElementById('esc-hp').value, 10)    || 100,
         speed: parseInt(document.getElementById('esc-speed').value, 10) || 80,
         waves,
@@ -1462,11 +1475,44 @@ function clearAll() {
 
 function clearEscortPath() {
   escortPath = [];
-  startCell  = null;
-  goalCell   = null;
   const info = document.getElementById('path-info');
   if (info) info.textContent = '';
   redraw();
+}
+
+// 導線がS→G接続完了かどうか（将来: Y通過チェックも追加予定）
+function _isPathComplete() {
+  if (escortPath.length < 2) return false;
+  const first = escortPath[0], last = escortPath[escortPath.length - 1];
+  return startCell && goalCell
+    && first.col === startCell.col && first.row === startCell.row
+    && last.col  === goalCell.col  && last.row  === goalCell.row;
+}
+
+// 導線の接続状態を更新してinfoに表示
+// msg='noS' → Sから始めていない警告
+function updatePathInfo(msg) {
+  const el = document.getElementById('path-info');
+  if (!el) return;
+  if (msg === 'noS') {
+    el.innerHTML = '<span style="color:#ff6655">⚠ Sのマスから始めてください</span>';
+    return;
+  }
+  if (escortPath.length === 0) {
+    el.innerHTML = startCell
+      ? '<span style="color:#778">Sをクリックして開始</span>'
+      : '<span style="color:#778">先にSを配置してください</span>';
+    return;
+  }
+  const n    = escortPath.length;
+  const last = escortPath[n - 1];
+  // G到達チェック（将来: Y通過チェックも追加予定）
+  const atG  = goalCell && last.col === goalCell.col && last.row === goalCell.row;
+  if (atG) {
+    el.innerHTML = `<span style="color:#44ff88">✅ S→G接続完了（${n}セル）</span>`;
+  } else {
+    el.innerHTML = `<span style="color:#ffcc44">${n}セル / G未接続</span>`;
+  }
 }
 
 
