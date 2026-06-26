@@ -494,13 +494,13 @@ class GameScene extends Phaser.Scene {
     for (const esc of (this.stageData.escorts ?? [])) {
       const path = esc.path ?? [];
       if (path.length < 2) continue;
-      // セル塗り（薄い黄白）
-      g.fillStyle(0xffe880, 0.20);
+      // セル塗り（薄い青）
+      g.fillStyle(0x44aaff, 0.20);
       for (const p of path) {
         g.fillRect(p.col * CELL + 3, p.row * CELL + 3, CELL - 6, CELL - 6);
       }
       // 中心線（点線風：区間前半のみ描画）
-      g.lineStyle(3, 0xffe880, 0.35);
+      g.lineStyle(3, 0x44aaff, 0.35);
       for (let i = 0; i < path.length - 1; i++) {
         const ax = path[i].col * CELL + CELL / 2, ay = path[i].row * CELL + CELL / 2;
         const bx = path[i+1].col * CELL + CELL / 2, by = path[i+1].row * CELL + CELL / 2;
