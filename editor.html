@@ -662,13 +662,12 @@ function handleCell(col, row, isDown) {
     const k = cellKey(col, row);
     if (propOccupied.has(k) || obstacles.has(k)) { updatePathInfo(); redraw(); return; }
 
-    const existingIdx = escortPath.findIndex(p => p.col === col && p.row === row);
-
-    if (existingIdx >= 0) {
-      // 既存セルクリック → 切り詰め
-      if (isDown) escortPath = escortPath.slice(0, existingIdx + 1);
-    } else if (isDown) {
-      if (escortPath.length === 0) {
+    if (isDown) {
+      const existingIdx = escortPath.findIndex(p => p.col === col && p.row === row);
+      if (existingIdx >= 0) {
+        // 既存セルをクリック → 切り詰め（修正用）
+        escortPath = escortPath.slice(0, existingIdx + 1);
+      } else if (escortPath.length === 0) {
         // 新規開始 → Sから始めなければならない
         if (!startCell || col !== startCell.col || row !== startCell.row) {
           updatePathInfo('noS');
@@ -681,10 +680,9 @@ function handleCell(col, row, isDown) {
         if (Math.abs(col - last.col) + Math.abs(row - last.row) === 1) {
           escortPath.push({ col, row });
         }
-        // 非隣接クリックは無視（クリアボタンで再スタート）
       }
     } else {
-      // ドラッグ中：隣接のみ追加
+      // ドラッグ中：隣接なら追加（既存セルでも交差を許容）
       const last = escortPath.length > 0 ? escortPath[escortPath.length - 1] : null;
       if (last && Math.abs(col - last.col) + Math.abs(row - last.row) === 1) {
         escortPath.push({ col, row });
