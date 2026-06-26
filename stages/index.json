@@ -1,0 +1,5 @@
+{
+  "stages": [
+    { "id": 1, "file": "stages/stage_01.json", "title": "チュートリアル" }
+  ]
+}
