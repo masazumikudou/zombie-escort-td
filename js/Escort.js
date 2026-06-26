@@ -94,11 +94,14 @@ class Escort {
 
     const dir = dirFromVec(this.lastDx, this.lastDy);
 
-    // 方向別シートキー（down専用あり、up/leftは右シート反転でフォールバック）
+    // 方向別シートキー
     let sheetKey, animKey;
     if (dir === 'down' && this.scene.textures.exists(`${this.variant}_down`)) {
       sheetKey = `${this.variant}_down`;
       animKey  = `${this.variant}_walk_down`;
+    } else if (dir === 'up' && this.scene.textures.exists(`${this.variant}_up`)) {
+      sheetKey = `${this.variant}_up`;
+      animKey  = `${this.variant}_walk_up`;
     } else {
       sheetKey = `${this.variant}_right`;
       animKey  = `${this.variant}_walk_right`;

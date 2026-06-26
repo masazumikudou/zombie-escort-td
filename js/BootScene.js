@@ -119,6 +119,14 @@ class BootScene extends Phaser.Scene {
         repeat: -1,
       });
     }
+    if (this.textures.exists('dad_up')) {
+      this.anims.create({
+        key: 'dad_walk_up',
+        frames: this.anims.generateFrameNumbers('dad_up', { frames: [0, 1, 2, 3] }),
+        frameRate: 4,
+        repeat: -1,
+      });
+    }
 
     this.scene.start('GameScene', { stageData });
   }
@@ -170,6 +178,9 @@ class BootScene extends Phaser.Scene {
       frameWidth: 256, frameHeight: 256,
     });
     this.load.spritesheet('dad_down', 'assets/sprites/zombie/DAD/dad_down.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+    this.load.spritesheet('dad_up', 'assets/sprites/zombie/DAD/dad_up.png', {
       frameWidth: 256, frameHeight: 256,
     });
 
