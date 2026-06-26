@@ -159,6 +159,10 @@ class BootScene extends Phaser.Scene {
     ['basic', 'rapid', 'sniper'].forEach(type => {
       this.load.image(`tower_${type}`, `assets/sprites/tower/${type}.png`);
     });
+    // パンチタワー（2フレームスプライトシート）
+    this.load.spritesheet('tower_punch', 'assets/sprites/tower/boxing.png', {
+      frameWidth: 256, frameHeight: 208,
+    });
 
     // 遮蔽物
     this.load.image('obstacle_building', 'assets/sprites/obstacle/building.png');

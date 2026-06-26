@@ -55,9 +55,23 @@ class Tower {
   }
 
   _initSprite() {
+    if (this.type === 'punch') {
+      if (!this.scene.textures.exists('tower_punch')) return;
+      this._sprite = this.scene.add.sprite(this.x, this.y, 'tower_punch')
+        .setFrame(0).setScale(0.5).setDepth(2).setOrigin(0.5, 0.5);
+      return;
+    }
     const key = `tower_${this.type}`;
     if (!this.scene.textures.exists(key)) return;
     this._sprite = this.scene.add.image(this.x, this.y, key).setDepth(2);
+  }
+
+  _punchAnim() {
+    if (!this._sprite) return;
+    this._sprite.setFrame(1);
+    this.scene.time.delayedCall(280, () => {
+      if (this._sprite) this._sprite.setFrame(0);
+    });
   }
 
   _findNearest(zombies) {
@@ -75,6 +89,20 @@ class Tower {
   update(scaledTime, dt, zombies, bullets) {
     this._laserFlash = Math.max(0, this._laserFlash - dt);
     if (scaledTime - this.lastFire < this.fireRate) return;
+
+    if (this.type === 'punch') {
+      if (!this.direction) return;
+      const dc = this.direction === 'right' ? 1 : -1;
+      const tc = this.col + dc, tr = this.row;
+      const target = zombies.find(z => z.alive &&
+        Math.floor(z.x / CELL) === tc && Math.floor(z.y / CELL) === tr);
+      if (!target) return;
+      this.lastFire = scaledTime;
+      target.takeDamage(this.damage);
+      this._punchAnim();
+      audioSynth.shoot();
+      return;
+    }
 
     if (this.type === 'laser') {
       if (!this.direction) return;  // 方向未設定
@@ -165,6 +193,14 @@ class Tower {
     if (this._sprite) {
       // ─── スプライットモード ───────────────────────────
       this._sprite.setPosition(this.x, this.y);
+      // パンチ：方向によってflipX・方向未設定時は点滅
+      if (this.type === 'punch') {
+        if (this.direction) {
+          this._sprite.setFlipX(this.direction === 'left');
+        } else {
+          this._sprite.setAlpha(0.5 + 0.5 * Math.sin(Date.now() * 0.005));
+        }
+      }
       if (this.selected) {
         g.lineStyle(2, 0xffffff, 0.8);
         g.strokeRect(this.x - CELL / 2, this.y - CELL / 2, CELL, CELL);

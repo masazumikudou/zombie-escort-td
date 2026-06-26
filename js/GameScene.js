@@ -1035,13 +1035,14 @@ class GameScene extends Phaser.Scene {
     this.towers.push(new Tower(this, col, row, type));
     audioSynth.coin();
     this._closePopup();
-    // レーザーは設置後に方向選択ポップアップを表示
-    if (type === 'laser') {
+    // レーザー・パンチは設置後に方向選択ポップアップを表示
+    if (type === 'laser' || type === 'punch') {
       const cam      = this.cameras.main;
       const HEADER_H = 8 + UI_H;
       const sx       = (col * CELL + CELL / 2 - cam.scrollX) * cam.zoom;
       const sy       = (row * CELL + CELL / 2 - cam.scrollY) * cam.zoom + HEADER_H;
-      this.game.events.emit('openDirectionPicker', { col, row, sx, sy });
+      const event    = type === 'punch' ? 'openPunchDirPicker' : 'openDirectionPicker';
+      this.game.events.emit(event, { col, row, sx, sy });
     }
   }
 

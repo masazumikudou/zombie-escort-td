@@ -57,7 +57,8 @@ class UIScene extends Phaser.Scene {
     this._buildPopupObjs = [];
     this.game.events.on('openBuildMenu',       (data) => this._openBuildPopup(data));
     this.game.events.on('closeBuildMenu',      ()     => this._closeBuildPopup());
-    this.game.events.on('openDirectionPicker', (data) => this._openDirectionPicker(data));
+    this.game.events.on('openDirectionPicker',  (data) => this._openDirectionPicker(data));
+    this.game.events.on('openPunchDirPicker',   (data) => this._openPunchDirPicker(data));
 
     // FPSカウンター（右下・タップでON/OFF）
     this._showFps = false;
@@ -161,6 +162,50 @@ class UIScene extends Phaser.Scene {
   _closeBuildPopup() {
     this._buildPopupObjs.forEach(o => o.destroy());
     this._buildPopupObjs = [];
+  }
+
+  _openPunchDirPicker({ col, row, sx, sy }) {
+    if (!this._dirPickerObjs) this._dirPickerObjs = [];
+    this._dirPickerObjs.forEach(o => o.destroy());
+    this._dirPickerObjs = [];
+
+    const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
+    const BW = 80, BH = 52, GAP = 4, PAD = 6;
+    const popW = BW * 2 + GAP + PAD * 2;
+    const popH = BH + PAD * 2 + 22;
+    const W = this.scale.width, H = this.scale.height;
+
+    let px = sx - popW / 2;
+    let py = sy - popH / 2;
+    px = Math.max(6, Math.min(W - popW - 6, px));
+    py = Math.max(6, Math.min(H - UI_H - popH - 6, py));
+
+    const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72).setDepth(69);
+    const bg = this.add.rectangle(px + popW / 2, py + popH / 2, popW, popH, 0x050510, 0.96)
+      .setDepth(70).setStrokeStyle(1, 0xff6600);
+    const title = this.add.text(px + popW / 2, py + 4, 'パンチ方向', {
+      ...uiFont, fontSize: '13px', color: '#ff8833', stroke: '#000', strokeThickness: 2,
+    }).setDepth(72).setOrigin(0.5, 0);
+    this._dirPickerObjs.push(overlay, bg, title);
+
+    [{ key: 'left', label: '← 左' }, { key: 'right', label: '→ 右' }].forEach(({ key, label }, i) => {
+      const bx = px + PAD + i * (BW + GAP);
+      const by = py + PAD + 22;
+      const btn = this.add.rectangle(bx + BW / 2, by + BH / 2, BW, BH, 0xff6600, 0.22)
+        .setDepth(71).setStrokeStyle(1.5, 0xff6600, 0.7).setInteractive();
+      btn.on('pointerover',  () => btn.setFillStyle(0xff6600, 0.5));
+      btn.on('pointerout',   () => btn.setFillStyle(0xff6600, 0.22));
+      btn.on('pointerdown',  () => {
+        this.game.events.emit('ui_laserDir', { col, row, dir: key });
+        this._dirPickerObjs.forEach(o => o.destroy());
+        this._dirPickerObjs = [];
+      });
+      const txt = this.add.text(bx + BW / 2, by + BH / 2, label, {
+        ...uiFont, fontSize: '20px', fontStyle: 'bold', color: '#ffffff',
+        stroke: '#000', strokeThickness: 3,
+      }).setDepth(72).setOrigin(0.5, 0.5);
+      this._dirPickerObjs.push(btn, txt);
+    });
   }
 
   _openDirectionPicker({ col, row, sx, sy }) {
