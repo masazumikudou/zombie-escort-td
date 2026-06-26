@@ -222,16 +222,17 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    // インターバル開始
+    // インターバル開始 + NEXT WAVE 画面表示
     this.relayPhase    = 'interval';
     this.intervalTimer = RELAY_INTERVAL;
-    const nextName     = VARIANT_NAMES[this.escortDefs[nextIdx].variant] ?? this.escortDefs[nextIdx].variant;
-    this._showBanner(`${nextName}、出発！`);
+    const nextName = VARIANT_NAMES[this.escortDefs[nextIdx].variant] ?? this.escortDefs[nextIdx].variant;
+    this._showNextWaveCard(this.escortIdx + 1, nextName);
   }
 
   _activateNextEscort() {
     this.escortIdx++;
     this._closeBanner();
+    this._closeNextWaveCard();
     this._startEscort(this.escortIdx, this.scaledTime);
   }
 
@@ -876,6 +877,12 @@ class GameScene extends Phaser.Scene {
   _handleTap(p) {
     if (p.y > CANVAS_H - UI_H) return;
 
+    // NEXT WAVEカード表示中のタップ → スキップ
+    if (this.relayPhase === 'interval' && this._nextWaveCardObjs) {
+      this._activateNextEscort();
+      return;
+    }
+
     if (this._popupJustActed) {
       this._popupJustActed = false;
       return;
@@ -1087,6 +1094,44 @@ class GameScene extends Phaser.Scene {
     if (this.escort.defeated) {
       this._onEscortDone(false);
     }
+  }
+
+  // ─── NEXT WAVE カード ────────────────────────────────────
+  _showNextWaveCard(completedIdx, nextName) {
+    this._closeNextWaveCard();
+    const cx = CANVAS_W / 2, cy = (CANVAS_H - UI_H) / 2;
+    const objs = [];
+
+    // 背景
+    objs.push(this.add.rectangle(cx, cy, 420, 140, 0x050518, 0.93)
+      .setScrollFactor(0).setDepth(65).setStrokeStyle(2, 0x4488ff));
+
+    // WAVE クリアテキスト
+    objs.push(this.add.text(cx, cy - 38, `WAVE ${completedIdx}  クリア！`, {
+      fontSize: '22px', color: '#88ccff',
+      fontFamily: '"Arial Black", Arial, sans-serif',
+      stroke: '#000000', strokeThickness: 3,
+    }).setScrollFactor(0).setDepth(66).setOrigin(0.5, 0.5));
+
+    // NEXT → キャラ名
+    objs.push(this.add.text(cx, cy + 10, `NEXT  →  ${nextName}！`, {
+      fontSize: '32px', color: '#ffffff',
+      fontFamily: '"Arial Black", Arial, sans-serif',
+      stroke: '#001133', strokeThickness: 5,
+    }).setScrollFactor(0).setDepth(66).setOrigin(0.5, 0.5));
+
+    // タップヒント
+    objs.push(this.add.text(cx, cy + 56, 'タップでスキップ', {
+      fontSize: '13px', color: '#445566',
+      fontFamily: 'Arial, sans-serif',
+    }).setScrollFactor(0).setDepth(66).setOrigin(0.5, 0.5));
+
+    this._nextWaveCardObjs = objs;
+  }
+
+  _closeNextWaveCard() {
+    (this._nextWaveCardObjs ?? []).forEach(o => o.destroy());
+    this._nextWaveCardObjs = null;
   }
 
   // ─── バナー表示 ──────────────────────────────────────────

@@ -24,7 +24,9 @@ class Escort {
     this._sprite    = null;
 
     // 寄り道(Y)システム
-    this.state            = 'walking';  // 'walking'|'detouring'|'waiting'|'returning'
+    this.state            = 'walking';  // 'walking'|'detouring'|'waiting'|'returning'|'exiting'
+    this._exitDx          = 0;
+    this._exitDy          = 0;
     this._detourDef       = def.detour ?? null;
     this._detourDone      = false;
     this._detourWpIdx     = 0;
@@ -82,7 +84,7 @@ class Escort {
         if (!this._detourDone && this._detourPixelPath && (this.wpIdx - 1) === this._detourDef.branchIdx) {
           this._enterDetour();
         } else if (this.wpIdx >= this.path.length) {
-          this.reached = true;
+          this._enterExit();
         }
       } else {
         this.lastDx = dx; this.lastDy = dy;
@@ -109,6 +111,14 @@ class Escort {
         this.lastDx = dx; this.lastDy = dy;
         this.x += (dx / dist) * step;
         this.y += (dy / dist) * step;
+      }
+
+    } else if (this.state === 'exiting') {
+      this.x += this._exitDx * this.speed * dt / 1000;
+      this.y += this._exitDy * this.speed * dt / 1000;
+      this.lastDx = this._exitDx; this.lastDy = this._exitDy;
+      if (this.x < -CELL || this.x > MAP_W + CELL || this.y < -CELL || this.y > MAP_H + CELL) {
+        this.reached = true;
       }
 
     } else if (this.state === 'returning') {
@@ -139,6 +149,18 @@ class Escort {
       this._waitTimer = 0;
       if (this.onDetourStart) this.onDetourStart();
     }
+  }
+
+  // G到達 → 最寄りのMAP端へ向かって退場
+  _enterExit() {
+    const cx = this.x, cy = this.y;
+    const dL = cx, dR = MAP_W - cx, dU = cy, dD = MAP_H - cy;
+    const min = Math.min(dL, dR, dU, dD);
+    if      (min === dL) { this._exitDx = -1; this._exitDy =  0; }
+    else if (min === dR) { this._exitDx =  1; this._exitDy =  0; }
+    else if (min === dU) { this._exitDx =  0; this._exitDy = -1; }
+    else                 { this._exitDx =  0; this._exitDy =  1; }
+    this.state = 'exiting';
   }
 
   // Y滞在終了 → C5に戻りメイン導線再開
