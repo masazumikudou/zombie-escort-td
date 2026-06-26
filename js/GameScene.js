@@ -494,17 +494,16 @@ class GameScene extends Phaser.Scene {
     for (const esc of (this.stageData.escorts ?? [])) {
       const path = esc.path ?? [];
       if (path.length < 2) continue;
-      // セル塗り（薄白）
-      g.fillStyle(0xffffff, 0.08);
+      // セル塗り（薄い黄白）
+      g.fillStyle(0xffe880, 0.20);
       for (const p of path) {
         g.fillRect(p.col * CELL + 3, p.row * CELL + 3, CELL - 6, CELL - 6);
       }
-      // 中心線（薄い点線風：短い線分で実現）
-      g.lineStyle(2, 0xffffff, 0.18);
+      // 中心線（点線風：区間前半のみ描画）
+      g.lineStyle(3, 0xffe880, 0.35);
       for (let i = 0; i < path.length - 1; i++) {
         const ax = path[i].col * CELL + CELL / 2, ay = path[i].row * CELL + CELL / 2;
         const bx = path[i+1].col * CELL + CELL / 2, by = path[i+1].row * CELL + CELL / 2;
-        // 点線：区間の前半だけ描画
         const mx = (ax + bx) / 2, my = (ay + by) / 2;
         g.lineBetween(ax, ay, mx, my);
       }
@@ -543,11 +542,6 @@ class GameScene extends Phaser.Scene {
     this.add.text(gl.col * CELL + CELL / 2, gl.row * CELL + CELL / 2, 'G',
       { ...iconStyle, color: '#ffee44' }).setOrigin(0.5).setDepth(4);
 
-    const sg = this.add.graphics().setDepth(1);
-    sg.lineStyle(2, 0xff3300, 0.6);
-    for (const sp of this.stageData.zombieSpawns) {
-      sg.strokeRect(sp.col * CELL + 2, sp.row * CELL + 2, CELL - 4, CELL - 4);
-    }
   }
 
   // ─── プロップ描画（静的、一度だけ） ────────────────────────
