@@ -67,9 +67,12 @@ class GameScene extends Phaser.Scene {
       _perimEx.add(`${sp.col},${sp.row}`);
     }
     for (const esc of (sd.escorts || [])) {
-      // 護衛の実際の経路を事前計算して全セルを例外に追加
-      const escPath = this.pf.find(esc.start.col, esc.start.row, esc.goal.col, esc.goal.row);
-      if (escPath) escPath.forEach(cell => _perimEx.add(`${cell.col},${cell.row}`));
+      if (esc.path && esc.path.length > 0) {
+        esc.path.forEach(p => _perimEx.add(`${p.col},${p.row}`));
+      } else {
+        const escPath = this.pf.find(esc.start.col, esc.start.row, esc.goal.col, esc.goal.row);
+        if (escPath) escPath.forEach(cell => _perimEx.add(`${cell.col},${cell.row}`));
+      }
       _perimEx.add(`${esc.start.col},${esc.start.row}`);
       _perimEx.add(`${esc.goal.col},${esc.goal.row}`);
     }
@@ -171,10 +174,15 @@ class GameScene extends Phaser.Scene {
   _startEscort(idx, timeOffset) {
     if (this.escort) this.escort.cleanup();
 
-    const def      = this.escortDefs[idx];
-    const escCells = this.pf.find(def.start.col, def.start.row, def.goal.col, def.goal.row);
-    const escPath  = escCells ? this.pf.toPixelPath(escCells) : [];
-    this.escort    = new Escort(this, escPath, def);
+    const def     = this.escortDefs[idx];
+    let   escPath;
+    if (def.path && def.path.length > 0) {
+      escPath = def.path.map(p => cellCenter(p.col, p.row));
+    } else {
+      const escCells = this.pf.find(def.start.col, def.start.row, def.goal.col, def.goal.row);
+      escPath = escCells ? this.pf.toPixelPath(escCells) : [];
+    }
+    this.escort = new Escort(this, escPath, def);
 
     const cam = this.cameras.main;
     cam.pan(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2, 600, 'Power2');
