@@ -106,12 +106,26 @@
     <button class="mode-btn"        id="btn-start"      onclick="setMode('start')">🟢 護衛スタート</button>
     <button class="mode-btn"        id="btn-goal"       onclick="setMode('goal')">🏁 護衛ゴール</button>
     <button class="mode-btn"        id="btn-path"       onclick="setMode('path')">🔵 護衛導線（ドラッグ）</button>
+    <button class="mode-btn"        id="btn-detour"     onclick="setMode('detour')">🟡 Y寄り道設定</button>
     <button class="mode-btn"        id="btn-spawn"      onclick="setMode('spawn')">🔴 ゾンビスポーン（最大4）</button>
     <button class="mode-btn"        id="btn-prop"       onclick="setMode('prop')">🏠 プロップ配置</button>
     <button class="mode-btn"        id="btn-road"       onclick="setMode('road')">🛣 道路配置</button>
     <button class="mode-btn"        id="btn-paint"      onclick="setMode('paint')">🎨 地面ペイント</button>
     <button class="mode-btn"        id="btn-decal"      onclick="setMode('decal')">🟦 装飾(decal)配置</button>
     <button class="mode-btn"        id="btn-underlay"   onclick="setMode('underlay')">🔻 アンダーレイ（はみ出し吸収）</button>
+  </div>
+
+  <!-- Y寄り道設定モード時のみ表示 -->
+  <div id="detour-type-panel" style="display:none">
+    <div class="sep"></div>
+    <h2>Y寄り道設定</h2>
+    <div style="font-size:10px;color:#557;margin-top:4px">① メイン導線上をクリック→分岐点(C)設定<br>② CからドラッグでY地点まで引く<br>③ 待機時間を設定</div>
+    <div class="field-row" style="margin-top:6px">
+      <label>Y待機(秒)</label>
+      <input type="number" id="detour-wait" value="30" min="5" max="300" style="width:52px;background:#111;border:1px solid #446;color:#ccc;padding:2px 4px;border-radius:2px;font-size:12px">
+    </div>
+    <button onclick="clearDetour()" style="margin-top:6px;width:100%;padding:5px 8px;border:1px solid #633;background:#3a1a1a;color:#f99;cursor:pointer;border-radius:3px;font-size:11px">🗑 Y設定クリア</button>
+    <div id="detour-info" style="font-size:11px;margin-top:4px;min-height:32px;line-height:1.6"></div>
   </div>
 
   <!-- 護衛導線モード時のみ表示 -->
@@ -205,6 +219,7 @@
     <div class="leg-item"><div class="leg-swatch" style="background:#888888"></div>道路</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#ff6600;opacity:0.5"></div>アンダーレイ</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#00ccff;opacity:0.7"></div>護衛導線</div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#ffcc00;opacity:0.7"></div>Y寄り道</div>
   </div>
 
   <div class="sep"></div>
@@ -260,7 +275,9 @@ let buildSpots = new Set();  // "col,row"
 let startCell  = null;
 let goalCell   = null;
 let spawns     = [];
-let escortPath = [];  // [{col, row}, ...]  護衛の任意導線
+let escortPath      = [];   // [{col, row}, ...]  護衛の任意導線
+let detourBranchIdx = -1;  // escortPath上の分岐点インデックス
+let detourPath      = [];   // [{col, row}, ...]  C5→Y の支線
 let mode = 'obstacle';
 let isDragging = false;
 let dragAction = null; // 'add' | 'remove'
@@ -525,10 +542,12 @@ const ctx    = canvas.getContext('2d');
 function resizeGrid() {
   COLS = parseInt(document.getElementById('cols').value, 10);
   ROWS = parseInt(document.getElementById('rows').value, 10);
-  startCell  = null;
-  goalCell   = null;
-  spawns     = [];
-  escortPath = [];
+  startCell       = null;
+  goalCell        = null;
+  spawns          = [];
+  escortPath      = [];
+  detourBranchIdx = -1;
+  detourPath      = [];
   obstacles.clear();
   buildSpots.clear();
   redraw();
@@ -544,7 +563,9 @@ function setMode(m) {
   document.getElementById('decal-type-panel').style.display     = (m === 'decal')    ? 'block' : 'none';
   document.getElementById('underlay-type-panel').style.display  = (m === 'underlay') ? 'block' : 'none';
   document.getElementById('path-type-panel').style.display      = (m === 'path')     ? 'block' : 'none';
-  if (m === 'path') updatePathInfo();
+  document.getElementById('detour-type-panel').style.display    = (m === 'detour')   ? 'block' : 'none';
+  if (m === 'path')   updatePathInfo();
+  if (m === 'detour') updateDetourInfo();
   hoverCell = null;
   redraw();
 }
@@ -566,8 +587,9 @@ function canPlaceProp(col, row, type) {
       if (col + dc >= COLS || row + dr >= ROWS) return false;
       if (col + dc < 0   || row + dr < 0)       return false;
       if (propOccupied.has(cellKey(col + dc, row + dr))) return false;
-      // 護衛導線上には配置不可
+      // 護衛導線・Y支線上には配置不可
       if (escortPath.some(p => p.col === col + dc && p.row === row + dr)) return false;
+      if (detourPath.some(p => p.col === col + dc && p.row === row + dr)) return false;
     }
   }
   return true;
@@ -689,6 +711,43 @@ function handleCell(col, row, isDown) {
       }
     }
     updatePathInfo();
+
+  } else if (mode === 'detour') {
+    if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+
+    if (detourBranchIdx === -1) {
+      // Phase1: メイン導線上のセルをクリックして分岐点を設定
+      if (isDown) {
+        const idx = escortPath.findIndex(p => p.col === col && p.row === row);
+        if (idx >= 0) {
+          detourBranchIdx = idx;
+          detourPath = [{ col: escortPath[idx].col, row: escortPath[idx].row }];
+        }
+      }
+    } else {
+      // Phase2: 分岐点からY地点まで導線を引く
+      const k = cellKey(col, row);
+      if (propOccupied.has(k) || obstacles.has(k)) { updateDetourInfo(); redraw(); return; }
+      const existingIdx = detourPath.findIndex(p => p.col === col && p.row === row);
+      if (isDown) {
+        if (existingIdx >= 0) {
+          detourPath = detourPath.slice(0, existingIdx + 1);
+        } else {
+          const last = detourPath[detourPath.length - 1];
+          if (last && Math.abs(col - last.col) + Math.abs(row - last.row) === 1) {
+            detourPath.push({ col, row });
+          }
+        }
+      } else {
+        const last = detourPath.length > 0 ? detourPath[detourPath.length - 1] : null;
+        if (last && Math.abs(col - last.col) + Math.abs(row - last.row) === 1) {
+          if (!detourPath.some(p => p.col === col && p.row === row)) {
+            detourPath.push({ col, row });
+          }
+        }
+      }
+    }
+    updateDetourInfo();
 
   } else if (mode === 'underlay') {
     const k = cellKey(col, row);
@@ -945,6 +1004,61 @@ function redraw() {
     });
   }
 
+  // Y寄り道：分岐点ハイライト
+  if (detourBranchIdx >= 0 && detourBranchIdx < escortPath.length) {
+    const {col, row} = escortPath[detourBranchIdx];
+    ctx.fillStyle = 'rgba(255,200,0,0.35)';
+    ctx.fillRect(col * CELL, row * CELL, CELL, CELL);
+    ctx.strokeStyle = 'rgba(255,200,0,0.95)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(col * CELL + 2, row * CELL + 2, CELL - 4, CELL - 4);
+  }
+
+  // Y寄り道：支線描画（点線）
+  if (detourPath.length > 0) {
+    for (const {col, row} of detourPath) {
+      ctx.fillStyle = 'rgba(255,200,0,0.18)';
+      ctx.fillRect(col * CELL, row * CELL, CELL, CELL);
+    }
+    if (detourPath.length > 1) {
+      ctx.strokeStyle = 'rgba(255,200,0,0.9)';
+      ctx.lineWidth = 3;
+      ctx.lineJoin = 'round';
+      ctx.setLineDash([8, 5]);
+      ctx.beginPath();
+      detourPath.forEach(({col, row}, i) => {
+        const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
+        if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // Y終点ドット
+    const yp = detourPath[detourPath.length - 1];
+    ctx.fillStyle = '#ffcc44';
+    ctx.beginPath();
+    ctx.arc(yp.col * CELL + CELL / 2, yp.row * CELL + CELL / 2, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Yモード：ホバーハイライト
+  if (mode === 'detour' && hoverCell && hoverCell.col >= 0 && hoverCell.col < COLS && hoverCell.row >= 0 && hoverCell.row < ROWS) {
+    const {col, row} = hoverCell;
+    const k = cellKey(col, row);
+    let hlColor;
+    if (detourBranchIdx === -1) {
+      const onPath = escortPath.some(p => p.col === col && p.row === row);
+      hlColor = onPath ? 'rgba(255,200,0,0.45)' : 'rgba(100,100,100,0.15)';
+    } else {
+      const blocked = propOccupied.has(k) || obstacles.has(k);
+      const last = detourPath.length > 0 ? detourPath[detourPath.length - 1] : null;
+      const adjacent = last && Math.abs(col - last.col) + Math.abs(row - last.row) === 1;
+      hlColor = blocked ? 'rgba(255,60,60,0.35)' : adjacent ? 'rgba(255,200,0,0.4)' : 'rgba(100,100,100,0.15)';
+    }
+    ctx.fillStyle = hlColor;
+    ctx.fillRect(col * CELL, row * CELL, CELL, CELL);
+  }
+
   // 導線モード：ホバーハイライト
   if (mode === 'path' && hoverCell && hoverCell.col >= 0 && hoverCell.col < COLS && hoverCell.row >= 0 && hoverCell.row < ROWS) {
     const {col, row} = hoverCell;
@@ -1124,6 +1238,11 @@ function redraw() {
   for (let i = 0; i < spawns.length; i++) {
     ctx.fillText(i + 1, (spawns[i].col + 1) * CELL + CELL/2, (spawns[i].row + 1) * CELL + CELL/2 + 4);
   }
+  if (detourPath.length > 1) {
+    const yp = detourPath[detourPath.length - 1];
+    ctx.fillStyle = '#ffcc44';
+    ctx.fillText('Y', (yp.col + 1) * CELL + CELL/2, (yp.row + 1) * CELL + CELL/2 + 4);
+  }
   scheduleAutoSave();
 }
 
@@ -1234,8 +1353,15 @@ function buildJSON() {
         startTrigger: 'afterPrevious',
         start: { ...startCell },
         goal:  { ...goalCell },
-        // pathは「S→G接続完了」のときのみ出力（将来: S→Y→G対応予定）
         ...(_isPathComplete() ? { path: escortPath.map(p => ({ col: p.col, row: p.row })) } : {}),
+        // detour: 分岐点+Y経路が設定済みのときのみ出力
+        ...(detourBranchIdx >= 0 && detourPath.length > 1 ? {
+          detour: {
+            branchIdx: detourBranchIdx,
+            path:      detourPath.map(p => ({ col: p.col, row: p.row })),
+            waitTime:  (parseInt(document.getElementById('detour-wait').value) || 30) * 1000,
+          }
+        } : {}),
         hp:    parseInt(document.getElementById('esc-hp').value, 10)    || 100,
         speed: parseInt(document.getElementById('esc-speed').value, 10) || 80,
         waves,
@@ -1331,6 +1457,16 @@ function applyJSON(obj) {
 
   escortPath = [];
   for (const p of (obj.escorts?.[0]?.path ?? [])) escortPath.push({ col: p.col, row: p.row });
+
+  detourBranchIdx = -1;
+  detourPath = [];
+  const det = obj.escorts?.[0]?.detour;
+  if (det) {
+    detourBranchIdx = det.branchIdx ?? -1;
+    for (const p of (det.path ?? [])) detourPath.push({ col: p.col, row: p.row });
+    const waitEl = document.getElementById('detour-wait');
+    if (waitEl && det.waitTime != null) waitEl.value = Math.round(det.waitTime / 1000);
+  }
 
   underlayCells.clear();
   for (const u of (obj.underlay ?? [])) underlayCells.set(`${u.col},${u.row}`, u.type);
@@ -1466,9 +1602,11 @@ function clearAll() {
   decals = [];
   underlayCells.clear();
   spawns = [];
-  escortPath = [];
-  startCell  = null;
-  goalCell   = null;
+  escortPath      = [];
+  detourBranchIdx = -1;
+  detourPath      = [];
+  startCell       = null;
+  goalCell        = null;
   selectGroundBase('grass');
   redraw();
 }
@@ -1478,6 +1616,33 @@ function clearEscortPath() {
   const info = document.getElementById('path-info');
   if (info) info.textContent = '';
   redraw();
+}
+
+function clearDetour() {
+  detourBranchIdx = -1;
+  detourPath = [];
+  updateDetourInfo();
+  redraw();
+}
+
+function updateDetourInfo() {
+  const el = document.getElementById('detour-info');
+  if (!el) return;
+  if (escortPath.length === 0) {
+    el.innerHTML = '<span style="color:#778">先にメイン導線を設定してください</span>'; return;
+  }
+  if (detourBranchIdx === -1) {
+    el.innerHTML = '<span style="color:#778">メイン導線上をクリックして分岐点(C)を設定</span>'; return;
+  }
+  const bp = escortPath[detourBranchIdx];
+  const n = detourPath.length;
+  if (n <= 1) {
+    el.innerHTML = `<span style="color:#ffcc44">C: (${bp.col},${bp.row})<br>Yまで引いてください</span>`;
+  } else {
+    const yp = detourPath[n - 1];
+    const waitSec = document.getElementById('detour-wait')?.value ?? 30;
+    el.innerHTML = `<span style="color:#44ff88">✅ C(${bp.col},${bp.row})→Y(${yp.col},${yp.row})<br>${n}セル / 待機${waitSec}秒</span>`;
+  }
 }
 
 // 導線がS→G接続完了かどうか（将来: Y通過チェックも追加予定）
