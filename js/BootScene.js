@@ -159,6 +159,14 @@ class BootScene extends Phaser.Scene {
     ['basic', 'rapid', 'sniper'].forEach(type => {
       this.load.image(`tower_${type}`, `assets/sprites/tower/${type}.png`);
     });
+    // サッカーボール（大砲弾・2フレーム）
+    this.load.spritesheet('soccer_ball', 'assets/sprites/tower/soccer_ball.png', {
+      frameWidth: 1000, frameHeight: 1000,
+    });
+    // バット（2フレームアニメ）タワー
+    this.load.spritesheet('tower_bat', 'assets/sprites/tower/bat.png', {
+      frameWidth: 1120, frameHeight: 1157,
+    });
     // パンチタワー（2フレームスプライトシート）
     this.load.spritesheet('tower_punch', 'assets/sprites/tower/boxing.png', {
       frameWidth: 1128, frameHeight: 485,

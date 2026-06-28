@@ -346,6 +346,63 @@ npm run open      # Android Studioを開く → ▶で起動
 
 ---
 
+## 弧軌道弾丸レシピ（2026-06-29 実装済み・要調整）
+
+### 方式：影＋縦オフセット（業界標準）
+
+Clash of Clans・Kingdom Rush等が採用する斜め俯瞰視点での弧表現の正攻法。
+
+```
+発射          頂点           着弾
+               ●（ボール）
+          ●         ●
+     ●                   ●
+[砲]                          [着弾]
+     ⊙----→----⊙----→----⊙  （影・直線移動）
+```
+
+- **影**：発射地点 → 着弾地点を直線補間（地面上を移動）
+- **ボール**：影の位置から画面Y方向に `arcOffset` だけ浮かせる
+- **着弾**：AoE（範囲ダメージ）でゾンビを巻き込む
+
+### 現在のパラメーター（今後調整予定）
+
+```js
+// ArcBullet コンストラクタ内
+this.duration  = 1200;   // 飛行時間 ms ← 調整予定
+this.arcHeight = 201;    // 弧の頂点高さ px ← 調整予定
+
+// update() 内
+const arcOffset = arcHeight * Math.sin(t * Math.PI);
+const scale     = baseScale * (1 + 0.5 * Math.sin(t * Math.PI)); // 頂点で1.5倍
+
+// 影
+shadowScale = 1 - 0.6 * Math.sin(t * Math.PI);  // 浮くほど小さく
+shadow.alpha = 0.35 * shadowScale;
+
+// ボールフレームアニメ（2フレーム交互）
+ball.setFrame(Math.floor(elapsed / 150) % 2);
+```
+
+### AoE（着弾範囲）
+
+```js
+aoeRadius = CELL * 1.5;  // 1.5マス半径（96px）← 調整予定
+```
+
+### クラス構成
+
+- `ArcBullet` クラス（`js/Tower.js` 冒頭）
+- 既存の `bullets[]` 配列に混在可能（同じ `active/update(dt)/draw(g)` インターフェース）
+- `zombies` 配列はコンストラクタで参照渡し → 着弾時にAoE判定
+
+### スプライト
+
+- `assets/sprites/tower/soccer_ball.png`（2フレーム横並び、各1000×1000px）
+- `BootScene.js` で spritesheet として読み込み（frameWidth: 1000）
+
+---
+
 ## GPT生成プロンプトのコツ（2026-06-26 確定）
 
 ### 正面・背面スプライト生成時の必須指定

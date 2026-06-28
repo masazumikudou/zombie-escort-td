@@ -30,6 +30,8 @@ const TOWER_DEFS = {
   sniper: { label:'狙撃', color:0x44ff88, textColor:'#55ffaa', cost:200, sell:100, range:4.5, fireRate:1600, damage:70, durability:null },
   laser:  { label:'レーザー', color:0xff2266, textColor:'#ff88aa', cost:350, sell:175, range:999, fireRate:2200, damage:60, durability:null },
   punch:  { label:'パンチ',   color:0xff6600, textColor:'#ff8833', cost:120, sell:60,  range:1,   fireRate:1200, damage:40, durability:null },
+  bat:    { label:'バット',   color:0x88ff44, textColor:'#aaff66', cost:180, sell:126, range:1,   fireRate:1000, damage:25, durability:null },
+  cannon: { label:'大砲',   color:0xff8822, textColor:'#ffaa44', cost:250, sell:175, range:4,   fireRate:2000, damage:50, durability:null },
 };
 
 // ─── プロップ定義 ────────────────────────────────────────────
