@@ -58,7 +58,7 @@ class Tower {
     if (this.type === 'punch') {
       if (!this.scene.textures.exists('tower_punch')) return;
       this._sprite = this.scene.add.sprite(this.x, this.y, 'tower_punch')
-        .setFrame(0).setScale(0.5).setDepth(2).setOrigin(0.5, 0.5);
+        .setFrame(0).setScale(CELL / 330 * 0.9).setDepth(2).setOrigin(0.5, 0.6);
       return;
     }
     const key = `tower_${this.type}`;
@@ -197,6 +197,7 @@ class Tower {
       if (this.type === 'punch') {
         if (this.direction) {
           this._sprite.setFlipX(this.direction === 'left');
+          this._sprite.setAlpha(1);
         } else {
           this._sprite.setAlpha(0.5 + 0.5 * Math.sin(Date.now() * 0.005));
         }
