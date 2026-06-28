@@ -161,7 +161,11 @@ class BootScene extends Phaser.Scene {
     });
     // パンチタワー（2フレームスプライトシート）
     this.load.spritesheet('tower_punch', 'assets/sprites/tower/boxing.png', {
-      frameWidth: 1118, frameHeight: 530,
+      frameWidth: 1128, frameHeight: 485,
+    });
+    // パンチタワー（上方向・背面）
+    this.load.spritesheet('tower_punch_back', 'assets/sprites/tower/boxing_back.png', {
+      frameWidth: 402, frameHeight: 858,
     });
 
     // 遮蔽物

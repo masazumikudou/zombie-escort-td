@@ -58,7 +58,12 @@ class Tower {
     if (this.type === 'punch') {
       if (!this.scene.textures.exists('tower_punch')) return;
       this._sprite = this.scene.add.sprite(this.x, this.y, 'tower_punch')
-        .setFrame(0).setScale(CELL / 330 * 0.9).setDepth(2).setOrigin(0.5, 0.6);
+        .setFrame(0).setScale(CELL / 330 * 0.9).setDepth(2).setOrigin(0.5, 0.542);
+      if (this.scene.textures.exists('tower_punch_back')) {
+        this._spriteBack = this.scene.add.sprite(this.x, this.y, 'tower_punch_back')
+          .setFrame(0).setScale(CELL / 382 * 0.9).setDepth(2).setOrigin(0.5, 0.703)
+          .setVisible(false);
+      }
       return;
     }
     const key = `tower_${this.type}`;
@@ -67,10 +72,11 @@ class Tower {
   }
 
   _punchAnim() {
-    if (!this._sprite) return;
-    this._sprite.setFrame(1);
+    const spr = this.direction === 'up' ? this._spriteBack : this._sprite;
+    if (!spr) return;
+    spr.setFrame(1);
     this.scene.time.delayedCall(280, () => {
-      if (this._sprite) this._sprite.setFrame(0);
+      if (spr) spr.setFrame(0);
     });
   }
 
@@ -92,8 +98,10 @@ class Tower {
 
     if (this.type === 'punch') {
       if (!this.direction) return;
-      const dc = this.direction === 'right' ? 1 : -1;
-      const tc = this.col + dc, tr = this.row;
+      let tc = this.col, tr = this.row;
+      if      (this.direction === 'right') tc = this.col + 1;
+      else if (this.direction === 'left')  tc = this.col - 1;
+      else if (this.direction === 'up')    tr = this.row - 1;
       const target = zombies.find(z => z.alive &&
         Math.floor(z.x / CELL) === tc && Math.floor(z.y / CELL) === tr);
       if (!target) return;
@@ -193,13 +201,22 @@ class Tower {
     if (this._sprite) {
       // ─── スプライットモード ───────────────────────────
       this._sprite.setPosition(this.x, this.y);
-      // パンチ：方向によってflipX・方向未設定時は点滅
+      if (this._spriteBack) this._spriteBack.setPosition(this.x, this.y);
+      // パンチ：方向によってスプライット切り替え・方向未設定時は点滅
       if (this.type === 'punch') {
+        const isUp = this.direction === 'up';
+        this._sprite.setVisible(!isUp);
+        if (this._spriteBack) this._spriteBack.setVisible(isUp);
         if (this.direction) {
-          this._sprite.setFlipX(this.direction === 'left');
-          this._sprite.setAlpha(1);
+          if (isUp) {
+            if (this._spriteBack) this._spriteBack.setAlpha(1);
+          } else {
+            this._sprite.setFlipX(this.direction === 'left');
+            this._sprite.setAlpha(1);
+          }
         } else {
-          this._sprite.setAlpha(0.5 + 0.5 * Math.sin(Date.now() * 0.005));
+          const alpha = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
+          this._sprite.setAlpha(alpha);
         }
       }
       if (this.selected) {
@@ -228,6 +245,7 @@ class Tower {
   }
 
   cleanup() {
-    if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
+    if (this._sprite)     { this._sprite.destroy();     this._sprite     = null; }
+    if (this._spriteBack) { this._spriteBack.destroy(); this._spriteBack = null; }
   }
 }

@@ -171,7 +171,7 @@ class UIScene extends Phaser.Scene {
 
     const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
     const BW = 80, BH = 52, GAP = 4, PAD = 6;
-    const popW = BW * 2 + GAP + PAD * 2;
+    const popW = BW * 3 + GAP * 2 + PAD * 2;
     const popH = BH + PAD * 2 + 22;
     const W = this.scale.width, H = this.scale.height;
 
@@ -188,7 +188,7 @@ class UIScene extends Phaser.Scene {
     }).setDepth(72).setOrigin(0.5, 0);
     this._dirPickerObjs.push(overlay, bg, title);
 
-    [{ key: 'left', label: '← 左' }, { key: 'right', label: '→ 右' }].forEach(({ key, label }, i) => {
+    [{ key: 'left', label: '← 左' }, { key: 'up', label: '↑ 上' }, { key: 'right', label: '→ 右' }].forEach(({ key, label }, i) => {
       const bx = px + PAD + i * (BW + GAP);
       const by = py + PAD + 22;
       const btn = this.add.rectangle(bx + BW / 2, by + BH / 2, BW, BH, 0xff6600, 0.22)
