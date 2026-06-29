@@ -103,6 +103,14 @@ class BootScene extends Phaser.Scene {
     }
 
     // DAD 護衛キャラ
+    if (this.textures.exists('dad_idle')) {
+      this.anims.create({
+        key: 'dad_idle',
+        frames: this.anims.generateFrameNumbers('dad_idle', { frames: [0, 1] }),
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
     if (this.textures.exists('dad_right')) {
       this.anims.create({
         key: 'dad_walk_right',
@@ -190,6 +198,9 @@ class BootScene extends Phaser.Scene {
     });
 
     // DAD 護衛キャラ
+    this.load.spritesheet('dad_idle', 'assets/sprites/zombie/DAD/dad_idle_sheet.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
     this.load.spritesheet('dad_right', 'assets/sprites/zombie/DAD/dad_142_sheet.png', {
       frameWidth: 256, frameHeight: 256,
     });

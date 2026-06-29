@@ -204,6 +204,24 @@ class Escort {
 
     const dir = dirFromVec(this.lastDx, this.lastDy);
 
+    // 待機中はidleアニメ（正面固定）
+    const idleKey = `${this.variant}_idle`;
+    const isWaiting = this.state === 'waiting';
+    if (isWaiting && this.scene.textures.exists(idleKey)) {
+      if (!this._sprite || this._spriteKey !== idleKey) {
+        if (this._sprite) this._sprite.destroy();
+        this._sprite    = this.scene.add.sprite(this.x, this.y, idleKey).setDepth(3);
+        this._spriteKey = idleKey;
+        if (this.scene.anims.exists(idleKey)) this._sprite.play(idleKey);
+      }
+      this._sprite.setScale(100 / 256);
+      this._sprite.setOrigin(0.5, 0.75);
+      this._sprite.setPosition(this.x, this.y + 15).setVisible(true);
+      this._sprite.setFlipX(false);
+      this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
+      // HPバーへ続く
+    } else {
+
     // 方向別シートキー
     let sheetKey, animKey;
     if (dir === 'down' && this.scene.textures.exists(`${this.variant}_down`)) {
@@ -246,6 +264,7 @@ class Escort {
       g.fillCircle(this.x + (this.lastDx / norm) * r * 0.5,
                    this.y + (this.lastDy / norm) * r * 0.5, 5);
     }
+    } // end idle/walk branch
 
     // HPバーは常にgで描画
     const barW  = 44, barH = 5;
