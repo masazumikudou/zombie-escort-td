@@ -9,6 +9,7 @@
   "tree":         { "cols": 1, "rows": 1 },
   "公園":         { "cols": 6, "rows": 6 },
   "駐車場":       { "cols": 2, "rows": 1 },
+  "駐車場車あり": { "cols": 2, "rows": 1 },
   "商店街":       { "cols": 15, "rows": 3 },
   "house5_front": { "cols": 15, "rows": 3 },
   "house5_back":  { "cols": 15, "rows": 3 },
