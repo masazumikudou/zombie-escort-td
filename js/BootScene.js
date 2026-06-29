@@ -106,7 +106,7 @@ class BootScene extends Phaser.Scene {
     if (this.textures.exists('dad_idle')) {
       this.anims.create({
         key: 'dad_idle',
-        frames: this.anims.generateFrameNumbers('dad_idle', { frames: [0, 1] }),
+        frames: this.anims.generateFrameNumbers('dad_idle', { frames: [0, 1, 2, 1] }),
         frameRate: 2,
         repeat: -1,
       });
