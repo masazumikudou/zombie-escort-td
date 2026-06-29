@@ -7,7 +7,7 @@
   "guardrail_h":  { "cols": 1, "rows": 1 },
   "guardrail_v":  { "cols": 1, "rows": 1 },
   "tree":         { "cols": 1, "rows": 1 },
-  "公園":         { "cols": 4, "rows": 4 },
+  "公園":         { "cols": 6, "rows": 6 },
   "商店街":       { "cols": 15, "rows": 3 },
   "house5_front": { "cols": 15, "rows": 3 },
   "house5_back":  { "cols": 15, "rows": 3 },
