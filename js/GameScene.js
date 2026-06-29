@@ -473,7 +473,8 @@ class GameScene extends Phaser.Scene {
     const decals = this.stageData.decals || [];
     if (!decals.length) return;
 
-    const FALLBACK = { crosswalk_h: 0xddcc22, crosswalk_v: 0xddcc22, manhole: 0xaaaaaa };
+    const FALLBACK  = { crosswalk_h: 0xddcc22, crosswalk_v: 0xddcc22, manhole: 0xaaaaaa };
+    const SWAY_TYPES = new Set(['tree', '木1', '木2']);
 
     for (const decal of decals) {
       const def = DECAL_DEFS[decal.type];
@@ -485,7 +486,20 @@ class GameScene extends Phaser.Scene {
       const cy  = decal.y != null ? decal.y : decal.row * CELL + ph / 2;
       const key = `decal_${decal.type}`;
       if (this.textures.exists(key)) {
-        this.add.image(cx, cy, key).setDisplaySize(pw * sc, ph * sc).setDepth(0);
+        const sway = SWAY_TYPES.has(decal.type);
+        const img = this.add.image(cx, sway ? cy + ph * sc / 2 : cy, key)
+          .setDisplaySize(pw * sc, ph * sc)
+          .setDepth(0);
+        if (sway) {
+          img.setOrigin(0.5, 1).setAngle(-3);
+          this.tweens.add({
+            targets: img, angle: 3,
+            duration: 1500 + Math.random() * 1000,
+            yoyo: true, repeat: -1,
+            ease: 'Sine.easeInOut',
+            delay: Math.random() * 1500,
+          });
+        }
       } else {
         const color = FALLBACK[decal.type] ?? 0x88ccff;
         this.add.graphics().setDepth(0)
@@ -564,6 +578,8 @@ class GameScene extends Phaser.Scene {
           this.propCells.add(`${prop.col + dc},${prop.row + dr}`);
     }
 
+    const PROP_SWAY = new Set(['tree', '木1', '木2']);
+
     for (const prop of (this.stageData.props || [])) {
       const def = PROP_DEFS[prop.type];
       if (!def) continue;
@@ -574,9 +590,20 @@ class GameScene extends Phaser.Scene {
       const sc = def.scale ?? 1;
       const key = `prop_${prop.type}`;
       if (this.textures.exists(key)) {
-        this.add.image(px + pw / 2, py + ph / 2, key)
+        const sway = PROP_SWAY.has(prop.type);
+        const img = this.add.image(px + pw / 2, sway ? py + ph : py + ph / 2, key)
           .setDisplaySize(pw * sc, ph * sc)
           .setDepth(2);
+        if (sway) {
+          img.setOrigin(0.5, 1).setAngle(-3);
+          this.tweens.add({
+            targets: img, angle: 3,
+            duration: 1500 + Math.random() * 1000,
+            yoyo: true, repeat: -1,
+            ease: 'Sine.easeInOut',
+            delay: Math.random() * 1500,
+          });
+        }
       } else {
         const g = this.add.graphics().setDepth(2);
         g.fillStyle(0x607898, 1);
