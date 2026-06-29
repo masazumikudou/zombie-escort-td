@@ -486,6 +486,14 @@ class GameScene extends Phaser.Scene {
       const cy  = decal.y != null ? decal.y : decal.row * CELL + ph / 2;
       const key = `decal_${decal.type}`;
       if (this.textures.exists(key)) {
+        if (decal.tileW) {
+          const tw = pw * sc, th = ph * sc;
+          const lx = cx - decal.tileW / 2;
+          for (let tx = 0; tx < decal.tileW; tx += tw) {
+            this.add.image(lx + tx + tw / 2, cy, key).setDisplaySize(tw, th).setDepth(0);
+          }
+          continue;
+        }
         const sway = SWAY_TYPES.has(decal.type);
         const img = this.add.image(cx, sway ? cy + ph * sc / 2 : cy, key)
           .setDisplaySize(pw * sc, ph * sc)

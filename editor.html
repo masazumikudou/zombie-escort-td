@@ -468,6 +468,7 @@ let decals = [];
 let selectedDecalType = Object.keys(DECAL_DEFS)[0];
 let selectedDecalIdx  = -1;
 let hoverPixel        = null;
+let decalDragStart    = null;
 
 const decalImages = {};
 for (const type of Object.keys(DECAL_DEFS)) {
@@ -574,8 +575,9 @@ function findDecalAtPixel(px, py) {
     const d = decals[i];
     const def = DECAL_DEFS[d.type];
     if (!def) continue;
-    const hw = def.cols * CELL * (def.scale ?? 1) / 2;
-    const hh = def.rows * CELL * (def.scale ?? 1) / 2;
+    const sc = def.scale ?? 1;
+    const hw = (d.tileW ? d.tileW : def.cols * CELL * sc) / 2;
+    const hh = def.rows * CELL * sc / 2;
     if (px >= d.x - hw && px < d.x + hw && py >= d.y - hh && py < d.y + hh) return i;
   }
   return -1;
@@ -620,6 +622,7 @@ function setMode(m) {
   hoverCell = null;
   hoverPixel = null;
   selectedDecalIdx = -1;
+  decalDragStart = null;
   redraw();
 }
 
@@ -809,6 +812,10 @@ canvas.addEventListener('mousedown', e => {
     const hitIdx = findDecalAtPixel(px, py);
     if (hitIdx >= 0) {
       selectedDecalIdx = hitIdx;
+      decalDragStart = null;
+    } else if (selectedDecalType === '縁石') {
+      decalDragStart = { px, py };
+      selectedDecalIdx = -1;
     } else {
       const def = DECAL_DEFS[selectedDecalType];
       if (def) {
@@ -846,7 +853,25 @@ canvas.addEventListener('mousemove', e => {
     redraw();
   }
 });
-canvas.addEventListener('mouseup', () => {
+canvas.addEventListener('mouseup', e => {
+  if (mode === 'decal' && decalDragStart) {
+    const [px, py] = screenToPixel(e);
+    const TILE = 64;
+    const rawW = Math.abs(px - decalDragStart.px);
+    const tiles = Math.max(1, Math.round(rawW / TILE));
+    const tileW = tiles * TILE;
+    const cx = (Math.min(px, decalDragStart.px) + tileW / 2);
+    const cy = decalDragStart.py;
+    const entry = tiles === 1
+      ? { type: '縁石', x: cx, y: cy }
+      : { type: '縁石', x: cx, y: cy, tileW };
+    decals.push(entry);
+    selectedDecalIdx = decals.length - 1;
+    decalDragStart = null;
+    redraw();
+    scheduleAutoSave();
+    return;
+  }
   if (mode === 'paint' && paintDragStart) applyPaint();
   isDragging = false; dragAction = null;
   paintDragStart = null; paintDragEnd = null;
@@ -855,7 +880,7 @@ canvas.addEventListener('mouseleave', () => {
   if (mode === 'paint' && isDragging && paintDragStart) applyPaint();
   isDragging = false; dragAction = null;
   paintDragStart = null; paintDragEnd = null;
-  hoverCell = null; hoverPixel = null; redraw();
+  hoverCell = null; hoverPixel = null; decalDragStart = null; redraw();
 });
 
 function screenToCell(e) {
@@ -1034,15 +1059,27 @@ function redraw() {
     const d = decals[selectedDecalIdx];
     const def = DECAL_DEFS[d.type];
     if (def) {
-      const dw = def.cols * CELL * (def.scale ?? 1), dh = def.rows * CELL * (def.scale ?? 1);
+      const sc = def.scale ?? 1;
+      const totalW = d.tileW ?? def.cols * CELL * sc;
+      const dh = def.rows * CELL * sc;
       ctx.save();
       ctx.strokeStyle = '#ffdd00';
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 3]);
-      ctx.strokeRect(d.x - dw / 2 - 2, d.y - dh / 2 - 2, dw + 4, dh + 4);
+      ctx.strokeRect(d.x - totalW / 2 - 2, d.y - dh / 2 - 2, totalW + 4, dh + 4);
       ctx.setLineDash([]);
       ctx.restore();
     }
+  }
+
+  // 縁石ドラッグプレビュー
+  if (mode === 'decal' && selectedDecalType === '縁石' && decalDragStart && hoverPixel) {
+    const TILE = 64;
+    const rawW = Math.abs(hoverPixel.px - decalDragStart.px);
+    const tiles = Math.max(1, Math.round(rawW / TILE));
+    const tileW = tiles * TILE;
+    const cx = Math.min(decalDragStart.px, hoverPixel.px) + tileW / 2;
+    drawDecal({ type: '縁石', x: cx, y: decalDragStart.py, tileW }, 0.5);
   }
 
   // スタート・ゴール
@@ -1348,21 +1385,25 @@ function drawDecal(d, alpha) {
   const def = DECAL_DEFS[d.type];
   if (!def) return;
   const sc = def.scale ?? 1;
-  const dw = def.cols * CELL * sc, dh = def.rows * CELL * sc;
-  const lx = d.x - dw / 2, ly = d.y - dh / 2;
+  const tw = def.cols * CELL * sc;   // 1タイル幅
+  const dh = def.rows * CELL * sc;
+  const totalW = d.tileW ?? tw;
+  const lx = d.x - totalW / 2, ly = d.y - dh / 2;
   ctx.save();
   ctx.globalAlpha = alpha ?? 0.85;
   if (decalImages[d.type]) {
-    ctx.drawImage(decalImages[d.type], lx, ly, dw, dh);
+    for (let tx = 0; tx < totalW; tx += tw) {
+      ctx.drawImage(decalImages[d.type], lx + tx, ly, tw, dh);
+    }
   } else {
     const col = decalColor(d.type);
     ctx.fillStyle = col + '55';
-    ctx.fillRect(lx, ly, dw, dh);
+    ctx.fillRect(lx, ly, totalW, dh);
     ctx.strokeStyle = col;
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(lx + 1, ly + 1, dw - 2, dh - 2);
+    ctx.strokeRect(lx + 1, ly + 1, totalW - 2, dh - 2);
     ctx.fillStyle = col;
-    ctx.font = `bold ${Math.min(11, dw / d.type.length * 1.4)}px sans-serif`;
+    ctx.font = `bold ${Math.min(11, tw / d.type.length * 1.4)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillText(d.type, d.x, d.y + 4);
   }
@@ -1391,7 +1432,7 @@ document.addEventListener('keydown', e => {
 
 // ─── decals JSON コピー ──────────────────────────────────────
 function copyDecalsJSON() {
-  const arr  = decals.map(d => ({ type: d.type, x: Math.round(d.x), y: Math.round(d.y) }));
+  const arr  = decals.map(d => ({ type: d.type, x: Math.round(d.x), y: Math.round(d.y), ...(d.tileW ? { tileW: d.tileW } : {}) }));
   const text = '"decals": ' + JSON.stringify(arr, null, 2);
   navigator.clipboard.writeText(text).then(() => {
     const el = document.getElementById('decals-copy-status');
@@ -1467,7 +1508,7 @@ function buildJSON() {
   if (roadsArr.length > 0)        obj.roads        = roadsArr;
   if (cellGroundsArr.length > 0)  obj.ground_cells = cellGroundsArr;
   if (props.length > 0)           obj.props        = props.map(p => ({ type: p.type, col: p.col, row: p.row }));
-  if (decals.length > 0)          obj.decals       = decals.map(d => ({ type: d.type, x: Math.round(d.x), y: Math.round(d.y) }));
+  if (decals.length > 0)          obj.decals       = decals.map(d => ({ type: d.type, x: Math.round(d.x), y: Math.round(d.y), ...(d.tileW ? { tileW: d.tileW } : {}) }));
 
   if (underlayCells.size > 0) {
     const arr = [];
@@ -1539,7 +1580,7 @@ function applyJSON(obj) {
   selectedDecalIdx = -1;
   for (const d of (obj.decals ?? [])) {
     if (d.x != null) {
-      decals.push({ type: d.type, x: d.x, y: d.y });
+      decals.push({ type: d.type, x: d.x, y: d.y, ...(d.tileW ? { tileW: d.tileW } : {}) });
     } else {
       // 旧フォーマット(col/row)→ x/y に変換
       const def = DECAL_DEFS[d.type];
