@@ -481,8 +481,8 @@ class GameScene extends Phaser.Scene {
       const pw  = def.cols * CELL;
       const ph  = def.rows * CELL;
       const sc  = def.scale ?? 1;
-      const cx  = decal.col * CELL + pw / 2;
-      const cy  = decal.row * CELL + ph / 2;
+      const cx  = decal.x != null ? decal.x : decal.col * CELL + pw / 2;
+      const cy  = decal.y != null ? decal.y : decal.row * CELL + ph / 2;
       const key = `decal_${decal.type}`;
       if (this.textures.exists(key)) {
         this.add.image(cx, cy, key).setDisplaySize(pw * sc, ph * sc).setDepth(0);
@@ -490,7 +490,7 @@ class GameScene extends Phaser.Scene {
         const color = FALLBACK[decal.type] ?? 0x88ccff;
         this.add.graphics().setDepth(0)
           .fillStyle(color, 0.55)
-          .fillRect(decal.col * CELL, decal.row * CELL, pw, ph);
+          .fillRect(cx - pw / 2, cy - ph / 2, pw, ph);
       }
     }
   }
