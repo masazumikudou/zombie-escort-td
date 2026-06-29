@@ -51,7 +51,7 @@ const PROP_DEFS = {
   ベンチ:       { texture: 'prop/ベンチ.png',  cols: 1, rows: 1, scale: 0.5 },
   公園:         { texture: 'prop/公園.png',   cols: 6, rows: 6 },
   駐車場:       { texture: 'prop/駐車場.png',      cols: 4, rows: 2 },
-  駐車場車あり: { texture: 'prop/駐車場車あり.png', cols: 4, rows: 2 },
+  駐車場車有り: { texture: 'prop/駐車場車有り.png', cols: 4, rows: 2 },
   商店街:       { texture: 'prop/商店街.png',  cols: 15, rows: 3 },
   house5_front: { texture: 'prop/house5_front.png',  cols: 15, rows: 3 },
   house5_back:  { texture: 'prop/house5_back.png',   cols: 15, rows: 3 },
