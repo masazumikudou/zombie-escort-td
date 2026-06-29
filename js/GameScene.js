@@ -188,6 +188,13 @@ class GameScene extends Phaser.Scene {
     }
     this.escort = new Escort(this, escPath, def);
 
+    // Yシステムコールバック接続
+    const _NAMES = { dad:'お父さん', mom:'お母さん', son:'息子', grandma:'おばあちゃん', cat:'猫' };
+    const variantName = _NAMES[def.variant] ?? def.variant;
+    this.escort.onDetourStart    = () => this._showDetourCard(variantName);
+    this.escort.onDetourActivate = () => { this.waveManager?.setSpawnMultiplier(0.5); };
+    this.escort.onDetourEnd      = () => { this.waveManager?.setSpawnMultiplier(1.0); this._closeDetourCard(); };
+
     const cam = this.cameras.main;
     cam.pan(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2, 600, 'Power2');
 
@@ -1098,6 +1105,31 @@ class GameScene extends Phaser.Scene {
   }
 
   // ─── NEXT WAVE カード ────────────────────────────────────
+  _showDetourCard(name) {
+    this._closeDetourCard();
+    const cx = CANVAS_W / 2, cy = (CANVAS_H - UI_H) / 2;
+    const objs = [];
+    objs.push(this.add.rectangle(cx, cy, 400, 110, 0x1a0808, 0.93)
+      .setScrollFactor(0).setDepth(65).setStrokeStyle(2, 0xff6600));
+    objs.push(this.add.text(cx, cy - 22, `${name}が寄り道中！`, {
+      fontSize: '28px', color: '#ff8833',
+      fontFamily: '"Arial Black", Arial, sans-serif',
+      stroke: '#000000', strokeThickness: 4,
+    }).setScrollFactor(0).setDepth(66).setOrigin(0.5, 0.5));
+    objs.push(this.add.text(cx, cy + 22, 'ゾンビが集中攻撃してくる！', {
+      fontSize: '16px', color: '#ffcc88',
+      fontFamily: 'Arial, sans-serif',
+      stroke: '#000000', strokeThickness: 2,
+    }).setScrollFactor(0).setDepth(66).setOrigin(0.5, 0.5));
+    this._detourCardObjs = objs;
+    this.time.delayedCall(2000, () => this._closeDetourCard());
+  }
+
+  _closeDetourCard() {
+    (this._detourCardObjs ?? []).forEach(o => o.destroy());
+    this._detourCardObjs = null;
+  }
+
   _showNextWaveCard(completedIdx, nextName) {
     this._closeNextWaveCard();
     const cx = CANVAS_W / 2, cy = (CANVAS_H - UI_H) / 2;

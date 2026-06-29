@@ -24,7 +24,10 @@ class WaveManager {
     this._groupLeaderZombie = null;  // グループ1体目（全フォロワーの基準リーダー）
     this.allDone         = false;
     this._onWaveStart    = null;
+    this._spawnMultiplier = 1.0;
   }
+
+  setSpawnMultiplier(m) { this._spawnMultiplier = m; }
 
   get currentWaveNum() { return this.waveIdx + 1; }
   get totalWaves()     { return this.waves.length; }
@@ -75,10 +78,10 @@ class WaveManager {
       const z = spawnFn(this._groupSpawn.col, this._groupSpawn.row, wave.enemy, this.waveIdx, this._groupLeaderZombie);
       if (this._groupLeaderZombie === null) this._groupLeaderZombie = z;  // 1体目がリーダー
       this._groupRemaining--;
-      this._groupNextTime = scaledTime + (wave.groupInterval ?? 800);
+      this._groupNextTime = scaledTime + (wave.groupInterval ?? 800) / this._spawnMultiplier;
       // 最後の1体が出た瞬間から spawnInterval を待つ
       if (this._groupRemaining === 0) {
-        this.nextGroupTime      = scaledTime + (wave.spawnInterval ?? 7000);
+        this.nextGroupTime      = scaledTime + (wave.spawnInterval ?? 7000) / this._spawnMultiplier;
         this._warningSpawn      = null;
         this._groupLeaderZombie = null;  // 次グループのリーダーをリセット
       }

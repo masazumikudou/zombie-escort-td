@@ -32,8 +32,11 @@ class Escort {
     this._detourWpIdx     = 0;
     this._waitTimer       = 0;
     this._detourPixelPath = null;
-    this.onDetourStart    = null;  // Y到達時コールバック（GameScene用）
+    this.onDetourStart    = null;  // Y到達時コールバック（カード表示用）
+    this.onDetourActivate = null;  // 2秒後Y発動コールバック（スポーン加速用）
     this.onDetourEnd      = null;  // Y出発時コールバック（GameScene用）
+    this._announceTimer   = 0;
+    this._waitText        = null;
     if (this._detourDef?.path?.length > 0) {
       this._detourPixelPath = this._detourDef.path.map(p => cellCenter(p.col, p.row));
     }
@@ -53,6 +56,17 @@ class Escort {
 
     if (this.reached) return;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+
+    // Yアナウンス中（2秒停止・カード表示）
+    if (this.state === 'announcing') {
+      this._announceTimer += dt;
+      if (this._announceTimer >= 2000) {
+        this.state = 'waiting';
+        this._waitTimer = 0;
+        if (this.onDetourActivate) this.onDetourActivate();
+      }
+      return;
+    }
 
     // Y待機中：移動しない（カウントダウンのみ）
     if (this.state === 'waiting') {
@@ -102,9 +116,9 @@ class Escort {
         this.x = wp.x; this.y = wp.y;
         this._detourWpIdx++;
         if (this._detourWpIdx >= this._detourPixelPath.length) {
-          // Y到達 → 待機開始
-          this.state = 'waiting';
-          this._waitTimer = 0;
+          // Y到達 → アナウンス（2秒後に待機開始）
+          this.state = 'announcing';
+          this._announceTimer = 0;
           if (this.onDetourStart) this.onDetourStart();
         }
       } else {
@@ -165,6 +179,7 @@ class Escort {
 
   // Y滞在終了 → C5に戻りメイン導線再開
   _finishDetour() {
+    if (this._waitText) { this._waitText.destroy(); this._waitText = null; }
     this._detourDone = true;
     this.state = 'walking';
     this.wpIdx = this._detourDef.branchIdx + 1;
@@ -203,6 +218,24 @@ class Escort {
     }
 
     const dir = dirFromVec(this.lastDx, this.lastDy);
+
+    // Y待機中タイマーテキスト
+    if (this.state === 'waiting' && this._detourDef) {
+      const waitTime  = this._detourDef.waitTime ?? 30000;
+      const remaining = Math.max(0, Math.ceil((waitTime - this._waitTimer) / 1000));
+      const ratio     = (waitTime - this._waitTimer) / waitTime;
+      const color     = ratio > 0.5 ? '#00ff88' : ratio > 0.25 ? '#ffaa00' : '#ff4444';
+      if (!this._waitText) {
+        this._waitText = this.scene.add.text(0, 0, '', {
+          fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '20px', fontStyle: 'bold',
+          stroke: '#000000', strokeThickness: 3,
+        }).setDepth(5).setOrigin(0.5, 1);
+      }
+      this._waitText.setText(`⏱ ${remaining}`).setPosition(this.x, this.y - 52).setStyle({ color });
+    } else if (this._waitText) {
+      this._waitText.destroy();
+      this._waitText = null;
+    }
 
     // 待機中はidleアニメ（正面固定）
     const idleKey = `${this.variant}_idle`;
@@ -277,6 +310,7 @@ class Escort {
   }
 
   cleanup() {
-    if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
+    if (this._sprite)   { this._sprite.destroy();   this._sprite   = null; }
+    if (this._waitText) { this._waitText.destroy();  this._waitText = null; }
   }
 }
