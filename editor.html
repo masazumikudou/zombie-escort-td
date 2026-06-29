@@ -469,6 +469,7 @@ let selectedDecalType = Object.keys(DECAL_DEFS)[0];
 let selectedDecalIdx  = -1;
 let hoverPixel        = null;
 let decalDragStart    = null;
+let decalDragPending  = null;
 
 const decalImages = {};
 for (const type of Object.keys(DECAL_DEFS)) {
@@ -623,6 +624,7 @@ function setMode(m) {
   hoverPixel = null;
   selectedDecalIdx = -1;
   decalDragStart = null;
+  decalDragPending = null;
   redraw();
 }
 
@@ -862,14 +864,12 @@ canvas.addEventListener('mouseup', e => {
     const tileW = tiles * TILE;
     const cx = (Math.min(px, decalDragStart.px) + tileW / 2);
     const cy = decalDragStart.py;
-    const entry = tiles === 1
+    decalDragPending = tiles === 1
       ? { type: '縁石', x: cx, y: cy }
       : { type: '縁石', x: cx, y: cy, tileW };
-    decals.push(entry);
-    selectedDecalIdx = decals.length - 1;
     decalDragStart = null;
+    selectedDecalIdx = -1;
     redraw();
-    scheduleAutoSave();
     return;
   }
   if (mode === 'paint' && paintDragStart) applyPaint();
@@ -1070,6 +1070,26 @@ function redraw() {
       ctx.setLineDash([]);
       ctx.restore();
     }
+  }
+
+  // 縁石確定待ち表示（Enter確定 / 矢印で微調整 / ESCキャンセル）
+  if (mode === 'decal' && decalDragPending) {
+    const def = DECAL_DEFS[decalDragPending.type];
+    const sc = def?.scale ?? 1;
+    const dh = def ? def.rows * CELL * sc : 32;
+    const totalW = decalDragPending.tileW ?? (def ? def.cols * CELL * sc : 64);
+    drawDecal(decalDragPending, 0.85);
+    ctx.save();
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(decalDragPending.x - totalW/2 - 3, decalDragPending.y - dh/2 - 3, totalW + 6, dh + 6);
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#00ff88';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('↑↓ で位置調整  Enter:確定  ESC:取消', decalDragPending.x, decalDragPending.y - dh/2 - 8);
+    ctx.restore();
   }
 
   // 縁石ドラッグプレビュー
@@ -1412,8 +1432,30 @@ function drawDecal(d, alpha) {
 
 // ─── デカール矢印キー移動 ────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (mode !== 'decal' || selectedDecalIdx < 0 || selectedDecalIdx >= decals.length) return;
+  if (mode !== 'decal') return;
   const step = e.shiftKey ? 1 : 8;
+
+  // 確定待ち縁石（Enter確定 / 矢印で位置調整 / ESCキャンセル）
+  if (decalDragPending) {
+    if      (e.key === 'ArrowLeft')  { decalDragPending.x -= step; e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { decalDragPending.x += step; e.preventDefault(); }
+    else if (e.key === 'ArrowUp')    { decalDragPending.y -= step; e.preventDefault(); }
+    else if (e.key === 'ArrowDown')  { decalDragPending.y += step; e.preventDefault(); }
+    else if (e.key === 'Enter') {
+      decals.push({ ...decalDragPending });
+      selectedDecalIdx = decals.length - 1;
+      decalDragPending = null;
+      e.preventDefault();
+      scheduleAutoSave();
+    }
+    else if (e.key === 'Escape') { decalDragPending = null; e.preventDefault(); }
+    else return;
+    redraw();
+    return;
+  }
+
+  // 配置済みデカール選択中の操作
+  if (selectedDecalIdx < 0 || selectedDecalIdx >= decals.length) return;
   const d = decals[selectedDecalIdx];
   if      (e.key === 'ArrowLeft')  { d.x -= step; e.preventDefault(); }
   else if (e.key === 'ArrowRight') { d.x += step; e.preventDefault(); }
