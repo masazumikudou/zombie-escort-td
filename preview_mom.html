@@ -50,6 +50,7 @@ const CHARS = [
   { id:'mom_u', label:'MOM 背面', key:'mom_up',    frameW:340, frameH:600, ox:0.574, oy:1.0,   flipX:false, anim:'mom_walk_up',    confirmedH:null },
   { id:'dad_r', label:'DAD 横',   key:'dad_right', frameW:256, frameH:256, ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_r',     confirmedH:100 },
   { id:'dad_d', label:'DAD 正面', key:'dad_down',  frameW:256, frameH:256, ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_d',     confirmedH:100 },
+  { id:'dad_u', label:'DAD 背面', key:'dad_up',    frameW:256, frameH:256, ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_u',     confirmedH:100 },
 ];
 
 // スプライト読み込み定義
@@ -59,6 +60,7 @@ const SHEETS = [
   { key:'mom_up',    path:'assets/sprites/zombie/MAM/walk_up.png',    fw:340, fh:600 },
   { key:'dad_right', path:'assets/sprites/zombie/DAD/dad_142_sheet.png', fw:256, fh:256 },
   { key:'dad_down',  path:'assets/sprites/zombie/DAD/dad_down.png',      fw:256, fh:256 },
+  { key:'dad_up',    path:'assets/sprites/zombie/DAD/dad_up.png',        fw:256, fh:256 },
 ];
 
 // アニメ定義
@@ -68,6 +70,7 @@ const ANIMS = [
   { key:'mom_walk_up',    tex:'mom_up',    frames:[0,2,3,2], fps:3 },
   { key:'dad_walk_r',     tex:'dad_right', frames:[0,1,2,1], fps:2 },
   { key:'dad_walk_d',     tex:'dad_down',  frames:[0,1,2,3], fps:4 },
+  { key:'dad_walk_u',     tex:'dad_up',    frames:[0,1,2,3], fps:4 },
 ];
 
 // ════════════════════════════════════════════════
