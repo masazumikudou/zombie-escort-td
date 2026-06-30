@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MOM スプライト確認</title>
+<style>
+  body { margin: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #fff; }
+  h2 { margin: 0 0 8px; font-size: 14px; color: #aaa; }
+  p  { margin: 4px 0; font-size: 12px; color: #777; }
+</style>
+</head>
+<body>
+<h2>MOM walk_right プレビュー（実機同スケール: setScale(100/256)）</h2>
+<div id="game"></div>
+<p>左：右向き（通常）　右：左向き（setFlipX）　背景は実ゲームの草＋道路色</p>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script>
+const CELL = 64;
+const SCALE = 100 / 256;
+
+class PreviewScene extends Phaser.Scene {
+  constructor() { super('Preview'); }
+
+  preload() {
+    this.load.spritesheet('mom_right', 'assets/sprites/zombie/MAM/walk_right.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+    // 参考用にDADも読み込む（比較）
+    this.load.spritesheet('dad_right', 'assets/sprites/zombie/DAD/dad_142_sheet.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+  }
+
+  create() {
+    const W = this.scale.width;
+    const H = this.scale.height;
+
+    // 背景（草：緑 / 道路：グレー）
+    this.add.rectangle(0, 0, W, H * 0.55, 0x4a7c3f).setOrigin(0, 0); // 草
+    this.add.rectangle(0, H * 0.55, W, H * 0.3, 0x555555).setOrigin(0, 0); // 道路
+    this.add.rectangle(0, H * 0.85, W, H * 0.15, 0x4a7c3f).setOrigin(0, 0); // 草（下）
+
+    // グリッド線（64px）
+    const g = this.add.graphics();
+    g.lineStyle(1, 0xffffff, 0.08);
+    for (let x = 0; x < W; x += CELL) g.lineBetween(x, 0, x, H);
+    for (let y = 0; y < H; y += CELL) g.lineBetween(0, y, W, y);
+
+    // 道路の白線
+    this.add.rectangle(W / 2, H * 0.7, W, 3, 0xffffff, 0.3);
+
+    // 地面 y（道路上端 = H * 0.55、キャラはその上に立つ）
+    const groundY = H * 0.55;
+
+    // MOM 右向き
+    this.anims.create({
+      key: 'mom_walk_right',
+      frames: this.anims.generateFrameNumbers('mom_right', { frames: [0, 1, 2, 3, 4] }),
+      frameRate: 6,
+      repeat: -1,
+    });
+
+    const momR = this.add.sprite(W * 0.3, groundY + 15, 'mom_right')
+      .setScale(SCALE).setOrigin(0.5, 0.75).setDepth(3);
+    momR.play('mom_walk_right');
+
+    // MOM 左向き（flipX）
+    const momL = this.add.sprite(W * 0.55, groundY + 15, 'mom_right')
+      .setScale(SCALE).setOrigin(0.5, 0.75).setDepth(3).setFlipX(true);
+    momL.play('mom_walk_right');
+
+    // DAD 比較（右向き）
+    if (this.textures.exists('dad_right')) {
+      this.anims.create({
+        key: 'dad_walk_right_prev',
+        frames: this.anims.generateFrameNumbers('dad_right', { frames: [0, 1, 2, 1] }),
+        frameRate: 2, repeat: -1,
+      });
+      const dad = this.add.sprite(W * 0.8, groundY + 15, 'dad_right')
+        .setScale(SCALE).setOrigin(0.5, 0.75).setDepth(3);
+      dad.play('dad_walk_right_prev');
+      this.add.text(W * 0.8, groundY + 40, 'DAD(比較)', { fontSize: '10px', color: '#ffcc00' }).setOrigin(0.5, 0);
+    }
+
+    // ラベル
+    this.add.text(W * 0.3, groundY + 40, 'MOM 右向き', { fontSize: '10px', color: '#88ffcc' }).setOrigin(0.5, 0);
+    this.add.text(W * 0.55, groundY + 40, 'MOM 左向き', { fontSize: '10px', color: '#88ffcc' }).setOrigin(0.5, 0);
+  }
+}
+
+new Phaser.Game({
+  type: Phaser.AUTO,
+  width: 512,
+  height: 320,
+  backgroundColor: '#222',
+  parent: 'game',
+  scene: PreviewScene,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
+});
+</script>
+</body>
+</html>
