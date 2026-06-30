@@ -93,6 +93,16 @@
   - BootScene.js：`mom_right` / `mom_down` / `mom_up` として読み込み・アニメ登録
   - Escort.js：variant=`mom` の歩行アニメ・方向切り替えに対応
   - `preview_mom.html`：お母さんスプライト確認用プレビューページ追加
+- **エディター マルチWAVE対応** ✅ 2026-06-30
+  - WAVEタブUI：WAVEごとにタブ切り替え、追加・削除ボタン
+  - `escortDefs[]` 配列でWAVEごとに独立管理（path / detour / hp / speed / variant）
+  - WAVEタブ切り替え時に現在の編集状態を保存、次のWAVEの状態を復元
+  - キャラ選択セレクト（お父さん・お母さん・おばあちゃん）がWAVEごとに独立
+  - **YはWAVEごとに個別設定可能**（detourBranchIdx=-1 のWAVEは寄り道なし直行）
+  - buildJSON()が全WAVEをexport（`escorts[]` 配列に全員格納）
+  - applyJSON()で全WAVEを復元・WAVE1を編集状態に反映
+  - プロップ配置バリデーション：全WAVEのpath・detourPathを合算してチェック
+  - redraw()：非アクティブWAVEをWAVEカラーで薄く常時表示（W1★ / W2 ラベル付き）
 
 ### 未実装（残タスク）
 
@@ -149,7 +159,7 @@
 | キャラ | 備考 |
 |--------|------|
 | お父さん | 実装中 |
-| お母さん | 未実装 |
+| お母さん | ✅ スプライト＋Escort.js組み込み完了 |
 | 息子 | 未実装 |
 | おばあちゃん | 未実装 |
 | 猫 | 未実装 |
