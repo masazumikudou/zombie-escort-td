@@ -23,7 +23,7 @@ class PreviewScene extends Phaser.Scene {
 
   preload() {
     this.load.spritesheet('mom_right', 'assets/sprites/zombie/MAM/walk_right.png', {
-      frameWidth: 256, frameHeight: 256,
+      frameWidth: 410, frameHeight: 689,
     });
     // 参考用にDADも読み込む（比較）
     this.load.spritesheet('dad_right', 'assets/sprites/zombie/DAD/dad_142_sheet.png', {
@@ -52,21 +52,22 @@ class PreviewScene extends Phaser.Scene {
     // 地面 y（道路上端 = H * 0.55、キャラはその上に立つ）
     const groundY = H * 0.55;
 
-    // MOM 右向き
+    // MOM アニメ（frame04→03→05→03、3fps）
     this.anims.create({
       key: 'mom_walk_right',
-      frames: this.anims.generateFrameNumbers('mom_right', { frames: [0, 1, 2, 3, 4] }),
-      frameRate: 6,
+      frames: this.anims.generateFrameNumbers('mom_right', { frames: [3, 2, 4, 2] }),
+      frameRate: 3,
       repeat: -1,
     });
 
-    const momR = this.add.sprite(W * 0.3, groundY + 15, 'mom_right')
-      .setScale(SCALE).setOrigin(0.5, 0.75).setDepth(3);
+    // MOM右向き：setOrigin(0.478,0.958)で足位置固定
+    const momR = this.add.sprite(W * 0.3, groundY, 'mom_right')
+      .setScale(SCALE).setOrigin(0.478, 0.958).setDepth(3);
     momR.play('mom_walk_right');
 
     // MOM 左向き（flipX）
-    const momL = this.add.sprite(W * 0.55, groundY + 15, 'mom_right')
-      .setScale(SCALE).setOrigin(0.5, 0.75).setDepth(3).setFlipX(true);
+    const momL = this.add.sprite(W * 0.55, groundY, 'mom_right')
+      .setScale(SCALE).setOrigin(0.478, 0.958).setDepth(3).setFlipX(true);
     momL.play('mom_walk_right');
 
     // DAD 比較（右向き）

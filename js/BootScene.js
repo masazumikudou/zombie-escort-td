@@ -136,12 +136,12 @@ class BootScene extends Phaser.Scene {
       });
     }
 
-    // MOM 護衛キャラ（横歩きのみ・正面/後ろはDADで代用）
+    // MOM 護衛キャラ（frame04→03→05→03ループ、setOrigin(0.478,0.958)で足固定）
     if (this.textures.exists('mom_right')) {
       this.anims.create({
         key: 'mom_walk_right',
-        frames: this.anims.generateFrameNumbers('mom_right', { frames: [0, 1, 2, 3, 4] }),
-        frameRate: 6,
+        frames: this.anims.generateFrameNumbers('mom_right', { frames: [3, 2, 4, 2] }),
+        frameRate: 3,
         repeat: -1,
       });
     }
@@ -221,9 +221,9 @@ class BootScene extends Phaser.Scene {
       frameWidth: 256, frameHeight: 256,
     });
 
-    // MOM 護衛キャラ
+    // MOM 護衛キャラ（アンカー統一済み 410x689、足=196,660）
     this.load.spritesheet('mom_right', 'assets/sprites/zombie/MAM/walk_right.png', {
-      frameWidth: 256, frameHeight: 256,
+      frameWidth: 410, frameHeight: 689,
     });
 
     // 地面・道路テクスチャ
