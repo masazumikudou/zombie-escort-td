@@ -93,6 +93,20 @@
   - BootScene.js：`mom_right` / `mom_down` / `mom_up` として読み込み・アニメ登録
   - Escort.js：variant=`mom` の歩行アニメ・方向切り替えに対応
   - `preview_mom.html`：お母さんスプライト確認用プレビューページ追加
+- **MAP下部2行クリック不可バグ修正** ✅ 2026-07-01
+  - 原因：Phaserが `setBounds(0,0,MAP_W,MAP_H)` で `maxScrollY=MAP_H-canvas高=320` に制限
+  - 結果：row13/14がscreenY>596に映りクリック境界で弾かれていた
+  - 修正：`setBounds(0, 0, MAP_W, MAP_H + HEADER_H + UI_H)` で maxScrollY を 416 に拡張
+  - コンソールログで `scrollY=311 / p.y=614 / BLOCKED` を実測して特定
+- **スポーン地点お墓表示** ✅ 2026-07-01
+  - RIP墓（840×860px）・Z墓（900×1040px）を交互に表示（偶数=RIP墓・奇数=Z墓）
+  - `setDisplaySize` でゲーム内64×64（RIP墓）／64×74（Z墓）に縮小表示
+  - `decals` が空のステージでも描画されるよう早期returnの前に配置
+- **スポーン地点カウントダウン** ✅ 2026-07-01
+  - 次に湧くスポーン地点の墓石右上に5→1カウントダウン表示
+  - `WaveManager.getWarning()` で確定した1箇所のみに表示（全スポーン同時表示しない）
+  - 警告窓を3秒前→5秒前に拡張（WaveManager.js: `remaining <= 5000`）
+  - ゾンビ湧き後は自動消去、護衛切り替え時にリセット
 - **エディター マルチWAVE対応** ✅ 2026-06-30
   - WAVEタブUI：WAVEごとにタブ切り替え、追加・削除ボタン
   - `escortDefs[]` 配列でWAVEごとに独立管理（path / detour / hp / speed / variant）

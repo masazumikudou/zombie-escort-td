@@ -67,7 +67,7 @@ class WaveManager {
     // ─ 3秒前予告：スポーン地点を確定してロック ─
     if (this._groupRemaining === 0 && this.nextGroupTime !== Infinity) {
       const remaining = this.nextGroupTime - scaledTime;
-      if (remaining <= 3000 && remaining > 0 && this._warningSpawn === null) {
+      if (remaining <= 5000 && remaining > 0 && this._warningSpawn === null) {
         const sorted = this._sortedSpawns();
         this._warningSpawn = sorted[0] ?? null;
       }
