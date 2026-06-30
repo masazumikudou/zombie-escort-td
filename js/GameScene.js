@@ -131,13 +131,13 @@ class GameScene extends Phaser.Scene {
     // カメラ設定（UISceneのヘッダー分だけビューポートを下にオフセット）
     const HEADER_H = 8 + UI_H; // UIScene の SAFE(8) + UI_H と同値
     this._headerH = HEADER_H;
-    this.cameras.main.setViewport(0, HEADER_H, this.scale.width, this.scale.height - HEADER_H);
+    this.cameras.main.setViewport(0, HEADER_H, this.scale.width, this.scale.height - HEADER_H - UI_H);
     this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
     this.cameras.main.setZoom(ZOOM_LEVELS[this.zoomIdx]);
 
     // UISceneのリサイズに合わせてカメラビューポートを追従
     this._onUiResize = ({ w, h }) => {
-      this.cameras.main.setViewport(0, this._headerH, w, h - this._headerH);
+      this.cameras.main.setViewport(0, this._headerH, w, h - this._headerH - UI_H);
     };
     this.game.events.on('ui_resize', this._onUiResize);
 
