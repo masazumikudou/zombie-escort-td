@@ -33,6 +33,9 @@ class PreviewScene extends Phaser.Scene {
     this.load.spritesheet('dad_right', 'assets/sprites/zombie/DAD/dad_142_sheet.png', {
       frameWidth: 256, frameHeight: 256,
     });
+    this.load.spritesheet('dad_down', 'assets/sprites/zombie/DAD/dad_down.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
   }
 
   create() {
@@ -87,17 +90,26 @@ class PreviewScene extends Phaser.Scene {
       .setScale(MOM_DOWN_SCALE).setOrigin(0.5, 1.0).setDepth(3)
       .play('mom_walk_down');
 
-    // ── DAD 比較 ──
+    // ── DAD ──
     if (this.textures.exists('dad_right')) {
       this.anims.create({
         key: 'dad_walk_prev',
         frames: this.anims.generateFrameNumbers('dad_right', { frames: [0, 1, 2, 1] }),
         frameRate: 2, repeat: -1,
       });
-      this.add.sprite(W * 0.78, dadPosY, 'dad_right')
+      this.add.sprite(W * 0.72, dadPosY, 'dad_right')
         .setScale(DAD_SCALE).setOrigin(0.5, 0.75).setDepth(3)
         .play('dad_walk_prev');
-      this.add.text(W * 0.78, footY + 6, 'DAD', { fontSize: '10px', color: '#ffcc00' }).setOrigin(0.5, 0);
+    }
+    if (this.textures.exists('dad_down')) {
+      this.anims.create({
+        key: 'dad_walk_down_prev',
+        frames: this.anims.generateFrameNumbers('dad_down', { frames: [0, 1, 2, 3] }),
+        frameRate: 4, repeat: -1,
+      });
+      this.add.sprite(W * 0.88, dadPosY, 'dad_down')
+        .setScale(DAD_SCALE).setOrigin(0.5, 0.75).setDepth(3)
+        .play('dad_walk_down_prev');
     }
 
     // 足元基準線（赤）
@@ -108,15 +120,18 @@ class PreviewScene extends Phaser.Scene {
       [W * 0.13, 'MOM 右向き'],
       [W * 0.33, 'MOM 左向き'],
       [W * 0.55, 'MOM 正面'],
+      [W * 0.72, 'DAD 横'],
+      [W * 0.88, 'DAD 正面'],
     ].forEach(([x, label]) => {
-      this.add.text(x, footY + 6, label, { fontSize: '10px', color: '#88ffcc' }).setOrigin(0.5, 0);
+      const col = label.startsWith('DAD') ? '#ffcc00' : '#88ffcc';
+      this.add.text(x, footY + 6, label, { fontSize: '10px', color: col }).setOrigin(0.5, 0);
     });
   }
 }
 
 new Phaser.Game({
   type: Phaser.AUTO,
-  width: 640,
+  width: 800,
   height: 360,
   backgroundColor: '#222',
   parent: 'game',
