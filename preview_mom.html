@@ -151,7 +151,7 @@ const game = new Phaser.Game({
 document.getElementById('slider').addEventListener('input', function() {
   MOM_H = parseInt(this.value);
   MOM_RIGHT_SCALE = MOM_H / 689;
-  MOM_DOWN_SCALE  = MOM_H / 780;
+  // MOM_DOWN_SCALE は 115px 確定のため変更しない
   document.getElementById('sliderVal').textContent = MOM_H + 'px';
   game.scene.stop('Preview');
   game.scene.start('Preview');
