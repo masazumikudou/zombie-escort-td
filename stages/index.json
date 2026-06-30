@@ -1,5 +1,6 @@
 {
   "stages": [
-    { "id": 1, "file": "stages/stage_01.json", "title": "チュートリアル" }
+    { "id": 1, "file": "stages/stage_01.json", "title": "チュートリアル" },
+    { "id": 2, "file": "stages/stage_02.json", "title": "ステージ2" }
   ]
 }

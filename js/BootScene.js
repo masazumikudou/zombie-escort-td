@@ -4,7 +4,7 @@ class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
 
   init(data) {
-    this.stageFile = data.stageFile || 'stages/stage_01.json';
+    this.stageFile = data.stageFile || 'stages/stage_02.json';
   }
 
   preload() {

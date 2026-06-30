@@ -1,0 +1,231 @@
+{
+  "id": "stage_02",
+  "name": "ステージ2",
+  "grid": {
+    "cols": 20,
+    "rows": 15
+  },
+  "ground_base": "grass",
+  "startMoney": 500,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "mom",
+      "startTrigger": "afterPrevious",
+      "start": {
+        "col": 0,
+        "row": 0
+      },
+      "goal": {
+        "col": 19,
+        "row": 14
+      },
+      "path": [
+        { "col": 0,  "row": 0  },
+        { "col": 1,  "row": 0  },
+        { "col": 2,  "row": 0  },
+        { "col": 3,  "row": 0  },
+        { "col": 4,  "row": 0  },
+        { "col": 5,  "row": 0  },
+        { "col": 6,  "row": 0  },
+        { "col": 7,  "row": 0  },
+        { "col": 8,  "row": 0  },
+        { "col": 9,  "row": 0  },
+        { "col": 10, "row": 0  },
+        { "col": 11, "row": 0  },
+        { "col": 12, "row": 0  },
+        { "col": 13, "row": 0  },
+        { "col": 14, "row": 0  },
+        { "col": 15, "row": 0  },
+        { "col": 16, "row": 0  },
+        { "col": 17, "row": 0  },
+        { "col": 18, "row": 0  },
+        { "col": 19, "row": 0  },
+        { "col": 19, "row": 1  },
+        { "col": 19, "row": 2  },
+        { "col": 19, "row": 3  },
+        { "col": 19, "row": 4  },
+        { "col": 19, "row": 5  },
+        { "col": 19, "row": 6  },
+        { "col": 18, "row": 6  },
+        { "col": 17, "row": 6  },
+        { "col": 16, "row": 6  },
+        { "col": 15, "row": 6  },
+        { "col": 14, "row": 6  },
+        { "col": 13, "row": 6  },
+        { "col": 12, "row": 6  },
+        { "col": 11, "row": 6  },
+        { "col": 10, "row": 6  },
+        { "col": 9,  "row": 6  },
+        { "col": 8,  "row": 6  },
+        { "col": 7,  "row": 6  },
+        { "col": 6,  "row": 6  },
+        { "col": 5,  "row": 6  },
+        { "col": 4,  "row": 6  },
+        { "col": 3,  "row": 6  },
+        { "col": 2,  "row": 6  },
+        { "col": 1,  "row": 6  },
+        { "col": 0,  "row": 6  },
+        { "col": 0,  "row": 7  },
+        { "col": 0,  "row": 8  },
+        { "col": 0,  "row": 9  },
+        { "col": 0,  "row": 10 },
+        { "col": 0,  "row": 11 },
+        { "col": 0,  "row": 12 },
+        { "col": 0,  "row": 13 },
+        { "col": 0,  "row": 14 },
+        { "col": 1,  "row": 14 },
+        { "col": 2,  "row": 14 },
+        { "col": 3,  "row": 14 },
+        { "col": 4,  "row": 14 },
+        { "col": 5,  "row": 14 },
+        { "col": 6,  "row": 14 },
+        { "col": 7,  "row": 14 },
+        { "col": 8,  "row": 14 },
+        { "col": 9,  "row": 14 },
+        { "col": 10, "row": 14 },
+        { "col": 11, "row": 14 },
+        { "col": 12, "row": 14 },
+        { "col": 13, "row": 14 },
+        { "col": 14, "row": 14 },
+        { "col": 15, "row": 14 },
+        { "col": 16, "row": 14 },
+        { "col": 17, "row": 14 },
+        { "col": 18, "row": 14 },
+        { "col": 19, "row": 14 }
+      ],
+      "hp": 100,
+      "speed": 80,
+      "waves": [
+        {
+          "startDelay": 6000,
+          "spawnInterval": 2500,
+          "count": 4,
+          "enemy": { "type": "normal",        "hp": 30, "speed": 55, "damage": 10, "reward": 20 }
+        },
+        {
+          "startDelay": 4000,
+          "spawnInterval": 2000,
+          "count": 7,
+          "enemy": { "type": "normal_cap",    "hp": 45, "speed": 62, "damage": 13, "reward": 25 }
+        },
+        {
+          "startDelay": 4000,
+          "spawnInterval": 1500,
+          "count": 12,
+          "enemy": { "type": "normal_helmet", "hp": 60, "speed": 70, "damage": 18, "reward": 30 }
+        }
+      ]
+    },
+    {
+      "variant": "dad",
+      "startTrigger": "afterPrevious",
+      "start": {
+        "col": 0,
+        "row": 0
+      },
+      "goal": {
+        "col": 19,
+        "row": 14
+      },
+      "path": [
+        { "col": 0,  "row": 0  },
+        { "col": 0,  "row": 1  },
+        { "col": 0,  "row": 2  },
+        { "col": 0,  "row": 3  },
+        { "col": 0,  "row": 4  },
+        { "col": 0,  "row": 5  },
+        { "col": 0,  "row": 6  },
+        { "col": 1,  "row": 6  },
+        { "col": 2,  "row": 6  },
+        { "col": 3,  "row": 6  },
+        { "col": 4,  "row": 6  },
+        { "col": 5,  "row": 6  },
+        { "col": 6,  "row": 6  },
+        { "col": 7,  "row": 6  },
+        { "col": 8,  "row": 6  },
+        { "col": 9,  "row": 6  },
+        { "col": 9,  "row": 7  },
+        { "col": 9,  "row": 8  },
+        { "col": 9,  "row": 9  },
+        { "col": 9,  "row": 10 },
+        { "col": 9,  "row": 11 },
+        { "col": 9,  "row": 12 },
+        { "col": 9,  "row": 13 },
+        { "col": 9,  "row": 14 },
+        { "col": 10, "row": 14 },
+        { "col": 11, "row": 14 },
+        { "col": 12, "row": 14 },
+        { "col": 13, "row": 14 },
+        { "col": 14, "row": 14 },
+        { "col": 15, "row": 14 },
+        { "col": 16, "row": 14 },
+        { "col": 17, "row": 14 },
+        { "col": 18, "row": 14 },
+        { "col": 19, "row": 14 }
+      ],
+      "detour": {
+        "branchIdx": 15,
+        "path": [
+          { "col": 9, "row": 6 },
+          { "col": 9, "row": 5 },
+          { "col": 9, "row": 4 },
+          { "col": 8, "row": 4 },
+          { "col": 8, "row": 3 },
+          { "col": 8, "row": 2 },
+          { "col": 8, "row": 1 }
+        ],
+        "waitTime": 30000
+      },
+      "hp": 100,
+      "speed": 80,
+      "waves": [
+        {
+          "startDelay": 6000,
+          "spawnInterval": 2500,
+          "count": 4,
+          "enemy": { "type": "normal",        "hp": 30, "speed": 55, "damage": 10, "reward": 20 }
+        },
+        {
+          "startDelay": 4000,
+          "spawnInterval": 2000,
+          "count": 7,
+          "enemy": { "type": "normal_cap",    "hp": 45, "speed": 62, "damage": 13, "reward": 25 }
+        },
+        {
+          "startDelay": 4000,
+          "spawnInterval": 1500,
+          "count": 12,
+          "enemy": { "type": "normal_helmet", "hp": 60, "speed": 70, "damage": 18, "reward": 30 }
+        }
+      ]
+    }
+  ],
+  "obstacles": [],
+  "zombieSpawns": [
+    { "col": 5,  "row": 5  },
+    { "col": 10, "row": 0  },
+    { "col": 10, "row": 14 },
+    { "col": 19, "row": 5  },
+    { "col": 16, "row": 10 }
+  ],
+  "buildSpots": [],
+  "roads": [
+    { "axis": "h", "line": 0,  "from": 0, "to": 18 },
+    { "axis": "v", "line": 19, "from": 0, "to": 14 }
+  ],
+  "props": [
+    { "type": "アイスクリーム",   "col": 1,  "row": 1 },
+    { "type": "スパーマーケット", "col": 9,  "row": 1 },
+    { "type": "ハンバーガー",     "col": 4,  "row": 1 },
+    { "type": "家青",             "col": 15, "row": 1 },
+    { "type": "家青",             "col": 6,  "row": 7 },
+    { "type": "家緑",             "col": 3,  "row": 7 },
+    { "type": "家緑",             "col": 10, "row": 7 },
+    { "type": "家青",             "col": 13, "row": 7 },
+    { "type": "駐車場",           "col": 10, "row": 4 },
+    { "type": "駐車場",           "col": 1,  "row": 4 },
+    { "type": "駐車場",           "col": 5,  "row": 12 },
+    { "type": "駐車場",           "col": 1,  "row": 12 }
+  ]
+}
