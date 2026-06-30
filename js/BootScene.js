@@ -136,13 +136,19 @@ class BootScene extends Phaser.Scene {
       });
     }
 
-    // MOM 護衛キャラ（frame04→03→05→03ループ、setOrigin(0.478,0.958)で足固定）
+    // MOM 護衛キャラ
     if (this.textures.exists('mom_right')) {
       this.anims.create({
         key: 'mom_walk_right',
         frames: this.anims.generateFrameNumbers('mom_right', { frames: [3, 2, 4, 2] }),
-        frameRate: 3,
-        repeat: -1,
+        frameRate: 3, repeat: -1,
+      });
+    }
+    if (this.textures.exists('mom_down')) {
+      this.anims.create({
+        key: 'mom_walk_down',
+        frames: this.anims.generateFrameNumbers('mom_down', { frames: [3, 2, 1, 2] }),
+        frameRate: 3, repeat: -1,
       });
     }
 
@@ -221,9 +227,12 @@ class BootScene extends Phaser.Scene {
       frameWidth: 256, frameHeight: 256,
     });
 
-    // MOM 護衛キャラ（アンカー統一済み 410x689、足=196,660）
+    // MOM 護衛キャラ
     this.load.spritesheet('mom_right', 'assets/sprites/zombie/MAM/walk_right.png', {
-      frameWidth: 410, frameHeight: 689,
+      frameWidth: 410, frameHeight: 689,  // 横歩き、足=(196,660)、setOrigin(0.478,0.958)
+    });
+    this.load.spritesheet('mom_down', 'assets/sprites/zombie/MAM/walk_down.png', {
+      frameWidth: 368, frameHeight: 780,  // 正面歩き、足=(184,780)、setOrigin(0.5,1.0)
     });
 
     // 地面・道路テクスチャ
