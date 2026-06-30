@@ -16,7 +16,8 @@
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 const CELL = 64;
-const SCALE = 100 / 256;
+const SCALE     = 100 / 256;   // DAD用
+const MOM_SCALE = 100 / 689;   // MOM用（表示高さをDADと揃える）
 
 class PreviewScene extends Phaser.Scene {
   constructor() { super('Preview'); }
@@ -62,12 +63,12 @@ class PreviewScene extends Phaser.Scene {
 
     // MOM右向き：setOrigin(0.478,0.958)で足位置固定
     const momR = this.add.sprite(W * 0.3, groundY, 'mom_right')
-      .setScale(SCALE).setOrigin(0.478, 0.958).setDepth(3);
+      .setScale(MOM_SCALE).setOrigin(0.478, 0.958).setDepth(3);
     momR.play('mom_walk_right');
 
     // MOM 左向き（flipX）
     const momL = this.add.sprite(W * 0.55, groundY, 'mom_right')
-      .setScale(SCALE).setOrigin(0.478, 0.958).setDepth(3).setFlipX(true);
+      .setScale(MOM_SCALE).setOrigin(0.478, 0.958).setDepth(3).setFlipX(true);
     momL.play('mom_walk_right');
 
     // DAD 比較（右向き）
