@@ -12,21 +12,15 @@
 <body>
 <h2>MOM / DAD 比較プレビュー</h2>
 <div id="game"></div>
-<div style="margin-top:8px; display:flex; align-items:center; gap:12px;">
-  <label style="font-size:12px;">MOM 横歩きサイズ:</label>
-  <input id="slider" type="range" min="80" max="200" value="130" style="width:200px;">
-  <span id="sliderVal" style="font-size:12px; color:#88ffcc;">130px</span>
-  <span style="font-size:12px; color:#ffcc88;">　MOM 正面: 115px（確定）　DAD: 100px（固定）</span>
-</div>
-<p>赤線 = 足元基準</p>
+<p style="color:#88ffcc;">確定値 ── MOM 横歩き: 105px　MOM 正面: 115px　DAD: 100px（固定）　赤線 = 足元基準</p>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 const CELL = 64;
 const DAD_SCALE = 100 / 256;
-let MOM_H = 130;  // 横歩きスライダー用
-const MOM_DOWN_H = 115;  // 正面：確定値
-let MOM_RIGHT_SCALE = MOM_H / 689;
-const MOM_DOWN_SCALE  = MOM_DOWN_H / 780;
+const MOM_RIGHT_H    = 105;  // 横歩き：確定値
+const MOM_DOWN_H     = 115;  // 正面：確定値
+const MOM_RIGHT_SCALE = MOM_RIGHT_H / 689;
+const MOM_DOWN_SCALE  = MOM_DOWN_H  / 780;
 
 class PreviewScene extends Phaser.Scene {
   constructor() { super('Preview'); }
@@ -148,14 +142,6 @@ const game = new Phaser.Game({
 });
 
 // スライダーでMOMサイズをリアルタイム変更（シーン再起動）
-document.getElementById('slider').addEventListener('input', function() {
-  MOM_H = parseInt(this.value);
-  MOM_RIGHT_SCALE = MOM_H / 689;
-  // MOM_DOWN_SCALE は 115px 確定のため変更しない
-  document.getElementById('sliderVal').textContent = MOM_H + 'px';
-  game.scene.stop('Preview');
-  game.scene.start('Preview');
-});
 </script>
 </body>
 </html>
