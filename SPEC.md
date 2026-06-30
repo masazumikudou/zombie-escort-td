@@ -88,6 +88,11 @@
   - Tower.js：`.setFrame(0).setScale(CELL / 330 * 0.9).setDepth(2).setOrigin(0.5, 0.6)`
   - alpha透過バグ修正：方向設定済みブランチに `setAlpha(1)` を追加
   - `tools/sprite_align.py`：Python PILによるスプライトアライメントツール新設
+- **お母さんスプライト＋Escort.js組み込み完了** ✅ 2026-06-30
+  - スプライト3方向（walk_down・walk_right・walk_up）追加（`assets/sprites/zombie/MAM/`）
+  - BootScene.js：`mom_right` / `mom_down` / `mom_up` として読み込み・アニメ登録
+  - Escort.js：variant=`mom` の歩行アニメ・方向切り替えに対応
+  - `preview_mom.html`：お母さんスプライト確認用プレビューページ追加
 
 ### 未実装（残タスク）
 
@@ -117,7 +122,7 @@
 
 #### 護衛キャラ（スプライト）
 - お父さん：実装中（スプライト暫定）
-- お母さん：スプライト完成（横歩き・正面）、Escort.js組み込み待ち
+- お母さん：✅ スプライト＋Escort.js組み込み完了（2026-06-30）
 - 息子・おばあちゃん・猫：未実装
 
 #### ⚠️ Y待機スプライト（必須）
