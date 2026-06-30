@@ -1,3 +1,31 @@
+// ─── バリアント別スプライト設定 ────────────────────────────────
+// foot が this.y + ESCORT_GROUND_OFFSET に揃うよう posY を自動計算する
+const ESCORT_GROUND_OFFSET = 40;
+
+const ESCORT_SPR = {
+  dad: {
+    base:       { frameH: 256, scale: 100 / 256, ox: 0.5,   oy: 0.75  },
+    flipRight:  true,    // ソースが左向き → right 表示時にflip
+  },
+  mom: {
+    right:      { frameH: 689, scale: 105 / 689, ox: 0.478, oy: 0.958 },
+    down:       { frameH: 780, scale: 115 / 780, ox: 0.5,   oy: 1.0   },
+    up:         { frameH: 600, scale: 105 / 600, ox: 0.574, oy: 1.0   },
+    flipRight:  false,   // ソースが右向き → left 表示時にflip
+  },
+};
+
+function _escortSprCfg(variant, sprDir) {
+  const v = ESCORT_SPR[variant] ?? ESCORT_SPR.dad;
+  return v[sprDir] ?? v.base ?? ESCORT_SPR.dad.base;
+}
+
+function _escortFlipX(variant, sprDir, dir) {
+  if (sprDir !== 'right') return false;
+  const flipRight = (ESCORT_SPR[variant] ?? ESCORT_SPR.dad).flipRight ?? true;
+  return flipRight ? dir !== 'left' : dir === 'left';
+}
+
 // 護衛対象
 // スプライット配置: assets/sprites/escort/{variant}/walk_{dir}_{frame:02d}.png
 // ファイルがなければ青い円（グレーボックス）で自動フォールバック
@@ -247,25 +275,30 @@ class Escort {
         this._spriteKey = idleKey;
         if (this.scene.anims.exists(idleKey)) this._sprite.play(idleKey);
       }
-      this._sprite.setScale(100 / 256);
-      this._sprite.setOrigin(0.5, 0.75);
-      this._sprite.setPosition(this.x, this.y + 15).setVisible(true);
+      const idleCfg  = _escortSprCfg(this.variant, 'idle');
+      const idlePosY = (this.y + ESCORT_GROUND_OFFSET) - (1 - idleCfg.oy) * idleCfg.frameH * idleCfg.scale;
+      this._sprite.setScale(idleCfg.scale);
+      this._sprite.setOrigin(idleCfg.ox, idleCfg.oy);
+      this._sprite.setPosition(this.x, idlePosY).setVisible(true);
       this._sprite.setFlipX(false);
       this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
       // HPバーへ続く
     } else {
 
     // 方向別シートキー
-    let sheetKey, animKey;
+    let sheetKey, animKey, sprDir;
     if (dir === 'down' && this.scene.textures.exists(`${this.variant}_down`)) {
       sheetKey = `${this.variant}_down`;
       animKey  = `${this.variant}_walk_down`;
+      sprDir   = 'down';
     } else if (dir === 'up' && this.scene.textures.exists(`${this.variant}_up`)) {
       sheetKey = `${this.variant}_up`;
       animKey  = `${this.variant}_walk_up`;
+      sprDir   = 'up';
     } else {
       sheetKey = `${this.variant}_right`;
       animKey  = `${this.variant}_walk_right`;
+      sprDir   = 'right';
     }
 
     if (this.scene.textures.exists(sheetKey)) {
@@ -276,10 +309,12 @@ class Escort {
         this._spriteKey = sheetKey;
         if (this.scene.anims.exists(animKey)) this._sprite.play(animKey);
       }
-      this._sprite.setScale(100 / 256);
-      this._sprite.setOrigin(0.5, 0.75);
-      this._sprite.setPosition(this.x, this.y + 15).setVisible(true);
-      this._sprite.setFlipX(dir !== 'left');
+      const cfg  = _escortSprCfg(this.variant, sprDir);
+      const posY = (this.y + ESCORT_GROUND_OFFSET) - (1 - cfg.oy) * cfg.frameH * cfg.scale;
+      this._sprite.setScale(cfg.scale);
+      this._sprite.setOrigin(cfg.ox, cfg.oy);
+      this._sprite.setPosition(this.x, posY).setVisible(true);
+      this._sprite.setFlipX(_escortFlipX(this.variant, sprDir, dir));
       this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
     } else {
       // ─── グレーボックス（単色円） ─────────────────────
