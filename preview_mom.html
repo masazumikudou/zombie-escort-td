@@ -50,8 +50,12 @@ class PreviewScene extends Phaser.Scene {
     // 道路の白線
     this.add.rectangle(W / 2, H * 0.7, W, 3, 0xffffff, 0.3);
 
-    // 地面 y（道路上端 = H * 0.55、キャラはその上に立つ）
-    const groundY = H * 0.55;
+    // 足元の基準Y（全キャラここに足が揃う）
+    const footY = H * 0.62;
+
+    // 各キャラの position Y を逆算（foot = posY + (1-oy)*displayH）
+    const momPosY = footY - (1 - 0.958) * 689 * MOM_SCALE;  // ≈ footY - 4
+    const dadPosY = footY - (1 - 0.75)  * 256 * SCALE;      // ≈ footY - 25
 
     // MOM アニメ（frame04→03→05→03、3fps）
     this.anims.create({
@@ -61,13 +65,13 @@ class PreviewScene extends Phaser.Scene {
       repeat: -1,
     });
 
-    // MOM右向き：setOrigin(0.478,0.958)で足位置固定
-    const momR = this.add.sprite(W * 0.3, groundY, 'mom_right')
+    // MOM 右向き
+    const momR = this.add.sprite(W * 0.25, momPosY, 'mom_right')
       .setScale(MOM_SCALE).setOrigin(0.478, 0.958).setDepth(3);
     momR.play('mom_walk_right');
 
     // MOM 左向き（flipX）
-    const momL = this.add.sprite(W * 0.55, groundY, 'mom_right')
+    const momL = this.add.sprite(W * 0.45, momPosY, 'mom_right')
       .setScale(MOM_SCALE).setOrigin(0.478, 0.958).setDepth(3).setFlipX(true);
     momL.play('mom_walk_right');
 
@@ -78,15 +82,18 @@ class PreviewScene extends Phaser.Scene {
         frames: this.anims.generateFrameNumbers('dad_right', { frames: [0, 1, 2, 1] }),
         frameRate: 2, repeat: -1,
       });
-      const dad = this.add.sprite(W * 0.8, groundY + 15, 'dad_right')
+      const dad = this.add.sprite(W * 0.7, dadPosY, 'dad_right')
         .setScale(SCALE).setOrigin(0.5, 0.75).setDepth(3);
       dad.play('dad_walk_right_prev');
-      this.add.text(W * 0.8, groundY + 40, 'DAD(比較)', { fontSize: '10px', color: '#ffcc00' }).setOrigin(0.5, 0);
+      this.add.text(W * 0.7, footY + 8, 'DAD(比較)', { fontSize: '10px', color: '#ffcc00' }).setOrigin(0.5, 0);
     }
 
+    // 足元基準線
+    this.add.graphics().lineStyle(1, 0xff0000, 0.5).lineBetween(0, footY, W, footY);
+
     // ラベル
-    this.add.text(W * 0.3, groundY + 40, 'MOM 右向き', { fontSize: '10px', color: '#88ffcc' }).setOrigin(0.5, 0);
-    this.add.text(W * 0.55, groundY + 40, 'MOM 左向き', { fontSize: '10px', color: '#88ffcc' }).setOrigin(0.5, 0);
+    this.add.text(W * 0.25, footY + 8, 'MOM 右向き', { fontSize: '10px', color: '#88ffcc' }).setOrigin(0.5, 0);
+    this.add.text(W * 0.45, footY + 8, 'MOM 左向き', { fontSize: '10px', color: '#88ffcc' }).setOrigin(0.5, 0);
   }
 }
 
