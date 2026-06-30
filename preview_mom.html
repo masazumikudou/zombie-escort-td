@@ -13,18 +13,20 @@
 <h2>MOM / DAD 比較プレビュー</h2>
 <div id="game"></div>
 <div style="margin-top:8px; display:flex; align-items:center; gap:12px;">
-  <label style="font-size:12px;">MOM サイズ係数:</label>
+  <label style="font-size:12px;">MOM 横歩きサイズ:</label>
   <input id="slider" type="range" min="80" max="200" value="130" style="width:200px;">
   <span id="sliderVal" style="font-size:12px; color:#88ffcc;">130px</span>
+  <span style="font-size:12px; color:#ffcc88;">　MOM 正面: 115px（確定）　DAD: 100px（固定）</span>
 </div>
-<p>赤線 = 足元基準　DAD = 100px固定　MOMはスライダーで調整</p>
+<p>赤線 = 足元基準</p>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 const CELL = 64;
 const DAD_SCALE = 100 / 256;
-let MOM_H = 130;  // スライダーで変更
+let MOM_H = 130;  // 横歩きスライダー用
+const MOM_DOWN_H = 115;  // 正面：確定値
 let MOM_RIGHT_SCALE = MOM_H / 689;
-let MOM_DOWN_SCALE  = MOM_H / 780;
+const MOM_DOWN_SCALE  = MOM_DOWN_H / 780;
 
 class PreviewScene extends Phaser.Scene {
   constructor() { super('Preview'); }
