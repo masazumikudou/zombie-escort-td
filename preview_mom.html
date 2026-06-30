@@ -2,146 +2,225 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MOM スプライト確認</title>
+<title>キャラクタープレビュー</title>
 <style>
-  body { margin: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #fff; }
-  h2 { margin: 0 0 8px; font-size: 14px; color: #aaa; }
-  p  { margin: 4px 0; font-size: 12px; color: #777; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#111; display:flex; flex-direction:column; align-items:center;
+         justify-content:center; min-height:100vh; font-family:sans-serif; color:#fff; gap:8px; }
+  h2 { margin:0; font-size:13px; color:#888; }
+  #game { cursor:pointer; }
+  #controls {
+    display:flex; align-items:center; gap:14px;
+    background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:10px 16px;
+  }
+  #charName  { font-size:13px; color:#88ffcc; min-width:100px; }
+  #slider    { width:200px; accent-color:#88ffcc; }
+  #pxVal     { font-size:14px; color:#ffcc00; font-weight:bold; min-width:52px; }
+  #confirmBtn {
+    font-size:12px; padding:4px 12px; border:none; border-radius:4px;
+    background:#2a6; color:#fff; cursor:pointer;
+  }
+  #confirmBtn:disabled { background:#333; color:#666; cursor:default; }
+  #confirmedList { font-size:11px; color:#666; max-width:900px; text-align:center; }
+  .confirmed-val { color:#88ffcc; }
+  .pending-val   { color:#ff8866; }
 </style>
 </head>
 <body>
-<h2>MOM / DAD 比較プレビュー</h2>
+<h2>キャラクタープレビュー　クリックで選択 → スライダーでPX調整 → ✓ 確定</h2>
 <div id="game"></div>
-<p style="color:#88ffcc;">確定値 ── MOM 横歩き: 105px　MOM 正面: 115px　DAD: 100px（固定）　赤線 = 足元基準</p>
+
+<div id="controls">
+  <span id="charName">← キャラをクリック</span>
+  <input id="slider" type="range" min="60" max="250" value="100" disabled>
+  <span id="pxVal">--</span>
+  <button id="confirmBtn" disabled>✓ 確定</button>
+</div>
+<div id="confirmedList">確定値を読み込み中...</div>
+
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
-const CELL = 64;
-const DAD_SCALE = 100 / 256;
-const MOM_RIGHT_H    = 105;  // 横歩き：確定値
-const MOM_DOWN_H     = 115;  // 正面：確定値
-const MOM_RIGHT_SCALE = MOM_RIGHT_H / 689;
-const MOM_DOWN_SCALE  = MOM_DOWN_H  / 780;
+// ════════════════════════════════════════════════
+//  キャラ定義（新キャラ追加はここに追記するだけ）
+// ════════════════════════════════════════════════
+const CHARS = [
+  { id:'mom_r', label:'MOM 右',   key:'mom_right', frameW:410, frameH:689, ox:0.478, oy:0.958, flipX:false, anim:'mom_walk_right', confirmedH:105 },
+  { id:'mom_l', label:'MOM 左',   key:'mom_right', frameW:410, frameH:689, ox:0.478, oy:0.958, flipX:true,  anim:'mom_walk_right', confirmedH:105 },
+  { id:'mom_d', label:'MOM 正面', key:'mom_down',  frameW:368, frameH:780, ox:0.5,   oy:1.0,   flipX:false, anim:'mom_walk_down',  confirmedH:115 },
+  { id:'mom_u', label:'MOM 背面', key:'mom_up',    frameW:340, frameH:600, ox:0.574, oy:1.0,   flipX:false, anim:'mom_walk_up',    confirmedH:null },
+  { id:'dad_r', label:'DAD 横',   key:'dad_right', frameW:256, frameH:256, ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_r',     confirmedH:100 },
+  { id:'dad_d', label:'DAD 正面', key:'dad_down',  frameW:256, frameH:256, ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_d',     confirmedH:100 },
+];
 
+// スプライト読み込み定義
+const SHEETS = [
+  { key:'mom_right', path:'assets/sprites/zombie/MAM/walk_right.png', fw:410, fh:689 },
+  { key:'mom_down',  path:'assets/sprites/zombie/MAM/walk_down.png',  fw:368, fh:780 },
+  { key:'mom_up',    path:'assets/sprites/zombie/MAM/walk_up.png',    fw:340, fh:600 },
+  { key:'dad_right', path:'assets/sprites/zombie/DAD/dad_142_sheet.png', fw:256, fh:256 },
+  { key:'dad_down',  path:'assets/sprites/zombie/DAD/dad_down.png',      fw:256, fh:256 },
+];
+
+// アニメ定義
+const ANIMS = [
+  { key:'mom_walk_right', tex:'mom_right', frames:[3,2,4,2], fps:3 },
+  { key:'mom_walk_down',  tex:'mom_down',  frames:[3,2,1,2], fps:3 },
+  { key:'mom_walk_up',    tex:'mom_up',    frames:[0,2,3,2], fps:3 },
+  { key:'dad_walk_r',     tex:'dad_right', frames:[0,1,2,1], fps:2 },
+  { key:'dad_walk_d',     tex:'dad_down',  frames:[0,1,2,3], fps:4 },
+];
+
+// ════════════════════════════════════════════════
+//  状態管理
+// ════════════════════════════════════════════════
+let footY = 0;
+let selectedId   = null;
+let selectedChar = null;
+let selectedSp   = null;
+const spriteMap    = {};   // id → {sprite, char}
+const currentH     = {};   // id → 現在の表示px
+const confirmedH   = {};   // id → 確定px
+
+CHARS.forEach(c => {
+  if (c.confirmedH) confirmedH[c.id] = c.confirmedH;
+  currentH[c.id] = c.confirmedH ?? 100;
+});
+
+// ════════════════════════════════════════════════
+//  Phaser Scene
+// ════════════════════════════════════════════════
 class PreviewScene extends Phaser.Scene {
   constructor() { super('Preview'); }
 
   preload() {
-    this.load.spritesheet('mom_right', 'assets/sprites/zombie/MAM/walk_right.png', {
-      frameWidth: 410, frameHeight: 689,
-    });
-    this.load.spritesheet('mom_down', 'assets/sprites/zombie/MAM/walk_down.png', {
-      frameWidth: 368, frameHeight: 780,
-    });
-    this.load.spritesheet('dad_right', 'assets/sprites/zombie/DAD/dad_142_sheet.png', {
-      frameWidth: 256, frameHeight: 256,
-    });
-    this.load.spritesheet('dad_down', 'assets/sprites/zombie/DAD/dad_down.png', {
-      frameWidth: 256, frameHeight: 256,
+    SHEETS.forEach(s => {
+      this.load.spritesheet(s.key, s.path, { frameWidth: s.fw, frameHeight: s.fh });
     });
   }
 
   create() {
-    const W = this.scale.width;
-    const H = this.scale.height;
+    const W = this.scale.width, H = this.scale.height;
+    footY = H * 0.70;
 
     // 背景
-    this.add.rectangle(0, 0,        W, H * 0.58, 0x4a7c3f).setOrigin(0, 0); // 草
-    this.add.rectangle(0, H * 0.58, W, H * 0.28, 0x555555).setOrigin(0, 0); // 道路
-    this.add.rectangle(0, H * 0.86, W, H * 0.14, 0x4a7c3f).setOrigin(0, 0); // 草（下）
+    this.add.rectangle(0, 0,        W, H * 0.60, 0x3d6e35).setOrigin(0,0);
+    this.add.rectangle(0, H * 0.60, W, H * 0.28, 0x555555).setOrigin(0,0);
+    this.add.rectangle(0, H * 0.88, W, H * 0.12, 0x3d6e35).setOrigin(0,0);
 
-    // グリッド線
-    const g = this.add.graphics();
-    g.lineStyle(1, 0xffffff, 0.07);
-    for (let x = 0; x < W; x += CELL) g.lineBetween(x, 0, x, H);
-    for (let y = 0; y < H; y += CELL) g.lineBetween(0, y, W, y);
+    // グリッド
+    const g = this.add.graphics().lineStyle(1, 0xffffff, 0.06);
+    for (let x = 0; x < W; x += 64) g.lineBetween(x, 0, x, H);
+    for (let y = 0; y < H; y += 64) g.lineBetween(0, y, W, y);
 
-    // 足元基準Y
-    const footY = H * 0.65;
-
-    // positionY 逆算（foot = posY + (1-oy)*frameH*scale）
-    const momRightPosY = footY - (1 - 0.958) * 689 * MOM_RIGHT_SCALE;
-    const momDownPosY  = footY;  // setOrigin(0.5,1.0) → foot = posY
-    const dadPosY      = footY - (1 - 0.75) * 256 * DAD_SCALE;
-
-    // ── MOM 横歩き アニメ ──
-    this.anims.create({
-      key: 'mom_walk_right',
-      frames: this.anims.generateFrameNumbers('mom_right', { frames: [3, 2, 4, 2] }),
-      frameRate: 3, repeat: -1,
+    // アニメ登録
+    ANIMS.forEach(a => {
+      if (this.textures.exists(a.tex) && !this.anims.exists(a.key)) {
+        this.anims.create({
+          key: a.key,
+          frames: this.anims.generateFrameNumbers(a.tex, { frames: a.frames }),
+          frameRate: a.fps, repeat: -1,
+        });
+      }
     });
 
-    // MOM 右向き
-    this.add.sprite(W * 0.13, momRightPosY, 'mom_right')
-      .setScale(MOM_RIGHT_SCALE).setOrigin(0.478, 0.958).setDepth(3)
-      .play('mom_walk_right');
+    // キャラ配置
+    const N = CHARS.length;
+    CHARS.forEach((c, i) => {
+      if (!this.textures.exists(c.key)) return;
+      const x = W * (i + 0.5) / N;
+      const h = currentH[c.id];
+      const scale = h / c.frameH;
+      const posY = footY - (1 - c.oy) * c.frameH * scale;
 
-    // MOM 左向き（flipX）
-    this.add.sprite(W * 0.33, momRightPosY, 'mom_right')
-      .setScale(MOM_RIGHT_SCALE).setOrigin(0.478, 0.958).setDepth(3).setFlipX(true)
-      .play('mom_walk_right');
+      const sp = this.add.sprite(x, posY, c.key)
+        .setScale(scale).setOrigin(c.ox, c.oy)
+        .setFlipX(c.flipX || false).setDepth(3)
+        .setInteractive();
 
-    // ── MOM 正面歩き アニメ ──
-    this.anims.create({
-      key: 'mom_walk_down',
-      frames: this.anims.generateFrameNumbers('mom_down', { frames: [3, 2, 1, 2] }),
-      frameRate: 3, repeat: -1,
+      if (this.anims.exists(c.anim)) sp.play(c.anim);
+      spriteMap[c.id] = { sprite: sp, char: c };
+
+      sp.on('pointerdown', () => this.selectChar(c.id));
+
+      // ラベル
+      const labelColor = confirmedH[c.id] ? '#88ffcc' : '#ff8866';
+      this.add.text(x, footY + 6, c.label, { fontSize:'10px', color: labelColor })
+        .setOrigin(0.5, 0).setDepth(4);
     });
 
-    // MOM 正面
-    this.add.sprite(W * 0.55, momDownPosY, 'mom_down')
-      .setScale(MOM_DOWN_SCALE).setOrigin(0.5, 1.0).setDepth(3)
-      .play('mom_walk_down');
+    // 足元基準線
+    this.add.graphics().lineStyle(1, 0xff4444, 0.7).lineBetween(0, footY, W, footY);
+  }
 
-    // ── DAD ──
-    if (this.textures.exists('dad_right')) {
-      this.anims.create({
-        key: 'dad_walk_prev',
-        frames: this.anims.generateFrameNumbers('dad_right', { frames: [0, 1, 2, 1] }),
-        frameRate: 2, repeat: -1,
-      });
-      this.add.sprite(W * 0.72, dadPosY, 'dad_right')
-        .setScale(DAD_SCALE).setOrigin(0.5, 0.75).setDepth(3)
-        .play('dad_walk_prev');
-    }
-    if (this.textures.exists('dad_down')) {
-      this.anims.create({
-        key: 'dad_walk_down_prev',
-        frames: this.anims.generateFrameNumbers('dad_down', { frames: [0, 1, 2, 3] }),
-        frameRate: 4, repeat: -1,
-      });
-      this.add.sprite(W * 0.88, dadPosY, 'dad_down')
-        .setScale(DAD_SCALE).setOrigin(0.5, 0.75).setDepth(3)
-        .play('dad_walk_down_prev');
-    }
+  selectChar(id) {
+    // 全スプライトのtintをリセット
+    Object.values(spriteMap).forEach(({sprite}) => sprite.clearTint());
 
-    // 足元基準線（赤）
-    this.add.graphics().lineStyle(1, 0xff0000, 0.6).lineBetween(0, footY, W, footY);
+    const entry = spriteMap[id];
+    if (!entry) return;
+    entry.sprite.setTint(0x88ffff);
 
-    // ラベル
-    [
-      [W * 0.13, 'MOM 右向き'],
-      [W * 0.33, 'MOM 左向き'],
-      [W * 0.55, 'MOM 正面'],
-      [W * 0.72, 'DAD 横'],
-      [W * 0.88, 'DAD 正面'],
-    ].forEach(([x, label]) => {
-      const col = label.startsWith('DAD') ? '#ffcc00' : '#88ffcc';
-      this.add.text(x, footY + 6, label, { fontSize: '10px', color: col }).setOrigin(0.5, 0);
-    });
+    selectedId   = id;
+    selectedChar = entry.char;
+    selectedSp   = entry.sprite;
+
+    const h = currentH[id];
+    document.getElementById('charName').textContent = entry.char.label;
+    const slider = document.getElementById('slider');
+    slider.value    = h;
+    slider.disabled = false;
+    document.getElementById('pxVal').textContent = h + 'px';
+    document.getElementById('confirmBtn').disabled = false;
   }
 }
 
-const game = new Phaser.Game({
-  type: Phaser.AUTO,
-  width: 800,
-  height: 360,
-  backgroundColor: '#222',
-  parent: 'game',
+// ════════════════════════════════════════════════
+//  Phaser 起動
+// ════════════════════════════════════════════════
+new Phaser.Game({
+  type: Phaser.AUTO, width: 900, height: 360,
+  backgroundColor: '#222', parent: 'game',
   scene: PreviewScene,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
 });
 
-// スライダーでMOMサイズをリアルタイム変更（シーン再起動）
+// ════════════════════════════════════════════════
+//  HTML コントロール
+// ════════════════════════════════════════════════
+const slider      = document.getElementById('slider');
+const pxVal       = document.getElementById('pxVal');
+const confirmBtn  = document.getElementById('confirmBtn');
+const confirmedEl = document.getElementById('confirmedList');
+
+slider.addEventListener('input', function() {
+  if (!selectedChar || !selectedSp) return;
+  const newH = parseInt(this.value);
+  currentH[selectedId] = newH;
+
+  const newScale = newH / selectedChar.frameH;
+  selectedSp.setScale(newScale);
+  // 足元を footY に固定したまま posY を更新
+  const newPosY = footY - (1 - selectedChar.oy) * selectedChar.frameH * newScale;
+  selectedSp.setPosition(selectedSp.x, newPosY);
+
+  pxVal.textContent = newH + 'px';
+});
+
+confirmBtn.addEventListener('click', function() {
+  if (!selectedId) return;
+  confirmedH[selectedId] = currentH[selectedId];
+  updateConfirmedDisplay();
+});
+
+function updateConfirmedDisplay() {
+  const parts = CHARS.map(c => {
+    const h = confirmedH[c.id];
+    const cls = h ? 'confirmed-val' : 'pending-val';
+    return `<span class="${cls}">${c.label}: ${h ? h+'px ✓' : '未確定'}</span>`;
+  });
+  confirmedEl.innerHTML = '確定値 → ' + parts.join('　');
+}
+updateConfirmedDisplay();
 </script>
 </body>
 </html>
