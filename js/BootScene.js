@@ -136,6 +136,16 @@ class BootScene extends Phaser.Scene {
       });
     }
 
+    // MOM 護衛キャラ（横歩きのみ・正面/後ろはDADで代用）
+    if (this.textures.exists('mom_right')) {
+      this.anims.create({
+        key: 'mom_walk_right',
+        frames: this.anims.generateFrameNumbers('mom_right', { frames: [0, 1, 2, 3, 4] }),
+        frameRate: 6,
+        repeat: -1,
+      });
+    }
+
     this.scene.start('GameScene', { stageData });
   }
 
@@ -208,6 +218,11 @@ class BootScene extends Phaser.Scene {
       frameWidth: 256, frameHeight: 256,
     });
     this.load.spritesheet('dad_up', 'assets/sprites/zombie/DAD/dad_up.png', {
+      frameWidth: 256, frameHeight: 256,
+    });
+
+    // MOM 護衛キャラ
+    this.load.spritesheet('mom_right', 'assets/sprites/zombie/MAM/walk_right.png', {
       frameWidth: 256, frameHeight: 256,
     });
 
