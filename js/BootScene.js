@@ -151,6 +151,13 @@ class BootScene extends Phaser.Scene {
         frameRate: 3, repeat: -1,
       });
     }
+    if (this.textures.exists('mom_up')) {
+      this.anims.create({
+        key: 'mom_walk_up',
+        frames: this.anims.generateFrameNumbers('mom_up', { frames: [0, 2, 3, 2] }),
+        frameRate: 3, repeat: -1,
+      });
+    }
 
     this.scene.start('GameScene', { stageData });
   }
@@ -233,6 +240,9 @@ class BootScene extends Phaser.Scene {
     });
     this.load.spritesheet('mom_down', 'assets/sprites/zombie/MAM/walk_down.png', {
       frameWidth: 368, frameHeight: 780,  // 正面歩き、足=(184,780)、setOrigin(0.5,1.0)
+    });
+    this.load.spritesheet('mom_up', 'assets/sprites/zombie/MAM/walk_up.png', {
+      frameWidth: 340, frameHeight: 600,  // 背面歩き、足=(195,600)、setOrigin(0.574,1.0)
     });
 
     // 地面・道路テクスチャ
