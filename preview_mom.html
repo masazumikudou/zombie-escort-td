@@ -10,15 +10,21 @@
 </style>
 </head>
 <body>
-<h2>MOM / DAD 比較プレビュー（実機同スケール）</h2>
+<h2>MOM / DAD 比較プレビュー</h2>
 <div id="game"></div>
-<p>赤線 = 足元基準　全キャラ同一基準で揃えています</p>
+<div style="margin-top:8px; display:flex; align-items:center; gap:12px;">
+  <label style="font-size:12px;">MOM サイズ係数:</label>
+  <input id="slider" type="range" min="80" max="200" value="130" style="width:200px;">
+  <span id="sliderVal" style="font-size:12px; color:#88ffcc;">130px</span>
+</div>
+<p>赤線 = 足元基準　DAD = 100px固定　MOMはスライダーで調整</p>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 const CELL = 64;
-const DAD_SCALE      = 100 / 256;   // DAD: 256px高フレーム
-const MOM_RIGHT_SCALE = 100 / 689;  // MOM横歩き: 689px高フレーム
-const MOM_DOWN_SCALE  = 100 / 780;  // MOM正面:   780px高フレーム
+const DAD_SCALE = 100 / 256;
+let MOM_H = 130;  // スライダーで変更
+let MOM_RIGHT_SCALE = MOM_H / 689;
+let MOM_DOWN_SCALE  = MOM_H / 780;
 
 class PreviewScene extends Phaser.Scene {
   constructor() { super('Preview'); }
@@ -129,7 +135,7 @@ class PreviewScene extends Phaser.Scene {
   }
 }
 
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   width: 800,
   height: 360,
@@ -137,6 +143,16 @@ new Phaser.Game({
   parent: 'game',
   scene: PreviewScene,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+});
+
+// スライダーでMOMサイズをリアルタイム変更（シーン再起動）
+document.getElementById('slider').addEventListener('input', function() {
+  MOM_H = parseInt(this.value);
+  MOM_RIGHT_SCALE = MOM_H / 689;
+  MOM_DOWN_SCALE  = MOM_H / 780;
+  document.getElementById('sliderVal').textContent = MOM_H + 'px';
+  game.scene.stop('Preview');
+  game.scene.start('Preview');
 });
 </script>
 </body>
