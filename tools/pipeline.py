@@ -139,13 +139,13 @@ def main():
     img = trim_bbox(img)
     print(f"[Step 2] bboxトリミング後: {img.size}")
 
-    # Step 3: フットプリントにフィット
-    img = fit_to_footprint(img, cols, rows, args.cell)
-    print(f"[Step 3] フットプリントフィット後: {img.size}")
-
-    # Step 4: アルファ硬化
+    # Step 3: アルファ硬化（白背景除去フリンジをLANZOS前に除去）
     img = harden_alpha(img)
-    print(f"[Step 4] アルファ硬化完了")
+    print(f"[Step 3] アルファ硬化完了")
+
+    # Step 4: フットプリントにフィット（LANZOSのアンチエイリアスを温存）
+    img = fit_to_footprint(img, cols, rows, args.cell)
+    print(f"[Step 4] フットプリントフィット後: {img.size}")
 
     # Step 5: 保存
     out_path = Path("assets") / "sprites" / "prop" / f"{args.type}.png"
