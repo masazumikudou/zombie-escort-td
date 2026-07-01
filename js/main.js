@@ -13,9 +13,10 @@ const PhaserConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   render: {
-    antialias:   true,
-    pixelArt:    false,
-    roundPixels: false,
+    antialias:        true,
+    mipmapFilter:     'LINEAR_MIPMAP_LINEAR',
+    pixelArt:         false,
+    roundPixels:      false,
   },
 };
 
