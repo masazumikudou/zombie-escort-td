@@ -349,6 +349,7 @@ const GROUND_COLORS = {
   grass:   '#2d6b2a',
   dirt:    '#7a5a2a',
   asphalt: '#3a3a3a',
+  道路縦:  '#888888',
 };
 function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
 
@@ -359,6 +360,7 @@ function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
 const GROUND_BLOCK_DEFS = {
   grass:   { blockCells: 4, imagePx: 256 }, // 256/4 = 64px/cell
   asphalt: { blockCells: 4, imagePx: 256 }, // 256/4 = 64px/cell
+  道路縦:  { blockCells: 1, imagePx: 128 }, // 128/1 = 128px/cell（単体タイル）
 };
 
 const groundImgs = {};
@@ -443,7 +445,7 @@ function selectPaintType(type) {
 let underlayCells  = new Map(); // "col,row" → type
 let underlayType   = 'road';
 
-const UNDERLAY_COLORS = { road: '#ff6600', grass: '#44aa44', dirt: '#aa7733', asphalt: '#666666' };
+const UNDERLAY_COLORS = { road: '#ff6600', grass: '#44aa44', dirt: '#aa7733', asphalt: '#666666', 道路縦: '#888888' };
 function underlayColor(type) { return UNDERLAY_COLORS[type] || '#ff6600'; }
 
 function selectUnderlayType(type) {
