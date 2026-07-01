@@ -4,13 +4,13 @@ const ESCORT_GROUND_OFFSET = 40;
 
 const ESCORT_SPR = {
   dad: {
-    base:       { frameH: 256, scale: 100 / 256, ox: 0.5,   oy: 0.75  },
+    base:       { frameH: 256, scale: 156 / 256, ox: 0.5,   oy: 0.75  },
     flipRight:  true,    // ソースが左向き → right 表示時にflip
   },
   mom: {
-    right:      { frameH: 689, scale: 105 / 689, ox: 0.478, oy: 0.958 },
-    down:       { frameH: 780, scale: 115 / 780, ox: 0.5,   oy: 1.0   },
-    up:         { frameH: 600, scale: 105 / 600, ox: 0.574, oy: 1.0   },
+    right:      { frameH: 689, scale: 164 / 689, ox: 0.478, oy: 0.958 },
+    down:       { frameH: 780, scale: 180 / 780, ox: 0.5,   oy: 1.0   },
+    up:         { frameH: 600, scale: 164 / 600, ox: 0.574, oy: 1.0   },
     flipRight:  false,   // ソースが右向き → left 表示時にflip
   },
 };

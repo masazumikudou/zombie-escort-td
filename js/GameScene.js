@@ -30,6 +30,7 @@ class GameScene extends Phaser.Scene {
     this.debugOpen    = false;
     this.showGrid     = false;
     this.showPaths    = false;
+    this.showRoute    = false;
 
     // ポップアップ状態
     this.popupState      = null;
@@ -102,7 +103,7 @@ class GameScene extends Phaser.Scene {
     audioSynth.setScene(this);
 
     // グラフィクスレイヤー
-    this.pathGfx      = this.add.graphics().setDepth(0.5); // 導線帯：プロップ(2)・障害物(1)より下
+    this.pathGfx      = this.add.graphics().setDepth(0.5);
     this.mapGfx       = this.add.graphics().setDepth(1);
     this.dynGfx       = this.add.graphics().setDepth(3);
     this.indicatorGfx = this.add.graphics().setScrollFactor(0).setDepth(11);
@@ -118,9 +119,6 @@ class GameScene extends Phaser.Scene {
 
     // デカールレイヤー（depth 0：歩ける装飾、当たり判定なし）
     this._drawDecalLayer();
-
-    // 導線帯描画（depth 0.5：プロップ・障害物の下）
-    this._drawEscortPathBand();
 
     // 静的マップ描画（mapGfx depth 1）
     this._drawMapStatic();
@@ -147,6 +145,7 @@ class GameScene extends Phaser.Scene {
     }
     this._onUiCycleTime      = () => this._cycleTimeMode();
     this._onUiReturnToEscort = () => this._returnToEscort();
+    this._onUiToggleRoute    = () => { this.showRoute = !this.showRoute; this._drawEscortRoute(); };
     this._onUiBuildPlace     = ({ col, row, type }) => { this._popupJustActed = true; this._tryPlace(col, row, type); this._closePopup(); };
     this._onUiLaserDir       = ({ col, row, dir }) => {
       const t = this.towers.find(t => t.col === col && t.row === row);
@@ -154,11 +153,13 @@ class GameScene extends Phaser.Scene {
     };
     this.game.events.on('ui_cycleTime',      this._onUiCycleTime);
     this.game.events.on('ui_returnToEscort', this._onUiReturnToEscort);
+    this.game.events.on('ui_toggleRoute',    this._onUiToggleRoute);
     this.game.events.on('ui_buildPlace',     this._onUiBuildPlace);
     this.game.events.on('ui_laserDir',       this._onUiLaserDir);
     this.events.once('shutdown', () => {
       this.game.events.off('ui_cycleTime',      this._onUiCycleTime);
       this.game.events.off('ui_returnToEscort', this._onUiReturnToEscort);
+      this.game.events.off('ui_toggleRoute',    this._onUiToggleRoute);
       this.game.events.off('ui_buildPlace',     this._onUiBuildPlace);
       this.game.events.off('ui_laserDir',       this._onUiLaserDir);
       this.game.events.off('ui_resize',         this._onUiResize);
@@ -454,7 +455,7 @@ class GameScene extends Phaser.Scene {
   _drawDecalLayer() {
     // スポーン地点にお墓＋カウントダウンテキストを表示
     const GRAVE_KEYS  = ['decal_RIP墓', 'decal_Z墓'];
-    const GRAVE_SIZES = { 'decal_RIP墓': [64, 64], 'decal_Z墓': [64, 74] };
+    const GRAVE_SIZES = { 'decal_RIP墓': [CELL, CELL], 'decal_Z墓': [CELL, Math.round(CELL * 74 / 64)] };
     this._spawnCountdownTexts = [];
     for (const [i, sp] of (this.stageData.zombieSpawns || []).entries()) {
       const cx  = sp.col * CELL + CELL / 2;
@@ -517,25 +518,19 @@ class GameScene extends Phaser.Scene {
 
   }
 
-  // ─── 導線帯描画（一度だけ・プロップ下） ────────────────────
-  _drawEscortPathBand() {
+  // ─── 護衛ルート赤線（トグル） ────────────────────────────
+  _drawEscortRoute() {
     const g = this.pathGfx;
     g.clear();
+    if (!this.showRoute) return;
+    g.lineStyle(3, 0xff2222, 0.75);
     for (const esc of (this.stageData.escorts ?? [])) {
       const path = esc.path ?? [];
       if (path.length < 2) continue;
-      // セル塗り（薄い青）
-      g.fillStyle(0x44aaff, 0.20);
-      for (const p of path) {
-        g.fillRect(p.col * CELL + 3, p.row * CELL + 3, CELL - 6, CELL - 6);
-      }
-      // 中心線（点線風：区間前半のみ描画）
-      g.lineStyle(3, 0x44aaff, 0.35);
       for (let i = 0; i < path.length - 1; i++) {
-        const ax = path[i].col * CELL + CELL / 2, ay = path[i].row * CELL + CELL / 2;
+        const ax = path[i].col   * CELL + CELL / 2, ay = path[i].row   * CELL + CELL / 2;
         const bx = path[i+1].col * CELL + CELL / 2, by = path[i+1].row * CELL + CELL / 2;
-        const mx = (ax + bx) / 2, my = (ay + by) / 2;
-        g.lineBetween(ax, ay, mx, my);
+        g.lineBetween(ax, ay, bx, by);
       }
     }
   }
@@ -973,7 +968,7 @@ class GameScene extends Phaser.Scene {
   _openBuildMenu(col, row) {
     this._closePopup();
     this._preBuildTimeIdx = this.timeModeIdx;
-    this.timeModeIdx = 1;  // 0.25倍スロー
+    this.timeModeIdx = 0;  // 完全停止
     this.showGrid = true;
     this._drawMapStatic();
 

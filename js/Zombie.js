@@ -168,7 +168,7 @@ class Zombie {
         this._spriteKey = sheetKey;
         if (this.scene.anims.exists(animKey)) this._sprite.play(animKey);
       }
-      const scl = 100 / 256;
+      const scl = 156 / 256;
       this._sprite.setScale(scl);
       this._sprite.setOrigin(0.5, 0.75);
       this._sprite.setPosition(this.x, this.y + 15).setVisible(true);

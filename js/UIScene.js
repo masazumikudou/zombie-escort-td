@@ -53,6 +53,21 @@ class UIScene extends Phaser.Scene {
     }).setDepth(52).setOrigin(1, 0).setInteractive();
     this.homeBtn.on('pointerdown', () => this.game.events.emit('ui_returnToEscort'));
 
+    // ルート表示トグルボタン（ヘッダー直下・右寄り）
+    this._routeOn = false;
+    this.routeBtn = this.add.text(0, 0, '🔴 ルート', {
+      ...uiFont, fontSize: '15px', color: '#885555', backgroundColor: '#1a1010',
+      padding: { x: 8, y: 5 },
+    }).setDepth(52).setOrigin(1, 0).setInteractive();
+    this.routeBtn.on('pointerdown', () => {
+      this._routeOn = !this._routeOn;
+      this.routeBtn.setStyle({
+        color:           this._routeOn ? '#ff6666' : '#885555',
+        backgroundColor: this._routeOn ? '#331111' : '#1a1010',
+      });
+      this.game.events.emit('ui_toggleRoute');
+    });
+
     // 建設ポップアップ（UISceneで管理：カメラズームの影響を受けないため）
     this._buildPopupObjs = [];
     this.game.events.on('openBuildMenu',       (data) => this._openBuildPopup(data));
@@ -92,6 +107,7 @@ class UIScene extends Phaser.Scene {
     this.timeText.setPosition(w - 10, textY);
     this.relayStatusText.setPosition(w / 2, barH + 6);
     this.homeBtn.setPosition(w - 10, barH + 6);
+    this.routeBtn.setPosition(w - 10 - this.homeBtn.width - 8, barH + 6);
     this.fpsText.setPosition(w - 8, h - 8);
 
     // ゲームカメラのビューポートも合わせて更新
