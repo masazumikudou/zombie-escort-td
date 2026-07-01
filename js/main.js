@@ -1,6 +1,7 @@
 // Phaser 設定 & 起動
 const PhaserConfig = {
-  type:       Phaser.AUTO,
+  type:       Phaser.WEBGL,
+  antialias:  true,
   width:      window.innerWidth,
   height:     window.innerHeight,
   backgroundColor: '#1e2840',
