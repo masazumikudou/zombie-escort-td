@@ -201,6 +201,7 @@ class GameScene extends Phaser.Scene {
 
     // ウェーブマネージャー
     this.waveManager = new WaveManager(def.waves, this.stageData.zombieSpawns, this.escort);
+    this.waveManager.setFlowField(this.flowField);
     this.waveManager.onWaveStart((n, t) => this._setWaveLabel(n, t));
     this.waveManager.start(timeOffset);
 
@@ -462,7 +463,8 @@ class GameScene extends Phaser.Scene {
       const cy  = sp.row * CELL + CELL / 2;
       const key = GRAVE_KEYS[i % GRAVE_KEYS.length];
       const [gw, gh] = GRAVE_SIZES[key];
-      this.add.image(cx, cy, key).setDisplaySize(gw, gh).setDepth(1);
+      const gy = cy - (gh - CELL) / 2 - CELL * 0.05 - 10;
+      this.add.image(cx, gy, key).setDisplaySize(gw, gh).setDepth(1);
       const txt = this.add.text(cx + 26, cy - 26, '', {
         fontSize: '16px', fontStyle: 'bold',
         color: '#ffffff', stroke: '#000000', strokeThickness: 3,

@@ -41,21 +41,21 @@
       "waves": [
         {
           "startDelay": 6000,
-          "spawnInterval": 2500,
+          "spawnInterval": 12500,
           "count": 4,
-          "enemy": { "type": "normal", "hp": 30, "speed": 17, "damage": 10, "reward": 20 }
+          "enemy": { "type": "normal", "hp": 75, "speed": 19, "damage": 10, "reward": 20 }
         },
         {
           "startDelay": 4000,
-          "spawnInterval": 2000,
+          "spawnInterval": 10000,
           "count": 7,
-          "enemy": { "type": "normal_cap", "hp": 45, "speed": 19, "damage": 13, "reward": 25 }
+          "enemy": { "type": "normal_cap", "hp": 75, "speed": 21, "damage": 13, "reward": 25 }
         },
         {
           "startDelay": 4000,
-          "spawnInterval": 1500,
+          "spawnInterval": 7500,
           "count": 12,
-          "enemy": { "type": "normal_helmet", "hp": 60, "speed": 21, "damage": 18, "reward": 30 }
+          "enemy": { "type": "normal_helmet", "hp": 75, "speed": 23, "damage": 18, "reward": 30 }
         }
       ]
     }

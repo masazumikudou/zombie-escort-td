@@ -23,41 +23,46 @@ class FlowField {
 
   _compute() {
     const key  = (c, r) => `${c},${r}`;
-    const dist = new Map();
+    this._dist = new Map();
     const queue = [];
 
-    dist.set(key(this._tCol, this._tRow), 0);
+    this._dist.set(key(this._tCol, this._tRow), 0);
     queue.push({ col: this._tCol, row: this._tRow });
 
     // BFS：護衛セルを起点に全方向へ距離マップを展開
     let head = 0;
     while (head < queue.length) {
       const { col, row } = queue[head++];
-      const d = dist.get(key(col, row));
+      const d = this._dist.get(key(col, row));
       for (const [dc, dr] of [[-1,0],[1,0],[0,-1],[0,1]]) {
         const nc = col + dc, nr = row + dr;
         const nk = key(nc, nr);
-        if (!this.pf.isWalkable(nc, nr) || dist.has(nk)) continue;
-        dist.set(nk, d + 1);
+        if (!this.pf.isWalkable(nc, nr) || this._dist.has(nk)) continue;
+        this._dist.set(nk, d + 1);
         queue.push({ col: nc, row: nr });
       }
     }
 
     // 各セルから「距離が減る方向」= 護衛に向かう1歩を記録
     const dirs = new Map();
-    for (const [k] of dist) {
+    for (const [k] of this._dist) {
       const sep = k.indexOf(',');
       const c = +k.slice(0, sep), r = +k.slice(sep + 1);
       if (c === this._tCol && r === this._tRow) continue;
-      const myD = dist.get(k);
+      const myD = this._dist.get(k);
       let bestDc = 0, bestDr = 0, bestD = myD;
       for (const [dc, dr] of [[-1,0],[1,0],[0,-1],[0,1]]) {
-        const nd = dist.get(key(c + dc, r + dr));
+        const nd = this._dist.get(key(c + dc, r + dr));
         if (nd !== undefined && nd < bestD) { bestD = nd; bestDc = dc; bestDr = dr; }
       }
       if (bestDc !== 0 || bestDr !== 0) dirs.set(k, { dc: bestDc, dr: bestDr });
     }
     this._dirs = dirs;
+  }
+
+  // スポーン地点から護衛までの経路距離（壁考慮）。到達不能はInfinity
+  distAt(col, row) {
+    return this._dist?.get(`${col},${row}`) ?? Infinity;
   }
 
   // (col, row) から護衛に向かう次セルを返す。到達不能 or 護衛セルなら null

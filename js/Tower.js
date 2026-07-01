@@ -67,7 +67,7 @@ class ArcBullet {
     if (t >= 1) {
       const r2 = this.aoeRadius * this.aoeRadius;
       for (const z of this._zombies) {
-        if (!z.alive) continue;
+        if (!z.alive || z._spawnTimer > 0) continue;
         const dx = z.x - this.targetX, dy = z.y - this.targetY;
         if (dx * dx + dy * dy <= r2) z.takeDamage(this.damage);
       }
@@ -148,7 +148,7 @@ class Tower {
     const range2 = this.range * this.range;
     let nearest = null, minDist2 = Infinity;
     for (const z of zombies) {
-      if (!z.alive) continue;
+      if (!z.alive || z._spawnTimer > 0) continue;
       const dx = z.x - this.x, dy = z.y - this.y;
       const d2 = dx * dx + dy * dy;
       if (d2 <= range2 && d2 < minDist2) { minDist2 = d2; nearest = z; }
@@ -170,7 +170,7 @@ class Tower {
       let hit = false;
       for (const { tc, tr } of adj) {
         for (const z of zombies) {
-          if (!z.alive) continue;
+          if (!z.alive || z._spawnTimer > 0) continue;
           if (Math.floor(z.x / CELL) === tc && Math.floor(z.y / CELL) === tr) {
             z.takeDamage(this.damage);
             hit = true;
@@ -189,7 +189,7 @@ class Tower {
       if      (this.direction === 'right') tc = this.col + 1;
       else if (this.direction === 'left')  tc = this.col - 1;
       else if (this.direction === 'up')    tr = this.row - 1;
-      const target = zombies.find(z => z.alive &&
+      const target = zombies.find(z => z.alive && !z._spawnTimer &&
         Math.floor(z.x / CELL) === tc && Math.floor(z.y / CELL) === tr);
       if (!target) return;
       this.lastFire = scaledTime;
@@ -252,7 +252,7 @@ class Tower {
   _laserHit(zombies, range) {
     let hit = 0;
     for (const z of zombies) {
-      if (!z.alive) continue;
+      if (!z.alive || z._spawnTimer > 0) continue;
       const dx = z.x - this.x, dy = z.y - this.y;
       const half = CELL * 0.55;
       let inBeam = false;

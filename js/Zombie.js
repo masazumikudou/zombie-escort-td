@@ -30,6 +30,7 @@ class Zombie {
     this._animFrame    = 1;
     this.onDeath       = null;
     this._sprite       = null;
+    this._spawnTimer   = 2000;  // スポーン後2秒は移動・攻撃しない（タワー被弾は有効）
     // トレイル（リーダーのみ記録、フォロワーはリーダーのcellTrailを参照）
     this.cellTrail     = (leader === null) ? [cellCenter(spawnCol, spawnRow)] : null;
     this._lastTrailCol = spawnCol;
@@ -42,6 +43,7 @@ class Zombie {
 
   update(scaledTime, dt, escort) {
     if (!this.alive) return;
+    if (this._spawnTimer > 0) { this._spawnTimer -= dt; return; }
     if (this.hitFlash > 0) this.hitFlash -= dt;
 
     // インターバル中（escort=null）は既存パスを進み続け、攻撃しない
@@ -173,6 +175,7 @@ class Zombie {
       this._sprite.setOrigin(0.5, 0.75);
       this._sprite.setPosition(this.x, this.y + 15).setVisible(true);
       this._sprite.setFlipX(dir === 'left');
+      this._sprite.setAlpha(1);
       this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
     } else {
       // ─── グレーボックス（単色円） ─────────────────────

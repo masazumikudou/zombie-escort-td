@@ -25,9 +25,11 @@ class WaveManager {
     this.allDone         = false;
     this._onWaveStart    = null;
     this._spawnMultiplier = 1.0;
+    this.flowField = null;
   }
 
   setSpawnMultiplier(m) { this._spawnMultiplier = m; }
+  setFlowField(ff) { this.flowField = ff; }
 
   get currentWaveNum() { return this.waveIdx + 1; }
   get totalWaves()     { return this.waves.length; }
@@ -123,9 +125,15 @@ class WaveManager {
   }
 
   _sortedSpawns() {
-    if (!this.escort || this.spawns.length === 0) return [...this.spawns];
-    const ex = this.escort.x / CELL;
-    const ey = this.escort.y / CELL;
+    if (this.spawns.length === 0) return [];
+    const ff = this.flowField;
+    if (ff) {
+      // 壁・プロップを考慮した経路距離で最寄りを判定
+      return [...this.spawns].sort((a, b) => ff.distAt(a.col, a.row) - ff.distAt(b.col, b.row));
+    }
+    // FlowField未設定時はユークリッド距離フォールバック
+    if (!this.escort) return [...this.spawns];
+    const ex = this.escort.x / CELL, ey = this.escort.y / CELL;
     return [...this.spawns].sort((a, b) => {
       const da = (a.col - ex) ** 2 + (a.row - ey) ** 2;
       const db = (b.col - ex) ** 2 + (b.row - ey) ** 2;
