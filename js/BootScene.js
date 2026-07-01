@@ -246,7 +246,7 @@ class BootScene extends Phaser.Scene {
     });
 
     // 地面・道路テクスチャ
-    ['grass', 'dirt', 'road', 'asphalt'].forEach(type => {
+    ['grass', 'dirt', 'road', 'asphalt', '道路縦'].forEach(type => {
       this.load.image(`ground_${type}`, `assets/sprites/ground/${type}.png`);
     });
 
