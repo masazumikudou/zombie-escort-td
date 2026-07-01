@@ -131,13 +131,13 @@ class GameScene extends Phaser.Scene {
     // カメラ設定（UISceneのヘッダー分だけビューポートを下にオフセット）
     const HEADER_H = 8 + UI_H; // UIScene の SAFE(8) + UI_H と同値
     this._headerH = HEADER_H;
-    this.cameras.main.setViewport(0, HEADER_H, this.scale.width, this.scale.height - HEADER_H);
-    this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
+    this.cameras.main.setViewport(0, HEADER_H, this.scale.width, this.scale.height - HEADER_H - UI_H);
+    this.cameras.main.setBounds(0, 0, MAP_W, MAP_H + HEADER_H + UI_H);
     this.cameras.main.setZoom(ZOOM_LEVELS[this.zoomIdx]);
 
     // UISceneのリサイズに合わせてカメラビューポートを追従
     this._onUiResize = ({ w, h }) => {
-      this.cameras.main.setViewport(0, this._headerH, w, h - this._headerH);
+      this.cameras.main.setViewport(0, this._headerH, w, h - this._headerH - UI_H);
     };
     this.game.events.on('ui_resize', this._onUiResize);
 
@@ -284,6 +284,20 @@ class GameScene extends Phaser.Scene {
       this.bullets.forEach(b => b.update(dt));
 
       this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader));
+
+      // スポーンカウントダウン更新（次に湧くスポーン地点だけに表示）
+      if (this._spawnCountdownTexts?.length) {
+        const warning = this.waveManager.getWarning(this.scaledTime);
+        const spawns  = this.stageData.zombieSpawns || [];
+        this._spawnCountdownTexts.forEach((txt, i) => {
+          const sp = spawns[i];
+          if (warning && sp.col === warning.spawn.col && sp.row === warning.spawn.row) {
+            txt.setText(String(Math.ceil(warning.remaining / 1000)));
+          } else {
+            txt.setText('');
+          }
+        });
+      }
 
       this.zombies.forEach(z => { if (!z.alive) z.cleanup(); });
       this.zombies = this.zombies.filter(z => z.alive);
@@ -470,6 +484,23 @@ class GameScene extends Phaser.Scene {
 
   // ─── デカールレイヤー（depth 0、当たり判定なし） ──────────────
   _drawDecalLayer() {
+    // スポーン地点にお墓＋カウントダウンテキストを表示
+    const GRAVE_KEYS  = ['decal_RIP墓', 'decal_Z墓'];
+    const GRAVE_SIZES = { 'decal_RIP墓': [64, 64], 'decal_Z墓': [64, 74] };
+    this._spawnCountdownTexts = [];
+    for (const [i, sp] of (this.stageData.zombieSpawns || []).entries()) {
+      const cx  = sp.col * CELL + CELL / 2;
+      const cy  = sp.row * CELL + CELL / 2;
+      const key = GRAVE_KEYS[i % GRAVE_KEYS.length];
+      const [gw, gh] = GRAVE_SIZES[key];
+      this.add.image(cx, cy, key).setDisplaySize(gw, gh).setDepth(1);
+      const txt = this.add.text(cx + 26, cy - 26, '', {
+        fontSize: '16px', fontStyle: 'bold',
+        color: '#ffffff', stroke: '#000000', strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(2);
+      this._spawnCountdownTexts.push(txt);
+    }
+
     const decals = this.stageData.decals || [];
     if (!decals.length) return;
 
@@ -515,6 +546,7 @@ class GameScene extends Phaser.Scene {
           .fillRect(cx - pw / 2, cy - ph / 2, pw, ph);
       }
     }
+
   }
 
   // ─── 導線帯描画（一度だけ・プロップ下） ────────────────────

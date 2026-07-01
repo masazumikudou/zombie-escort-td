@@ -1,0 +1,78 @@
+{
+  "id": "stage_custom",
+  "name": "カスタムステージ",
+  "grid": {
+    "cols": 17,
+    "rows": 8
+  },
+  "ground_base": "grass",
+  "startMoney": 500,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "startTrigger": "afterPrevious",
+      "start": {
+        "col": 0,
+        "row": 3
+      },
+      "goal": {
+        "col": 16,
+        "row": 3
+      },
+      "hp": 100,
+      "speed": 80,
+      "waves": [
+        {
+          "startDelay": 6000,
+          "spawnInterval": 2500,
+          "count": 4,
+          "enemy": {
+            "type": "normal",
+            "hp": 30,
+            "speed": 55,
+            "damage": 10,
+            "reward": 20
+          }
+        },
+        {
+          "startDelay": 4000,
+          "spawnInterval": 2000,
+          "count": 7,
+          "enemy": {
+            "type": "normal_cap",
+            "hp": 45,
+            "speed": 62,
+            "damage": 13,
+            "reward": 25
+          }
+        },
+        {
+          "startDelay": 4000,
+          "spawnInterval": 1500,
+          "count": 12,
+          "enemy": {
+            "type": "normal_helmet",
+            "hp": 60,
+            "speed": 70,
+            "damage": 18,
+            "reward": 30
+          }
+        }
+      ]
+    }
+  ],
+  "obstacles": [],
+  "zombieSpawns": [
+    { "col": 15, "row": 4 },
+    { "col": 8,  "row": 4 },
+    { "col": 3,  "row": 4 },
+    { "col": 3,  "row": 2 },
+    { "col": 8,  "row": 2 },
+    { "col": 15, "row": 2 }
+  ],
+  "buildSpots": [],
+  "roads": [
+    { "axis": "h", "line": 3, "from": 0, "to": 16 }
+  ]
+}

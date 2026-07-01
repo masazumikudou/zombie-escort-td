@@ -74,6 +74,8 @@ const DECAL_DEFS = {
   木2:         { cols: 1, rows: 1 },
   ベンチ:      { cols: 1, rows: 1, scale: 0.5 },
   縁石:        { cols: 2, rows: 1, scale: 0.5 },
+  'RIP墓':     { cols: 1, rows: 1 },
+  'Z墓':       { cols: 1, rows: 1 },
 };
 
 // ─── ゾンビ基準値 ────────────────────────────────────────────

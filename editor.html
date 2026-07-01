@@ -88,6 +88,16 @@
     #stage-saveas-btn  { background:#2a3020; color:#aaa; }
     .stage-btn:hover   { filter:brightness(1.3); }
     #stage-status { font-size:10px; color:#668; min-height:13px; margin-top:2px; }
+
+    /* WAVEタブ */
+    .wave-tab {
+      padding:4px 8px; border-radius:3px; border:1px solid #446; background:#1e2a3a;
+      color:#9ab; cursor:pointer; font-size:11px; display:flex; align-items:center; gap:4px;
+    }
+    .wave-tab.active { border-color:#5599ff; background:#2a4060; color:#aaddff; }
+    .wave-tab:hover  { background:#253040; }
+    .wave-tab .del   { color:#f66; font-size:10px; cursor:pointer; padding:0 2px; }
+    #esc-variant { width:100%; background:#111; border:1px solid #446; color:#ccc; padding:3px 4px; border-radius:2px; font-size:12px; margin-top:4px; }
   </style>
 </head>
 <body>
@@ -221,8 +231,18 @@
   </div>
 
   <div class="sep"></div>
-  <h2>護衛パラメータ</h2>
-  <div class="field-row">
+  <h2>WAVEキャラ設定</h2>
+  <div id="wave-tabs" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px"></div>
+  <button onclick="addEscortWave()" style="width:100%;padding:5px;border:1px dashed #446;background:transparent;color:#667;cursor:pointer;border-radius:3px;font-size:11px">＋ WAVE追加</button>
+
+  <div class="sep"></div>
+  <h2>護衛パラメータ（選択中WAVE）</h2>
+  <select id="esc-variant" onchange="updateActiveVariant()">
+    <option value="dad">お父さん (dad)</option>
+    <option value="mom">お母さん (mom)</option>
+    <option value="grandma">おばあちゃん (grandma)</option>
+  </select>
+  <div class="field-row" style="margin-top:4px">
     <label>HP</label><input type="number" id="esc-hp" value="100" min="10" max="999">
     <label>速度</label><input type="number" id="esc-speed" value="80" min="20" max="300">
   </div>
@@ -300,9 +320,15 @@ let buildSpots = new Set();  // "col,row"
 let startCell  = null;
 let goalCell   = null;
 let spawns     = [];
-let escortPath      = [];   // [{col, row}, ...]  護衛の任意導線
+let escortPath      = [];   // [{col, row}, ...]  現在編集中の護衛導線
 let detourBranchIdx = -1;  // escortPath上の分岐点インデックス
 let detourPath      = [];   // [{col, row}, ...]  C5→Y の支線
+
+// ─── マルチWAVE管理 ──────────────────────────────────────────
+const WAVE_COLORS = ['#4488ff', '#ff88cc', '#44ff88', '#ffaa44', '#cc88ff'];
+const VARIANT_LABELS = { dad:'お父さん', mom:'お母さん', grandma:'おばあちゃん', son:'息子', cat:'猫' };
+let escortDefs = [{ variant:'dad', path:[], detourBranchIdx:-1, detourPath:[], hp:100, speed:80 }];
+let activeEscortIdx = 0;
 let mode = 'obstacle';
 let isDragging = false;
 let dragAction = null; // 'add' | 'remove'
@@ -651,8 +677,12 @@ function canPlaceProp(col, row, type) {
       if (col + dc < 0   || row + dr < 0)       return false;
       if (propOccupied.has(cellKey(col + dc, row + dr))) return false;
       // 護衛導線・Y支線上には配置不可
-      if (escortPath.some(p => p.col === col + dc && p.row === row + dr)) return false;
-      if (detourPath.some(p => p.col === col + dc && p.row === row + dr)) return false;
+      const tc = col + dc, tr = row + dr;
+      if (escortDefs.some((e, i) => {
+        const p = i === activeEscortIdx ? escortPath : e.path;
+        const d = i === activeEscortIdx ? detourPath : e.detourPath;
+        return p.some(c => c.col === tc && c.row === tr) || d.some(c => c.col === tc && c.row === tr);
+      })) return false;
     }
   }
   return true;
@@ -1117,12 +1147,41 @@ function redraw() {
     ctx.fillRect(goalCell.col * CELL, goalCell.row * CELL, CELL, CELL);
   }
 
-  // 護衛導線
+  // 非アクティブWAVEの導線（薄く色分け表示）
+  for (let wi = 0; wi < escortDefs.length; wi++) {
+    if (wi === activeEscortIdx) continue;
+    const wPath = escortDefs[wi].path;
+    if (wPath.length < 2) continue;
+    const wColor = WAVE_COLORS[wi % WAVE_COLORS.length];
+    ctx.strokeStyle = wColor + '55';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    wPath.forEach(({col, row}, i) => {
+      const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
+      if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+    });
+    ctx.stroke();
+    // 終点ドット
+    const lp = wPath[wPath.length - 1];
+    ctx.fillStyle = wColor + '88';
+    ctx.beginPath();
+    ctx.arc(lp.col * CELL + CELL / 2, lp.row * CELL + CELL / 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // WAVEラベル
+    const fp = wPath[0];
+    ctx.fillStyle = wColor;
+    ctx.font = 'bold 10px Arial';
+    ctx.fillText(`W${wi + 1}`, fp.col * CELL + 2, fp.row * CELL + 12);
+  }
+
+  // アクティブWAVEの護衛導線
   if (escortPath.length > 0) {
     const complete = _isPathComplete();
-    const lineColor = complete ? 'rgba(80,255,160,0.9)' : 'rgba(0,220,255,0.85)';
+    const activeColor = WAVE_COLORS[activeEscortIdx % WAVE_COLORS.length];
+    const lineColor = complete ? 'rgba(80,255,160,0.9)' : activeColor + 'dd';
     for (const {col, row} of escortPath) {
-      ctx.fillStyle = complete ? 'rgba(80,255,160,0.15)' : 'rgba(0,200,255,0.15)';
+      ctx.fillStyle = complete ? 'rgba(80,255,160,0.15)' : activeColor + '22';
       ctx.fillRect(col * CELL, row * CELL, CELL, CELL);
     }
     if (escortPath.length > 1) {
@@ -1138,11 +1197,17 @@ function redraw() {
     }
     escortPath.forEach(({col, row}, i) => {
       const isFirst = i === 0, isLast = i === escortPath.length - 1;
-      ctx.fillStyle = isFirst ? '#00ff88' : (isLast && complete) ? '#44ff88' : isLast ? '#ffcc44' : '#00ccff';
+      ctx.fillStyle = isFirst ? '#00ff88' : (isLast && complete) ? '#44ff88' : isLast ? '#ffcc44' : activeColor;
       ctx.beginPath();
       ctx.arc(col * CELL + CELL / 2, row * CELL + CELL / 2, isFirst || isLast ? 5 : 3, 0, Math.PI * 2);
       ctx.fill();
     });
+    // WAVEラベル（アクティブ）
+    if (escortPath.length > 0) {
+      ctx.fillStyle = WAVE_COLORS[activeEscortIdx % WAVE_COLORS.length];
+      ctx.font = 'bold 11px Arial';
+      ctx.fillText(`W${activeEscortIdx + 1}★`, escortPath[0].col * CELL + 2, escortPath[0].row * CELL + 13);
+    }
   }
 
   // Y寄り道：分岐点ハイライト
@@ -1526,26 +1591,28 @@ function buildJSON() {
     ground_base: groundBase,
     startMoney:  parseInt(document.getElementById('start-money').value, 10) || 500,
     minSurvivors: 1,
-    escorts: [
-      {
-        variant:      'dad',
-        startTrigger: 'afterPrevious',
-        start: { ...startCell },
-        goal:  { ...goalCell },
-        ...(_isPathComplete() ? { path: escortPath.map(p => ({ col: p.col, row: p.row })) } : {}),
-        // detour: 分岐点+Y経路が設定済みのときのみ出力
-        ...(detourBranchIdx >= 0 && detourPath.length > 1 ? {
-          detour: {
-            branchIdx: detourBranchIdx,
-            path:      detourPath.map(p => ({ col: p.col, row: p.row })),
-            waitTime:  (parseInt(document.getElementById('detour-wait').value) || 30) * 1000,
-          }
-        } : {}),
-        hp:    parseInt(document.getElementById('esc-hp').value, 10)    || 100,
-        speed: parseInt(document.getElementById('esc-speed').value, 10) || 80,
-        waves,
-      }
-    ],
+    escorts: (() => {
+      syncActiveToEscortDefs();
+      const waitTime = (parseInt(document.getElementById('detour-wait').value) || 30) * 1000;
+      return escortDefs.map(esc => {
+        const pathComplete = esc.path.length >= 2 && startCell && goalCell
+          && esc.path[0].col === startCell.col && esc.path[0].row === startCell.row
+          && esc.path[esc.path.length-1].col === goalCell.col && esc.path[esc.path.length-1].row === goalCell.row;
+        return {
+          variant:      esc.variant ?? 'dad',
+          startTrigger: 'afterPrevious',
+          start: { ...startCell },
+          goal:  { ...goalCell },
+          ...(pathComplete ? { path: esc.path.map(p => ({ col: p.col, row: p.row })) } : {}),
+          ...(esc.detourBranchIdx >= 0 && esc.detourPath.length > 1 ? {
+            detour: { branchIdx: esc.detourBranchIdx, path: esc.detourPath.map(p => ({ col: p.col, row: p.row })), waitTime }
+          } : {}),
+          hp:    esc.hp    ?? 100,
+          speed: esc.speed ?? 80,
+          waves,
+        };
+      });
+    })(),
     obstacles:    obsArr,
     zombieSpawns: spawns.map(s => ({ ...s })),
     buildSpots:   bsArr,
@@ -1641,23 +1708,38 @@ function applyJSON(obj) {
   spawns = [];
   for (const s of (obj.zombieSpawns ?? [])) spawns.push({ ...s });
 
-  const s = obj.escorts?.[0]?.start;
-  const g = obj.escorts?.[0]?.goal;
+  const escs = obj.escorts ?? [];
+  const s = escs[0]?.start;
+  const g = escs[0]?.goal;
   startCell = (s && s.col != null) ? { col: s.col, row: s.row } : null;
   goalCell  = (g && g.col != null) ? { col: g.col, row: g.row } : null;
 
-  escortPath = [];
-  for (const p of (obj.escorts?.[0]?.path ?? [])) escortPath.push({ col: p.col, row: p.row });
+  // マルチWAVE読み込み
+  escortDefs = escs.length > 0 ? escs.map(esc => ({
+    variant:         esc.variant ?? 'dad',
+    path:            (esc.path ?? []).map(p => ({ col: p.col, row: p.row })),
+    detourBranchIdx: esc.detour?.branchIdx ?? -1,
+    detourPath:      (esc.detour?.path ?? []).map(p => ({ col: p.col, row: p.row })),
+    hp:              esc.hp    ?? 100,
+    speed:           esc.speed ?? 80,
+  })) : [{ variant:'dad', path:[], detourBranchIdx:-1, detourPath:[], hp:100, speed:80 }];
+  activeEscortIdx = 0;
 
-  detourBranchIdx = -1;
-  detourPath = [];
-  const det = obj.escorts?.[0]?.detour;
+  // WAVE1を編集状態に反映
+  escortPath      = [...escortDefs[0].path];
+  detourBranchIdx = escortDefs[0].detourBranchIdx;
+  detourPath      = [...escortDefs[0].detourPath];
+
+  // detour wait time（WAVE1のもの）
+  const det = escs[0]?.detour;
   if (det) {
-    detourBranchIdx = det.branchIdx ?? -1;
-    for (const p of (det.path ?? [])) detourPath.push({ col: p.col, row: p.row });
     const waitEl = document.getElementById('detour-wait');
     if (waitEl && det.waitTime != null) waitEl.value = Math.round(det.waitTime / 1000);
   }
+
+  // UI更新
+  const vEl = document.getElementById('esc-variant');
+  if (vEl) vEl.value = escortDefs[0].variant;
 
   underlayCells.clear();
   for (const u of (obj.underlay ?? [])) underlayCells.set(`${u.col},${u.row}`, u.type);
@@ -1665,18 +1747,16 @@ function applyJSON(obj) {
   cellGrounds.clear();
   for (const c of (obj.ground_cells ?? [])) cellGrounds.set(`${c.col},${c.row}`, c.type);
 
-  const esc = obj.escorts?.[0];
-  if (esc) {
-    const hp = document.getElementById('esc-hp');
-    const sp = document.getElementById('esc-speed');
-    if (hp && esc.hp    != null) hp.value = esc.hp;
-    if (sp && esc.speed != null) sp.value = esc.speed;
-  }
+  const hpEl2 = document.getElementById('esc-hp');
+  const spEl2 = document.getElementById('esc-speed');
+  if (hpEl2) hpEl2.value = escortDefs[0].hp;
+  if (spEl2) spEl2.value = escortDefs[0].speed;
   if (obj.startMoney != null) {
     const el = document.getElementById('start-money');
     if (el) el.value = obj.startMoney;
   }
 
+  buildWaveTabs();
   redraw();
 }
 
@@ -1796,9 +1876,14 @@ function clearAll() {
   escortPath      = [];
   detourBranchIdx = -1;
   detourPath      = [];
+  escortDefs      = [{ variant:'dad', path:[], detourBranchIdx:-1, detourPath:[], hp:100, speed:80 }];
+  activeEscortIdx = 0;
   startCell       = null;
   goalCell        = null;
+  const vEl = document.getElementById('esc-variant');
+  if (vEl) vEl.value = 'dad';
   selectGroundBase('grass');
+  buildWaveTabs();
   redraw();
 }
 
@@ -1970,9 +2055,82 @@ function setStageStatus(msg) {
   if (el) el.textContent = msg;
 }
 
+// ─── マルチWAVE管理 ──────────────────────────────────────────
+
+function syncActiveToEscortDefs() {
+  if (activeEscortIdx < escortDefs.length) {
+    escortDefs[activeEscortIdx].path            = [...escortPath];
+    escortDefs[activeEscortIdx].detourBranchIdx = detourBranchIdx;
+    escortDefs[activeEscortIdx].detourPath      = [...detourPath];
+    escortDefs[activeEscortIdx].hp     = parseInt(document.getElementById('esc-hp')?.value)    || 100;
+    escortDefs[activeEscortIdx].speed  = parseInt(document.getElementById('esc-speed')?.value) || 80;
+    escortDefs[activeEscortIdx].variant = document.getElementById('esc-variant')?.value ?? 'dad';
+  }
+}
+
+function switchEscortWave(idx) {
+  syncActiveToEscortDefs();
+  activeEscortIdx = idx;
+  const esc = escortDefs[idx];
+  escortPath      = [...(esc.path ?? [])];
+  detourBranchIdx = esc.detourBranchIdx ?? -1;
+  detourPath      = [...(esc.detourPath ?? [])];
+  const vEl = document.getElementById('esc-variant');
+  if (vEl) vEl.value = esc.variant ?? 'dad';
+  const hpEl = document.getElementById('esc-hp');
+  const spEl = document.getElementById('esc-speed');
+  if (hpEl) hpEl.value = esc.hp    ?? 100;
+  if (spEl) spEl.value = esc.speed ?? 80;
+  buildWaveTabs();
+  updateDetourInfo();
+  updatePathInfo();
+  redraw();
+}
+
+function addEscortWave() {
+  syncActiveToEscortDefs();
+  escortDefs.push({ variant:'dad', path:[], detourBranchIdx:-1, detourPath:[], hp:100, speed:80 });
+  switchEscortWave(escortDefs.length - 1);
+}
+
+function removeEscortWave(idx) {
+  if (escortDefs.length <= 1) return;
+  syncActiveToEscortDefs();
+  escortDefs.splice(idx, 1);
+  const newIdx = Math.min(activeEscortIdx, escortDefs.length - 1);
+  activeEscortIdx = -1;
+  switchEscortWave(newIdx);
+}
+
+function updateActiveVariant() {
+  const v = document.getElementById('esc-variant')?.value;
+  if (v && escortDefs[activeEscortIdx]) {
+    escortDefs[activeEscortIdx].variant = v;
+    buildWaveTabs();
+  }
+}
+
+function buildWaveTabs() {
+  const container = document.getElementById('wave-tabs');
+  if (!container) return;
+  container.innerHTML = '';
+  escortDefs.forEach((esc, i) => {
+    const color = WAVE_COLORS[i % WAVE_COLORS.length];
+    const label = VARIANT_LABELS[esc.variant] ?? esc.variant;
+    const tab = document.createElement('div');
+    tab.className = 'wave-tab' + (i === activeEscortIdx ? ' active' : '');
+    tab.style.borderColor = i === activeEscortIdx ? color : '#446';
+    tab.innerHTML = `<span style="color:${color}">W${i+1}</span> ${label}` +
+      (escortDefs.length > 1 ? ` <span class="del" onclick="event.stopPropagation();removeEscortWave(${i})">×</span>` : '');
+    tab.addEventListener('click', () => switchEscortWave(i));
+    container.appendChild(tab);
+  });
+}
+
 // 初期化
 buildPropTypeButtons();
 buildDecalTypeButtons();
+buildWaveTabs();
 loadIndex().then(() => restoreAutoSave());
 </script>
 </body>
