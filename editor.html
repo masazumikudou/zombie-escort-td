@@ -180,7 +180,9 @@
       <button class="sub-btn"        id="paint-btn-grass"   onclick="selectPaintType('grass')">🌿 grass</button>
       <button class="sub-btn active" id="paint-btn-dirt"    onclick="selectPaintType('dirt')">🟫 dirt</button>
       <button class="sub-btn"        id="paint-btn-asphalt" onclick="selectPaintType('asphalt')">🔲 asph</button>
-      <button class="sub-btn"        id="paint-btn-道路縦"  onclick="selectPaintType('道路縦')">🛣 縦道路</button>
+      <button class="sub-btn"        id="paint-btn-道路縦"       onclick="selectPaintType('道路縦')">🛣 縦道路</button>
+      <button class="sub-btn"        id="paint-btn-道路横"       onclick="selectPaintType('道路横')">🛣 横道路</button>
+      <button class="sub-btn"        id="paint-btn-road_vertical" onclick="selectPaintType('road_vertical')">🛤 縦縁石</button>
     </div>
     <div style="font-size:10px;color:#557;margin-top:4px">ドラッグで範囲を塗る<br>ベースと同色＝上書き削除</div>
   </div>
@@ -307,6 +309,16 @@
   <button id="clear-btn"      onclick="clearAll()">🗑 全消去</button>
   <textarea id="json-out" readonly placeholder="ここにJSONが表示されます"></textarea>
   <div id="status"></div>
+
+  <div class="sep"></div>
+  <h2>ズーム</h2>
+  <div class="field-row" style="gap:4px">
+    <button class="sub-btn" onclick="setZoom(zoomScale - 0.25)">－</button>
+    <button class="sub-btn" onclick="setZoom(1.0)">1:1</button>
+    <button class="sub-btn" onclick="setZoom(zoomScale + 0.25)">＋</button>
+    <button class="sub-btn" onclick="setZoom(2.5)" title="ゲーム等倍(CELL100相当)">等倍</button>
+  </div>
+  <div id="zoom-status" style="font-size:11px;color:#778;margin-top:4px;text-align:center">×1.0</div>
 </div>
 
 <div id="canvas-wrap">
@@ -346,10 +358,12 @@ let paintType      = 'dirt';
 let paintDragStart = null, paintDragEnd = null;
 
 const GROUND_COLORS = {
-  grass:   '#2d6b2a',
-  dirt:    '#7a5a2a',
-  asphalt: '#3a3a3a',
-  道路縦:  '#888888',
+  grass:      '#2d6b2a',
+  dirt:       '#7a5a2a',
+  asphalt:    '#3a3a3a',
+  道路縦:     '#888888',
+  道路横:     '#777777',
+  road_vertical: '#777777',
 };
 function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
 
@@ -358,9 +372,11 @@ function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
 // imagePx / blockCells = 画像上での1セルあたりのpx数（端ブロックのクロップ計算に使用）。
 // エディタ表示はCELL=40、ゲームはCELL=64で異なるためdrawImageの9引数形式でスケーリング。
 const GROUND_BLOCK_DEFS = {
-  grass:   { blockCells: 4, imagePx: 256 }, // 256/4 = 64px/cell
-  asphalt: { blockCells: 4, imagePx: 256 }, // 256/4 = 64px/cell
-  道路縦:  { blockCells: 1, imagePx: 128 }, // 128/1 = 128px/cell（単体タイル）
+  grass:        { blockCells: 4, imagePx: 256 },
+  asphalt:      { blockCells: 4, imagePx: 256 },
+  道路縦:       { blockCells: 1, imagePx: 256 },
+  道路横:       { blockCells: 1, imagePx: 592 }, // 横道路（縁石付き）
+  road_vertical:{ blockCells: 1, imagePx: 591 }, // 縦道路（縁石付き）
 };
 
 const groundImgs = {};
@@ -445,7 +461,7 @@ function selectPaintType(type) {
 let underlayCells  = new Map(); // "col,row" → type
 let underlayType   = 'road';
 
-const UNDERLAY_COLORS = { road: '#ff6600', grass: '#44aa44', dirt: '#aa7733', asphalt: '#666666', 道路縦: '#888888' };
+const UNDERLAY_COLORS = { road: '#ff6600', grass: '#44aa44', dirt: '#aa7733', asphalt: '#666666', 道路縦: '#888888', 道路横: '#777777', road_vertical: '#777777' };
 function underlayColor(type) { return UNDERLAY_COLORS[type] || '#ff6600'; }
 
 function selectUnderlayType(type) {
@@ -628,6 +644,15 @@ function screenToPixel(e) {
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
 
+// ─── ズーム ─────────────────────────────────────────────────
+let zoomScale = 1.0;
+function setZoom(v) {
+  zoomScale = Math.round(Math.max(0.25, Math.min(5.0, v)) * 100) / 100;
+  canvas.style.transform       = `scale(${zoomScale})`;
+  canvas.style.transformOrigin = 'top left';
+  document.getElementById('zoom-status').textContent = `×${zoomScale.toFixed(2)}`;
+}
+
 function resizeGrid() {
   COLS = parseInt(document.getElementById('cols').value, 10);
   ROWS = parseInt(document.getElementById('rows').value, 10);
@@ -762,8 +787,14 @@ function handleCell(col, row, isDown) {
       const cells = roadAxis === 'h' ? hRoadCells : vRoadCells;
       // どちらの軸に道路があっても「既存あり＝削除」と判定する
       if (isDown) dragAction = (hRoadCells.has(k) || vRoadCells.has(k)) ? 'remove' : 'add';
-      if (dragAction === 'add')    cells.add(k);
-      if (dragAction === 'remove') { hRoadCells.delete(k); vRoadCells.delete(k); }
+      if (dragAction === 'add') {
+        cells.add(k);
+        if (roadAxis === 'v' && col + 1 < COLS) vRoadCells.add(cellKey(col + 1, row));
+      }
+      if (dragAction === 'remove') {
+        hRoadCells.delete(k); vRoadCells.delete(k);
+        if (roadAxis === 'v') vRoadCells.delete(cellKey(col + 1, row));
+      }
     }
 
   } else if (mode === 'path') {
@@ -968,81 +999,49 @@ function drawRoads() {
   // 横道：road.png タイル、縦道：グレー塗り
   for (const k of hRoadCells) {
     const [c, r] = k.split(',').map(Number);
-    const useManhole = (c % 8 === 0) && roadManholeImg.complete && roadManholeImg.naturalWidth > 0;
-    const img = useManhole ? roadManholeImg : roadImg;
-    if (img.complete && img.naturalWidth > 0) {
-      ctx.drawImage(img, c * CELL, r * CELL, CELL, CELL);
+    const hImg = groundImgs['道路横'];
+    if (hImg && hImg.complete && hImg.naturalWidth > 0) {
+      ctx.drawImage(hImg, 0, 0, hImg.naturalWidth, hImg.naturalHeight, c * CELL, r * CELL, CELL, CELL);
     } else {
       ctx.fillStyle = '#888888';
       ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
     }
   }
-  ctx.fillStyle = '#888888';
+  // 縦道路：隣接列ペアを2セル幅(CELL*2)で描画
+  const _vMap = new Map();
   for (const k of vRoadCells) {
     const [c, r] = k.split(',').map(Number);
-    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+    if (!_vMap.has(c)) _vMap.set(c, []);
+    _vMap.get(c).push(r);
   }
-
-  // 交差セル（hRoadCells ∩ vRoadCells）
-  const intersections = new Set();
-  for (const k of hRoadCells) {
-    if (vRoadCells.has(k)) intersections.add(k);
-  }
-
-  // 白破線（中点アンカー方式：GameScene と同じアルゴリズム）
-  const DASH  = Math.round(28 * CELL / 64);
-  const GAP   = Math.round(24 * CELL / 64);
-  const THICK = Math.max(2, Math.round(6 * CELL / 64));
-  const cycle = DASH + GAP;
-
-  const drawSegment = (axis, fixedPos, startPx, endPx) => {
-    if (endPx <= startPx) return;
-    const mid           = (startPx + endPx) / 2;
-    const virtDashStart = mid - DASH / 2;
-    const n             = Math.floor((startPx - virtDashStart) / cycle);
-    let   pos           = virtDashStart + n * cycle;
-    ctx.strokeStyle = 'rgba(235,235,225,0.85)';
-    ctx.lineWidth   = THICK;
-    ctx.setLineDash([]);
-    while (pos < endPx) {
-      const ds = Math.max(pos, startPx);
-      const de = Math.min(pos + DASH, endPx);
-      if (ds < de) {
-        ctx.beginPath();
-        if (axis === 'h') { ctx.moveTo(ds, fixedPos); ctx.lineTo(de, fixedPos); }
-        else               { ctx.moveTo(fixedPos, ds); ctx.lineTo(fixedPos, de); }
-        ctx.stroke();
-      }
-      pos += cycle;
-    }
-  };
-
-  // 横道の破線：road.png に白線が含まれるためスキップ
-
-  // 縦道の破線：列ごとに連続セルをセグメント化
-  const vByCol = new Map();
-  for (const k of vRoadCells) {
-    const [c, r] = k.split(',').map(Number);
-    if (!vByCol.has(c)) vByCol.set(c, []);
-    vByCol.get(c).push(r);
-  }
-  for (const [col, rows] of vByCol) {
-    rows.sort((a, b) => a - b);
-    const x = col * CELL + CELL / 2;
-    let i = 0;
-    while (i < rows.length) {
-      let j = i;
-      while (j + 1 < rows.length && rows[j + 1] === rows[j] + 1) j++;
-      const runFrom = rows[i], runTo = rows[j];
-      let segFrom = runFrom;
-      for (let r = runFrom; r <= runTo; r++) {
-        if (intersections.has(`${col},${r}`)) {
-          if (segFrom < r) drawSegment('v', x, segFrom * CELL, r * CELL);
-          segFrom = r + 1;
+  const _vCols = [..._vMap.keys()].sort((a, b) => a - b);
+  const _vUsed = new Set();
+  for (const col of _vCols) {
+    if (_vUsed.has(col)) continue;
+    const rows = _vMap.get(col);
+    const vImg = groundImgs['road_vertical'];
+    if (_vMap.has(col + 1) && !_vUsed.has(col + 1)) {
+      _vUsed.add(col); _vUsed.add(col + 1);
+      const rightRows = new Set(_vMap.get(col + 1));
+      for (const r of rows) {
+        if (!rightRows.has(r)) continue;
+        if (vImg && vImg.complete && vImg.naturalWidth > 0) {
+          ctx.drawImage(vImg, 0, 0, vImg.naturalWidth, vImg.naturalHeight, col * CELL, r * CELL, CELL * 2, CELL);
+        } else {
+          ctx.fillStyle = '#888888';
+          ctx.fillRect(col * CELL, r * CELL, CELL * 2, CELL);
         }
       }
-      if (segFrom <= runTo) drawSegment('v', x, segFrom * CELL, (runTo + 1) * CELL);
-      i = j + 1;
+    } else {
+      _vUsed.add(col);
+      for (const r of rows) {
+        if (vImg && vImg.complete && vImg.naturalWidth > 0) {
+          ctx.drawImage(vImg, 0, 0, vImg.naturalWidth, vImg.naturalHeight, col * CELL, r * CELL, CELL, CELL);
+        } else {
+          ctx.fillStyle = '#888888';
+          ctx.fillRect(col * CELL, r * CELL, CELL, CELL);
+        }
+      }
     }
   }
 
@@ -1051,7 +1050,8 @@ function drawRoads() {
     ctx.fillStyle = roadAxis === 'delete'
       ? 'rgba(255,80,80,0.45)'
       : 'rgba(200,200,200,0.35)';
-    ctx.fillRect(hoverCell.col * CELL, hoverCell.row * CELL, CELL, CELL);
+    const _hoverW = roadAxis === 'v' ? CELL * 2 : CELL;
+    ctx.fillRect(hoverCell.col * CELL, hoverCell.row * CELL, _hoverW, CELL);
   }
 }
 

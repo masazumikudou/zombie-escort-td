@@ -385,101 +385,69 @@ class GameScene extends Phaser.Scene {
     const roads = this.stageData.roads || [];
     if (!roads.length) return;
 
-    // 交差セットを構築（h×v の全組み合わせ）
+    const roadKey  = 'ground_道路横';
+    const vRoadKey = 'ground_road_vertical';
+    const hasVTex  = this.textures.exists(vRoadKey);
+    const hasHTex  = this.textures.exists(roadKey);
+    const fbGfx    = this.add.graphics().setDepth(-1);
+    fbGfx.fillStyle(0x888888, 1);
+
+    // ─ 横道路（1セル） ─
     const hRoads = roads.filter(r => r.axis === 'h');
-    const vRoads = roads.filter(r => r.axis === 'v');
-    const intersections = new Set();
-    for (const h of hRoads) {
-      for (const v of vRoads) {
-        if (v.line >= h.from && v.line <= h.to &&
-            h.line >= v.from && h.line <= v.to) {
-          intersections.add(`${v.line},${h.line}`); // "col,row"
-        }
-      }
-    }
-
-    // 道路タイル描画（交差セルは重複しないよう1度だけ）
-    const roadKey = 'ground_road';
-    const hasTex  = this.textures.exists(roadKey);
-    const fbGfx   = hasTex ? null : this.add.graphics().setDepth(-1);
-    if (fbGfx) fbGfx.fillStyle(0x888888, 1);
-
-    const drawn = new Set();
-    for (const road of roads) {
+    const drawnH = new Set();
+    for (const road of hRoads) {
       for (let i = road.from; i <= road.to; i++) {
-        const col = road.axis === 'h' ? i        : road.line;
-        const row = road.axis === 'h' ? road.line : i;
-        const ck  = `${col},${row}`;
-        if (drawn.has(ck)) continue;
-        drawn.add(ck);
-        if (hasTex) {
-          this.add.image(col * CELL + CELL / 2, row * CELL + CELL / 2, roadKey)
-            .setDisplaySize(CELL, CELL)
-            .setDepth(-1);
+        const ck = `${i},${road.line}`;
+        if (drawnH.has(ck)) continue;
+        drawnH.add(ck);
+        if (hasHTex) {
+          this.add.image(i * CELL + CELL / 2, road.line * CELL + CELL / 2, roadKey)
+            .setDisplaySize(CELL, CELL).setDepth(-1);
         } else {
-          fbGfx.fillRect(col * CELL, row * CELL, CELL, CELL);
+          fbGfx.fillRect(i * CELL, road.line * CELL, CELL, CELL);
         }
       }
     }
 
-    // 白線（コードで描画）
-    const dashGfx = this.add.graphics().setDepth(-1);
-    dashGfx.lineStyle(6, 0xebebE1, 1);
-    this._drawRoadDashes(dashGfx, roads, intersections);
-  }
-
-  // ─── 道路白線（破線、交差セルはスキップ・中点アンカー対称） ─
-  _drawRoadDashes(g, roads, intersections) {
-    const DASH = 28, GAP = 24, THICK = 6;
-    const cycle = DASH + GAP;
-
-    // セグメント [startPx, endPx] の中点にダッシュ中心を合わせて描画
-    // → 左端と右端（上端と下端）の途切れ量が等しくなり対称に見える
-    const drawSegment = (axis, fixedPos, startPx, endPx) => {
-      if (endPx <= startPx) return;
-      const mid           = (startPx + endPx) / 2;
-      const virtDashStart = mid - DASH / 2;
-      const n             = Math.floor((startPx - virtDashStart) / cycle);
-      let   pos           = virtDashStart + n * cycle;
-
-      g.lineStyle(THICK, 0xebebE1, 1);
-      while (pos < endPx) {
-        const ds = Math.max(pos, startPx);
-        const de = Math.min(pos + DASH, endPx);
-        if (ds < de) {
-          if (axis === 'h') g.lineBetween(ds, fixedPos, de, fixedPos);
-          else               g.lineBetween(fixedPos, ds, fixedPos, de);
+    // ─ 縦道路（隣接列ペアを CELL*2 幅で描画） ─
+    const vRoads = roads.filter(r => r.axis === 'v');
+    const vColMap = new Map();
+    for (const road of vRoads) {
+      if (!vColMap.has(road.line)) vColMap.set(road.line, new Set());
+      for (let i = road.from; i <= road.to; i++) vColMap.get(road.line).add(i);
+    }
+    const vCols  = [...vColMap.keys()].sort((a, b) => a - b);
+    const vUsed  = new Set();
+    for (const col of vCols) {
+      if (vUsed.has(col)) continue;
+      const rows = vColMap.get(col);
+      if (vColMap.has(col + 1) && !vUsed.has(col + 1)) {
+        vUsed.add(col); vUsed.add(col + 1);
+        const rightRows = vColMap.get(col + 1);
+        for (const row of rows) {
+          if (!rightRows.has(row)) continue;
+          const x = col * CELL + CELL;      // 2セルの中心
+          const y = row * CELL + CELL / 2;
+          if (hasVTex) {
+            this.add.image(x, y, vRoadKey).setDisplaySize(CELL * 2, CELL).setDepth(-1);
+          } else {
+            fbGfx.fillRect(col * CELL, row * CELL, CELL * 2, CELL);
+          }
         }
-        pos += cycle;
-      }
-    };
-
-    for (const road of roads) {
-      const isH      = road.axis === 'h';
-      const fixedPos = road.line * CELL + CELL / 2;
-
-      // この道路上の交差点位置（from～to 範囲内、昇順）
-      const interPoints = [];
-      for (const key of intersections) {
-        const [col, row] = key.split(',').map(Number);
-        const along = isH ? col : row;
-        const fixed = isH ? row : col;
-        if (fixed === road.line && along >= road.from && along <= road.to) {
-          interPoints.push(along);
+      } else {
+        vUsed.add(col);
+        for (const row of rows) {
+          const x = col * CELL + CELL / 2;
+          const y = row * CELL + CELL / 2;
+          if (hasVTex) {
+            this.add.image(x, y, vRoadKey).setDisplaySize(CELL, CELL).setDepth(-1);
+          } else {
+            fbGfx.fillRect(col * CELL, row * CELL, CELL, CELL);
+          }
         }
-      }
-      interPoints.sort((a, b) => a - b);
-
-      // 交差点でセグメント分割し、各セグメントを独立して中点アンカー描画
-      let segFrom = road.from;
-      for (const inter of [...interPoints, null]) {
-        const segTo = inter !== null ? inter - 1 : road.to;
-        if (segFrom <= segTo) {
-          drawSegment(road.axis, fixedPos, segFrom * CELL, (segTo + 1) * CELL);
-        }
-        if (inter !== null) segFrom = inter + 1;
       }
     }
+
   }
 
   // ─── デカールレイヤー（depth 0、当たり判定なし） ──────────────
