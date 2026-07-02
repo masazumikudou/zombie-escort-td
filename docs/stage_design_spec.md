@@ -75,6 +75,13 @@
 
    duration(秒) ≧ 上記の値 ÷ 1000　（小さめのバッファを持たせる）
    ```
+   ⚠️ **wave[1]以降は startDelay_n を加算してから ÷1000 すること**：
+   ```
+   duration_n(秒) ≧ (startDelay_n + 上記の値) ÷ 1000
+   ```
+   wave[0]のみ startDelay が elapsed=0基準に含まれるため加算不要。wave[1]以降は startDelay が
+   波の窓内の最初の発火遅延として消費されるため、duration に含めて計算する必要がある。
+
    duration が大きすぎると意図しない追加グループが湧くリスクがあるため、次グループの想定開始時刻より小さい値に収めること
 
 4. **wave全体の絶対終了時刻（wave indexが切り替わる時刻）**：
@@ -222,3 +229,177 @@
 4. **`duration`と`startDelay`の関係誤読**：同じ基準点から並行カウントだと誤解しやすいが、正しくは直列（startDelay消化後にelapsed=0）。さらにwave[1]以降のstartDelayはwave終了タイミングに影響しない点に注意
 5. **grid10×8で街が窮屈になった事例**：チュートリアルステージでも街としての説得力を求めるなら15×10クラスが実質的なミニマムサイズだった（stage_01の反省）
 6. **propsの無警告衝突リスク**：footprintの概念を知らずに配置すると、経路ブロック等の重大バグが無警告で発生する
+7. **path区間数の数え間違い**：長いpath（40区間超）を目視でフェーズごとに数えると1区間分ズレやすい（43区間と数えたが実際は44区間だった例あり）。護衛到達時間がズレるとwave設計全体の検算が狂うため、区間数は`path.length - 1`で機械的に数えること（目視カウントに頼らない）
+
+---
+
+## F. 実例（動作確認済み・プレイテスト合格）
+
+以下は2026-07-02にプレイテストで確認済みのステージ（護衛1人、15×10グリッド）。  
+**結果**: 生還1/1、撃破23、被弾ゼロ、タワー3基で余裕クリア。  
+A-4の計算式を実際の数値に当てはめた例として、新しいステージを作る前にこのJSONで自己検算すること。
+
+### 検算の手順（この実例で辿ってみる）
+
+1. **護衛到達時間の計算**
+   - path区間数: 44区間（`path.length - 1`で機械的に算出。目視の43区間は誤り）
+   - 距離 = 44 × 100px = 4400px
+   - 到達時間 = 4400 ÷ 80 × 1000 = **55000ms**
+
+2. **wave0の検算**（groupSize=1のため、group-formula = (numGroups-1) × spawnInterval）
+   - group-formula = (4-1) × 2500 = 7500ms
+   - duration₀ ≧ 7500 ÷ 1000 = 7.5秒 → **8秒**に設定（バッファ500ms）
+   - wave0終了(絶対) = startDelay₀ + duration₀×1000 = 6000 + 8000 = **14000ms**
+
+3. **wave1の検算**（wave[1]以降はstartDelay_nも加算してからdurationを逆算）
+   - group-formula = (7-1) × 2000 = 12000ms
+   - duration₁ ≧ (startDelay₁ + group-formula) ÷ 1000 = (4000+12000) ÷ 1000 = 16秒 → **17秒**に設定（バッファ1000ms）
+   - wave1終了(絶対) = startDelay₀ + (duration₀+duration₁)×1000 = 6000 + 25000 = **31000ms**
+
+4. **wave2の検算**
+   - group-formula = (12-1) × 1500 = 16500ms
+   - duration₂ ≧ (4000+16500) ÷ 1000 = 20.5秒 → **21秒**に設定（バッファ500ms）
+   - wave2終了(絶対) = startDelay₀ + (duration₀+duration₁+duration₂)×1000 = 6000 + 46000 = **52000ms**
+
+5. **最終検算**：wave2終了(52000ms) < 護衛到達(55000ms) → **3秒のバッファで全23体スポーン保証**（実際のプレイ結果「撃破23」と一致）
+
+### この実例から読み取れること
+
+- タワー3基で撃破23・ノーダメだったのは、**弱すぎるwave設計ではなく、経路交差点での効率配置が強力に機能したため**（C-4のバイアス問題と合わせて解釈すること）
+- `count`を使った元の非公式版と、`groupSize`+`duration`で組み直したこの版は、意図する敵数（4/7/12体）は同一。違うのは「確実に全部湧き切る」保証があるかどうか
+
+```json
+{
+  "id": "stage_custom",
+  "name": "カスタムステージ",
+  "grid": { "cols": 15, "rows": 10 },
+  "ground_base": "grass",
+  "startMoney": 500,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "startTrigger": "immediate",
+      "start": { "col": 0, "row": 5 },
+      "goal": { "col": 14, "row": 7 },
+      "path": [
+        { "col": 0, "row": 5 }, { "col": 1, "row": 5 }, { "col": 2, "row": 5 }, { "col": 3, "row": 5 },
+        { "col": 3, "row": 4 }, { "col": 3, "row": 3 }, { "col": 3, "row": 2 }, { "col": 3, "row": 1 },
+        { "col": 3, "row": 0 }, { "col": 4, "row": 0 }, { "col": 5, "row": 0 }, { "col": 6, "row": 0 },
+        { "col": 7, "row": 0 }, { "col": 7, "row": 1 }, { "col": 7, "row": 2 }, { "col": 7, "row": 3 },
+        { "col": 7, "row": 4 }, { "col": 7, "row": 5 }, { "col": 7, "row": 6 }, { "col": 7, "row": 7 },
+        { "col": 7, "row": 8 }, { "col": 7, "row": 9 }, { "col": 8, "row": 9 }, { "col": 9, "row": 9 },
+        { "col": 10, "row": 9 }, { "col": 11, "row": 9 }, { "col": 11, "row": 8 }, { "col": 11, "row": 7 },
+        { "col": 11, "row": 6 }, { "col": 11, "row": 5 }, { "col": 11, "row": 4 }, { "col": 11, "row": 3 },
+        { "col": 11, "row": 2 }, { "col": 11, "row": 1 }, { "col": 11, "row": 0 }, { "col": 12, "row": 0 },
+        { "col": 13, "row": 0 }, { "col": 14, "row": 0 }, { "col": 14, "row": 1 }, { "col": 14, "row": 2 },
+        { "col": 14, "row": 3 }, { "col": 14, "row": 4 }, { "col": 14, "row": 5 }, { "col": 14, "row": 6 },
+        { "col": 14, "row": 7 }
+      ],
+      "hp": 100,
+      "speed": 80,
+      "waves": [
+        {
+          "startDelay": 6000,
+          "duration": 8,
+          "spawnInterval": 2500,
+          "groupSize": 1,
+          "groupInterval": 0,
+          "enemy": { "type": "normal", "hp": 30, "speed": 55, "damage": 10, "reward": 20 }
+        },
+        {
+          "startDelay": 4000,
+          "duration": 17,
+          "spawnInterval": 2000,
+          "groupSize": 1,
+          "groupInterval": 0,
+          "enemy": { "type": "normal_cap", "hp": 45, "speed": 62, "damage": 13, "reward": 25 }
+        },
+        {
+          "startDelay": 4000,
+          "duration": 21,
+          "spawnInterval": 1500,
+          "groupSize": 1,
+          "groupInterval": 0,
+          "enemy": { "type": "normal_helmet", "hp": 60, "speed": 70, "damage": 18, "reward": 30 }
+        }
+      ]
+    }
+  ],
+  "obstacles": [],
+  "zombieSpawns": [
+    { "col": 0, "row": 0 }, { "col": 9, "row": 0 }, { "col": 5, "row": 9 }, { "col": 14, "row": 9 }
+  ],
+  "buildSpots": [
+    { "col": 1, "row": 0 }, { "col": 2, "row": 0 }, { "col": 0, "row": 1 }, { "col": 1, "row": 1 },
+    { "col": 2, "row": 1 }, { "col": 4, "row": 1 }, { "col": 5, "row": 1 }, { "col": 6, "row": 1 },
+    { "col": 8, "row": 0 }, { "col": 10, "row": 0 }, { "col": 8, "row": 1 }, { "col": 10, "row": 1 },
+    { "col": 12, "row": 1 }, { "col": 13, "row": 1 }, { "col": 3, "row": 6 }, { "col": 3, "row": 7 },
+    { "col": 3, "row": 8 }, { "col": 12, "row": 2 }, { "col": 13, "row": 4 }, { "col": 12, "row": 6 },
+    { "col": 13, "row": 7 }
+  ],
+  "ground_cells": [
+    { "col": 3, "row": 0, "type": "道路横" }, { "col": 4, "row": 0, "type": "道路横" },
+    { "col": 5, "row": 0, "type": "道路横" }, { "col": 6, "row": 0, "type": "道路横" },
+    { "col": 7, "row": 0, "type": "road_vertical" }, { "col": 11, "row": 0, "type": "road_vertical" },
+    { "col": 12, "row": 0, "type": "道路横" }, { "col": 13, "row": 0, "type": "道路横" },
+    { "col": 14, "row": 0, "type": "road_vertical" }, { "col": 3, "row": 1, "type": "road_vertical" },
+    { "col": 7, "row": 1, "type": "road_vertical" }, { "col": 11, "row": 1, "type": "road_vertical" },
+    { "col": 14, "row": 1, "type": "road_vertical" }, { "col": 3, "row": 2, "type": "road_vertical" },
+    { "col": 7, "row": 2, "type": "road_vertical" }, { "col": 11, "row": 2, "type": "road_vertical" },
+    { "col": 14, "row": 2, "type": "road_vertical" }, { "col": 3, "row": 3, "type": "road_vertical" },
+    { "col": 7, "row": 3, "type": "road_vertical" }, { "col": 11, "row": 3, "type": "road_vertical" },
+    { "col": 14, "row": 3, "type": "road_vertical" }, { "col": 3, "row": 4, "type": "road_vertical" },
+    { "col": 7, "row": 4, "type": "road_vertical" }, { "col": 11, "row": 4, "type": "road_vertical" },
+    { "col": 14, "row": 4, "type": "road_vertical" }, { "col": 0, "row": 5, "type": "道路横" },
+    { "col": 1, "row": 5, "type": "道路横" }, { "col": 2, "row": 5, "type": "道路横" },
+    { "col": 3, "row": 5, "type": "道路横" }, { "col": 4, "row": 5, "type": "道路横" },
+    { "col": 5, "row": 5, "type": "道路横" }, { "col": 6, "row": 5, "type": "道路横" },
+    { "col": 7, "row": 5, "type": "道路横" }, { "col": 8, "row": 5, "type": "道路横" },
+    { "col": 9, "row": 5, "type": "道路横" }, { "col": 10, "row": 5, "type": "道路横" },
+    { "col": 11, "row": 5, "type": "道路横" }, { "col": 12, "row": 5, "type": "道路横" },
+    { "col": 13, "row": 5, "type": "道路横" }, { "col": 14, "row": 5, "type": "道路横" },
+    { "col": 3, "row": 6, "type": "road_vertical" }, { "col": 7, "row": 6, "type": "road_vertical" },
+    { "col": 11, "row": 6, "type": "road_vertical" }, { "col": 14, "row": 6, "type": "road_vertical" },
+    { "col": 3, "row": 7, "type": "road_vertical" }, { "col": 7, "row": 7, "type": "road_vertical" },
+    { "col": 11, "row": 7, "type": "road_vertical" }, { "col": 14, "row": 7, "type": "road_vertical" },
+    { "col": 3, "row": 8, "type": "road_vertical" }, { "col": 7, "row": 8, "type": "road_vertical" },
+    { "col": 11, "row": 8, "type": "road_vertical" }, { "col": 14, "row": 8, "type": "road_vertical" },
+    { "col": 0, "row": 9, "type": "道路横" }, { "col": 1, "row": 9, "type": "道路横" },
+    { "col": 2, "row": 9, "type": "道路横" }, { "col": 3, "row": 9, "type": "道路横" },
+    { "col": 4, "row": 9, "type": "道路横" }, { "col": 5, "row": 9, "type": "道路横" },
+    { "col": 6, "row": 9, "type": "道路横" }, { "col": 7, "row": 9, "type": "道路横" },
+    { "col": 8, "row": 9, "type": "道路横" }, { "col": 9, "row": 9, "type": "道路横" },
+    { "col": 10, "row": 9, "type": "道路横" }, { "col": 11, "row": 9, "type": "道路横" },
+    { "col": 12, "row": 9, "type": "道路横" }, { "col": 13, "row": 9, "type": "道路横" },
+    { "col": 14, "row": 9, "type": "道路横" }
+  ],
+  "props": [
+    { "type": "家青", "col": 4, "row": 2 },
+    { "type": "家緑", "col": 0, "row": 2 },
+    { "type": "家青", "col": 8, "row": 2 },
+    { "type": "アイスクリーム", "col": 8, "row": 6 },
+    { "type": "ハンバーガー", "col": 4, "row": 6 },
+    { "type": "shop_front", "col": 0, "row": 6 }
+  ],
+  "decals": [
+    { "type": "木2", "x": 21, "y": 21 }, { "type": "木2", "x": 17, "y": 58 },
+    { "type": "木2", "x": 52, "y": 60 }, { "type": "木2", "x": 64, "y": 11 },
+    { "type": "木2", "x": 93, "y": 10 }, { "type": "木2", "x": 101, "y": 52 },
+    { "type": "木2", "x": 98, "y": 95 }, { "type": "木2", "x": 53, "y": 89 },
+    { "type": "木2", "x": 23, "y": 91 }, { "type": "木2", "x": 183, "y": 59 },
+    { "type": "木2", "x": 213, "y": 61 }, { "type": "木2", "x": 253, "y": 62 },
+    { "type": "木2", "x": 261, "y": 94 }, { "type": "木2", "x": 227, "y": 95 },
+    { "type": "木2", "x": 185, "y": 94 }, { "type": "木2", "x": 346, "y": 68 },
+    { "type": "木2", "x": 423, "y": 97 }, { "type": "木2", "x": 386, "y": 83 },
+    { "type": "木2", "x": 411, "y": 47 }, { "type": "木2", "x": 364, "y": 13 },
+    { "type": "木2", "x": 379, "y": 43 }, { "type": "木2", "x": 498, "y": 70 },
+    { "type": "木2", "x": 538, "y": 62 }, { "type": "木2", "x": 511, "y": 104 },
+    { "type": "木2", "x": 538, "y": 111 }, { "type": "木2", "x": 498, "y": 154 },
+    { "type": "木2", "x": 533, "y": 153 }, { "type": "木2", "x": 501, "y": 268 },
+    { "type": "木2", "x": 533, "y": 270 }, { "type": "木2", "x": 533, "y": 303 },
+    { "type": "木2", "x": 508, "y": 307 }, { "type": "木2", "x": 503, "y": 338 },
+    { "type": "木2", "x": 538, "y": 343 }
+  ]
+}
+```
