@@ -77,7 +77,13 @@ class WaveManager {
 
     // ─ グループ内の連鎖スポーン ─
     if (this._groupRemaining > 0 && scaledTime >= this._groupNextTime) {
-      const z = spawnFn(this._groupSpawn.col, this._groupSpawn.row, wave.enemy, this.waveIdx, this._groupLeaderZombie);
+      // spawn.typeがあればZOMBIE_BASEの能力値で上書き（スキンも自動設定）
+      let enemyDef = wave.enemy;
+      if (this._groupSpawn.type) {
+        const base = ZOMBIE_BASE[this._groupSpawn.type] ?? {};
+        enemyDef = { ...wave.enemy, ...base, type: this._groupSpawn.type };
+      }
+      const z = spawnFn(this._groupSpawn.col, this._groupSpawn.row, enemyDef, this.waveIdx, this._groupLeaderZombie);
       if (this._groupLeaderZombie === null) this._groupLeaderZombie = z;  // 1体目がリーダー
       this._groupRemaining--;
       this._groupNextTime = scaledTime + (wave.groupInterval ?? 800) / this._spawnMultiplier;

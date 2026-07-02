@@ -5,13 +5,26 @@ const ESCORT_GROUND_OFFSET = 40;
 const ESCORT_SPR = {
   dad: {
     base:       { frameH: 256, scale: 156 / 256, ox: 0.5,   oy: 0.75  },
-    flipRight:  true,    // ソースが左向き → right 表示時にflip
+    flipRight:  true,
   },
   mom: {
     right:      { frameH: 689, scale: 164 / 689, ox: 0.478, oy: 0.958 },
     down:       { frameH: 780, scale: 180 / 780, ox: 0.5,   oy: 1.0   },
     up:         { frameH: 600, scale: 164 / 600, ox: 0.574, oy: 1.0   },
-    flipRight:  false,   // ソースが右向き → left 表示時にflip
+    flipRight:  false,
+  },
+  // ★ son/grandma/cat はアセット入手後にframeH・scale・ox・oyを実測値に更新すること
+  son: {
+    base:       { frameH: 256, scale: 156 / 256, ox: 0.5,   oy: 0.75  },
+    flipRight:  true,
+  },
+  grandma: {
+    base:       { frameH: 256, scale: 156 / 256, ox: 0.5,   oy: 0.75  },
+    flipRight:  true,
+  },
+  cat: {
+    base:       { frameH: 256, scale: 156 / 256, ox: 0.5,   oy: 0.75  },
+    flipRight:  true,
   },
 };
 

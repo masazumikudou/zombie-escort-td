@@ -81,12 +81,18 @@ const DECAL_DEFS = {
 // ─── ゾンビ基準値 ────────────────────────────────────────────
 // balance.json が読めない場合のフォールバック。数値は balance.json を正とする
 const ZOMBIE_BASE = {
-  normal:        { hp: 75, speed: 10, damage: 10, reward: 20 },
-  normal_cap:    { hp: 75, speed: 11, damage: 13, reward: 25 },
-  normal_helmet: { hp: 75, speed: 12, damage: 18, reward: 30 },
-  alt:           { hp: 75, speed: 10, damage: 11, reward: 22 },
-  alt_helmet:    { hp: 75, speed: 11, damage: 19, reward: 32 },
-  alt_cap:       { hp: 75, speed: 11, damage: 15, reward: 27 },
+  // ─ 旧type（後方互換・使用中） ─────────────────────────────
+  normal:        { hp: 75,  speed: 10, damage: 10, reward: 20 },
+  normal_cap:    { hp: 75,  speed: 11, damage: 13, reward: 25 },
+  normal_helmet: { hp: 75,  speed: 12, damage: 18, reward: 30 },
+  alt:           { hp: 75,  speed: 10, damage: 11, reward: 22 },
+  alt_helmet:    { hp: 75,  speed: 11, damage: 19, reward: 32 },
+  alt_cap:       { hp: 75,  speed: 11, damage: 15, reward: 27 },
+  // ─ 属性type（spawn.type / wave.enemy.type で使用） ──────────
+  // ★ 数値は仮置き。プレイテスト後に調整すること
+  salaryman:     { hp: 75,  speed: 10, damage: 10, reward: 20, skin: 'salaryman' },
+  worker:        { hp: 100, speed:  9, damage: 12, reward: 25, skin: 'worker'    },
+  police:        { hp: 150, speed: 12, damage: 15, reward: 35, skin: 'police'    },
 };
 
 // balance.json の数値を TOWER_DEFS と ZOMBIE_BASE に反映する（BootScene から呼ぶ）

@@ -1,5 +1,5 @@
 const RELAY_INTERVAL    = 4000;  // インターバル時間（ms）
-const VARIANT_NAMES     = { dad: 'お父さん', mom: 'お母さん', grandma: 'おばあちゃん' };
+const VARIANT_NAMES     = { dad: 'お父さん', mom: 'お母さん', grandma: 'おばあちゃん', son: '息子', cat: '猫' };
 
 class GameScene extends Phaser.Scene {
   constructor() { super('GameScene'); }
