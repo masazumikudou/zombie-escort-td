@@ -81,12 +81,12 @@ const DECAL_DEFS = {
 // ─── ゾンビ基準値 ────────────────────────────────────────────
 // balance.json が読めない場合のフォールバック。数値は balance.json を正とする
 const ZOMBIE_BASE = {
-  normal:        { hp: 75, speed: 19, damage: 10, reward: 20 },
-  normal_cap:    { hp: 75, speed: 21, damage: 13, reward: 25 },
-  normal_helmet: { hp: 75, speed: 23, damage: 18, reward: 30 },
-  alt:           { hp: 75, speed: 19, damage: 11, reward: 22 },
-  alt_helmet:    { hp: 75, speed: 22, damage: 19, reward: 32 },
-  alt_cap:       { hp: 75, speed: 21, damage: 15, reward: 27 },
+  normal:        { hp: 75, speed: 10, damage: 10, reward: 20 },
+  normal_cap:    { hp: 75, speed: 11, damage: 13, reward: 25 },
+  normal_helmet: { hp: 75, speed: 12, damage: 18, reward: 30 },
+  alt:           { hp: 75, speed: 10, damage: 11, reward: 22 },
+  alt_helmet:    { hp: 75, speed: 11, damage: 19, reward: 32 },
+  alt_cap:       { hp: 75, speed: 11, damage: 15, reward: 27 },
 };
 
 // balance.json の数値を TOWER_DEFS と ZOMBIE_BASE に反映する（BootScene から呼ぶ）
