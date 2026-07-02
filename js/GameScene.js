@@ -27,6 +27,8 @@ class GameScene extends Phaser.Scene {
     this.money        = sd.startMoney;
     this.gameState    = 'playing';
     this.killCount    = 0;
+    this.spawnCount   = 0;
+    this._playLog     = [];
     this.debugOpen    = false;
     this.showGrid     = false;
     this.showPaths    = false;
@@ -212,7 +214,10 @@ class GameScene extends Phaser.Scene {
 
   // ─── リレー：護衛者終了処理 ───────────────────────────────
   _onEscortDone(reached) {
-    if (reached) this.survivors++;
+    if (reached) {
+      this.survivors++;
+      this._playLog.push(`[REACH]  t=${Math.round(this.scaledTime)}ms  護衛ゴール到達  生存護衛=${this.survivors}`);
+    }
 
     const nextIdx   = this.escortIdx + 1;
     const remaining = this.escortDefs.length - nextIdx;
@@ -251,10 +256,14 @@ class GameScene extends Phaser.Scene {
     if (this.survivors >= minS) {
       this.gameState = 'victory';
       audioSynth.stageClear();
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  判定=CLEAR`);
+      console.log('=== PLAY LOG ===\n' + this._playLog.join('\n'));
       this._showResult('STAGE CLEAR!', '#ffff44', 'リスタート', true);
     } else {
       this.gameState = 'defeat';
       audioSynth.gameOver();
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  判定=GAMEOVER`);
+      console.log('=== PLAY LOG ===\n' + this._playLog.join('\n'));
       this._showResult('GAME OVER', '#ff4444', 'もう一度', false);
     }
   }
@@ -1111,10 +1120,13 @@ class GameScene extends Phaser.Scene {
       reward: Math.round(enemyDef.reward != null ? enemyDef.reward : base.reward * (enemyDef.rewardMul ?? 1)),
     };
     const z = new Zombie(this, col, row, def, waveNum, leader);
+    this.spawnCount++;
+    this._playLog.push(`[SPAWN]  t=${Math.round(this.scaledTime)}ms  wave=${waveNum}  spawn=(${col},${row})  hp=${def.hp}  total=${this.spawnCount}`);
     const origOnDeath = z.onDeath;
     z.onDeath = () => {
       this.money += z.reward;
       this.killCount++;
+      this._playLog.push(`[KILL]   t=${Math.round(this.scaledTime)}ms  wave=${z.waveNum}  killCount=${this.killCount}`);
       if (origOnDeath) origOnDeath();
     };
     this.zombies.push(z);
@@ -1355,5 +1367,6 @@ class GameScene extends Phaser.Scene {
   _toggleDebug() {
     this.debugOpen = !this.debugOpen;
     if (this.debugObjects) this.debugObjects.forEach(o => o.setVisible(this.debugOpen));
+    if (this.debugOpen && this._playLog?.length) console.log('=== PLAY LOG (途中) ===\n' + this._playLog.join('\n'));
   }
 }

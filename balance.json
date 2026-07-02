@@ -6,9 +6,9 @@
   "towers": {
     "basic":  { "cost": 100, "range": 2.5, "fireRate": 900,  "damage": 25, "durability": null },
     "rapid":  { "cost": 150, "range": 2.0, "fireRate": 250,  "damage": 10, "durability": null },
-    "sniper": { "cost": 200, "range": 4.5, "fireRate": 1600, "damage": 70, "durability": null },
-    "bat":    { "cost": 180, "range": 1,   "fireRate": 1000, "damage": 25, "durability": null },
-    "cannon": { "cost": 250, "range": 4,   "fireRate": 2000, "damage": 50, "durability": null }
+    "sniper": { "cost": 200, "range": 4.5, "fireRate": 1600, "damage": 40, "durability": null },
+    "bat":    { "cost": 180, "range": 1,   "fireRate": 1000, "damage": 35, "durability": null },
+    "cannon": { "cost": 250, "range": 4,   "fireRate": 2000, "damage": 35, "durability": null }
   },
 
   "zombies": {

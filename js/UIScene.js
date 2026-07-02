@@ -118,7 +118,7 @@ class UIScene extends Phaser.Scene {
     this._closeBuildPopup();
     const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
     const BW = 88, BH = 60, GAP = 5, PAD = 7;
-    const types = Object.keys(TOWER_DEFS);
+    const types = (TOWER_UNLOCK ?? Object.keys(TOWER_DEFS)).filter(t => TOWER_DEFS[t]);
     const popW  = types.length * BW + (types.length - 1) * GAP + PAD * 2;
     const popH  = BH + PAD * 2;
     const W = this.scale.width, H = this.scale.height;

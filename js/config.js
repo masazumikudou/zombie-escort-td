@@ -27,12 +27,16 @@ const TIME_LABELS = ['⏸ 停止', '🐢 スロー', '▶ 通常'];
 const TOWER_DEFS = {
   basic:  { label:'基本', color:0x4488ff, textColor:'#5599ff', cost:100, sell:50,  range:2.5, fireRate:900,  damage:25, durability:null },
   rapid:  { label:'速射', color:0xff8800, textColor:'#ff9933', cost:150, sell:75,  range:2.0, fireRate:250,  damage:10, durability:null },
-  sniper: { label:'狙撃', color:0x44ff88, textColor:'#55ffaa', cost:200, sell:100, range:4.5, fireRate:1600, damage:70, durability:null },
-  laser:  { label:'レーザー', color:0xff2266, textColor:'#ff88aa', cost:350, sell:175, range:999, fireRate:2200, damage:60, durability:null },
-  punch:  { label:'パンチ',   color:0xff6600, textColor:'#ff8833', cost:120, sell:60,  range:1,   fireRate:1200, damage:40, durability:null },
-  bat:    { label:'バット',   color:0x88ff44, textColor:'#aaff66', cost:180, sell:126, range:1,   fireRate:1000, damage:25, durability:null },
-  cannon: { label:'大砲',   color:0xff8822, textColor:'#ffaa44', cost:250, sell:175, range:4,   fireRate:2000, damage:50, durability:null },
+  sniper: { label:'狙撃', color:0x44ff88, textColor:'#55ffaa', cost:200, sell:100, range:4.5, fireRate:1600, damage:40, durability:null },
+  laser:  { label:'レーザー', color:0xff2266, textColor:'#ff88aa', cost:350, sell:175, range:999, fireRate:2200, damage:30, durability:null },
+  punch:  { label:'パンチ',   color:0xff6600, textColor:'#ff8833', cost:120, sell:60,  range:1,   fireRate:1200, damage:50, durability:null },
+  bat:    { label:'バット',   color:0x88ff44, textColor:'#aaff66', cost:180, sell:126, range:1,   fireRate:1000, damage:35, durability:null },
+  cannon: { label:'大砲',   color:0xff8822, textColor:'#ffaa44', cost:250, sell:175, range:4,   fireRate:2000, damage:35, durability:null },
 };
+
+// ─── タワー表示制限（難易度計測フェーズ用）─────────────────────
+// null = 全種表示。配列指定 = その種類のみUIに表示（定義・コードは残る）
+const TOWER_UNLOCK = ['basic', 'sniper'];
 
 // ─── プロップ定義 ────────────────────────────────────────────
 // アセットパス: assets/sprites/prop/{type}.png

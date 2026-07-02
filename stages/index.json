@@ -1,6 +1,6 @@
 {
   "stages": [
-    { "id": 1, "file": "stages/stage_01.json", "title": "カスタムステージ" },
+    { "id": 1, "file": "stages/stage_01.json", "title": "カスタムステージ（v5・敵統一/難易度計測用）" },
     { "id": 2, "file": "stages/stage_02.json", "title": "ステージ2" }
   ]
 }

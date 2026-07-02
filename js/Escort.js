@@ -229,9 +229,11 @@ class Escort {
 
   takeDamage(amount) {
     if (!this.alive || this.defeated) return;
+    const prevHp = this.hp;
     this.hp = Math.max(0, this.hp - amount);
     this.hitFlash = 200;
     audioSynth.escortHit();
+    if (this.scene?._playLog) this.scene._playLog.push(`[HIT]    t=${Math.round(this.scene.scaledTime)}ms  護衛被弾  damage=${amount}  護衛HP: ${prevHp}→${this.hp}`);
     if (this.hp <= 0) this.defeated = true;
   }
 
