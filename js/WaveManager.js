@@ -77,11 +77,12 @@ class WaveManager {
 
     // ─ グループ内の連鎖スポーン ─
     if (this._groupRemaining > 0 && scaledTime >= this._groupNextTime) {
-      // spawn.typeがあればZOMBIE_BASEの能力値で上書き（スキンも自動設定）
+      // spawn.typeがあればスキンを適用。数値はwave.enemy → spawn直書き値の順で優先
       let enemyDef = wave.enemy;
       if (this._groupSpawn.type) {
         const base = ZOMBIE_BASE[this._groupSpawn.type] ?? {};
-        enemyDef = { ...wave.enemy, ...base, type: this._groupSpawn.type };
+        const { col: _c, row: _r, type: _t, ...spawnStats } = this._groupSpawn;
+        enemyDef = { ...base, ...wave.enemy, type: this._groupSpawn.type, ...spawnStats };
       }
       const z = spawnFn(this._groupSpawn.col, this._groupSpawn.row, enemyDef, this.waveIdx, this._groupLeaderZombie);
       if (this._groupLeaderZombie === null) this._groupLeaderZombie = z;  // 1体目がリーダー
