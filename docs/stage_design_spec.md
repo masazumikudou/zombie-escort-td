@@ -240,7 +240,7 @@
 3. Claudeが道路レイアウトから`path`座標を書き出す
 4. Claudeが`zombieSpawns`・`buildSpots`をpath/props全footprintとの衝突チェック込みで計算
 5. Claudeが護衛到達時間を逆算し、A-4の式に従ってwave設計（数値の逆算・検算）
-6. 小松さんがプレイテスト。**DキーでデバッグログON→プレイ→コンソール全コピー→Claudeに貼る**（D-4参照）
+6. 小松さんがプレイテスト。**プレイ→CLEAR/GAMEOVER時にコンソール自動dump（途中はDキーで確認可）→コピーしてClaudeに貼る**（D-4参照）
 7. Claudeがログを数値で読み取り、決壊箇所を特定して次の調整（街の形は基本触らない）
 
 ※逆に「Claudeが先にpath/buildSpots/spawnを決めて、後から街を当てはめる」フローは、街のためのスペース計画が存在しないため窮屈になりやすい（stage_01で実証済みの失敗パターン）
