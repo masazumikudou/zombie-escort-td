@@ -1,0 +1,54 @@
+{
+  "id": "stage_test_A1",
+  "name": "第1層検証・L字向き合い型（B交差回避版）",
+  "grid": { "cols": 22, "rows": 15 },
+  "ground_base": "grass",
+  "startMoney": 500,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "startTrigger": "immediate",
+      "start": { "col": 0, "row": 1 },
+      "goal": { "col": 21, "row": 12 },
+      "hp": 100,
+      "speed": 40,
+      "path": [
+        { "col": 0, "row": 1 }, { "col": 1, "row": 1 }, { "col": 2, "row": 1 }, { "col": 3, "row": 1 },
+        { "col": 4, "row": 1 }, { "col": 5, "row": 1 }, { "col": 6, "row": 1 }, { "col": 7, "row": 1 },
+        { "col": 8, "row": 1 }, { "col": 9, "row": 1 }, { "col": 10, "row": 1 },
+        { "col": 10, "row": 2 }, { "col": 10, "row": 3 }, { "col": 10, "row": 4 }, { "col": 10, "row": 5 },
+        { "col": 10, "row": 6 }, { "col": 10, "row": 7 }, { "col": 10, "row": 8 }, { "col": 10, "row": 9 },
+        { "col": 10, "row": 10 }, { "col": 10, "row": 11 }, { "col": 10, "row": 12 },
+        { "col": 11, "row": 12 }, { "col": 12, "row": 12 }, { "col": 13, "row": 12 }, { "col": 14, "row": 12 },
+        { "col": 15, "row": 12 }, { "col": 16, "row": 12 }, { "col": 17, "row": 12 }, { "col": 18, "row": 12 },
+        { "col": 19, "row": 12 }, { "col": 20, "row": 12 }, { "col": 21, "row": 12 }
+      ]
+    }
+  ],
+  "spawns": {
+    "A": { "col": 5,  "row": 3  },
+    "B": { "col": 6,  "row": 12 },
+    "C": { "col": 18, "row": 7  }
+  },
+  "spawnEvents": [
+    { "time": 7.0,  "spawn": "A", "enemy": "salaryman", "count": 3, "interval": 450, "speed": 30, "hp": 150, "leashTo": { "col": 10, "row": 3  } },
+    { "time": 32.5, "spawn": "B", "enemy": "salaryman", "count": 5, "interval": 450, "speed": 30, "hp": 150, "leashTo": { "col": 10, "row": 12 } },
+    { "time": 47.0, "spawn": "C", "enemy": "salaryman", "count": 4, "interval": 450, "speed": 30, "hp": 150, "leashTo": { "col": 18, "row": 12 } }
+  ],
+  "encounterHints": [
+    { "col": 10, "row": 3,  "note": "交戦地A（基準・count3）護衛到達t=30.0s" },
+    { "col": 10, "row": 12, "note": "交戦地B（飽和テスト・count5・交差回避）護衛到達t=52.5s" },
+    { "col": 18, "row": 12, "note": "交戦地C（中間・count4）護衛到達t=70.0s" }
+  ],
+  "obstacles": [],
+  "buildSpots": [
+    { "col": 9,  "row": 3 }, { "col": 11, "row": 3 }, { "col": 9,  "row": 4 }, { "col": 11, "row": 4 },
+    { "col": 11, "row": 11 }, { "col": 13, "row": 11 }, { "col": 12, "row": 13 }, { "col": 13, "row": 13 },
+    { "col": 17, "row": 11 }, { "col": 19, "row": 11 }, { "col": 18, "row": 13 },
+    { "col": 1,  "row": 3 }, { "col": 2,  "row": 3 }, { "col": 20, "row": 2 }, { "col": 21, "row": 2 }
+  ],
+  "ground_cells": [],
+  "props": [],
+  "decals": []
+}

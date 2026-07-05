@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Stage Simulator | Zombie Escort TD</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Courier New', monospace; background: #0f172a; color: #cbd5e1; padding: 16px; max-width: 1200px; }
+h1 { color: #f1f5f9; font-size: 18px; margin-bottom: 4px; }
+.warn { color: #fbbf24; font-size: 12px; line-height: 1.7; margin-bottom: 14px; padding: 8px 10px; background: #1c1404; border-left: 3px solid #fbbf24; }
+label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 3px; }
+textarea, input[type=number], input[type=text], input[type=password] {
+  background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+  font-family: inherit; font-size: 12px; border-radius: 3px; padding: 6px 8px;
+}
+textarea { resize: vertical; }
+.flex { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.col  { display: flex; flex-direction: column; gap: 4px; }
+button { background: #2563eb; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; font-family: inherit; }
+button:hover { background: #1d4ed8; }
+.sm   { padding: 4px 8px; font-size: 12px; }
+.red  { background: #dc2626; } .red:hover  { background: #b91c1c; }
+.gray { background: #475569; } .gray:hover { background: #334155; }
+.green { background: #16a34a; } .green:hover { background: #15803d; }
+.pattern-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+.result { margin-top: 14px; }
+.result-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.result h2 { font-size: 13px; color: #94a3b8; margin: 0; }
+pre {
+  background: #020617; padding: 10px 12px; border-radius: 4px; font-size: 11px;
+  white-space: pre-wrap; border: 1px solid #1e3a5f; max-height: 360px; overflow-y: auto;
+  line-height: 1.55; color: #94a3b8;
+}
+.clear    { color: #4ade80; font-weight: bold; }
+.gameover { color: #f87171; font-weight: bold; }
+hr { border: none; border-top: 1px solid #1e293b; margin: 14px 0; }
+code { background: #1e293b; padding: 1px 4px; border-radius: 2px; font-size: 11px; }
+
+/* GitHub設定パネル */
+details.gh-panel { background: #0f1e35; border: 1px solid #1e3a5f; border-radius: 4px; padding: 8px 12px; margin-bottom: 14px; }
+details.gh-panel summary { cursor: pointer; font-size: 12px; color: #7dd3fc; user-select: none; }
+details.gh-panel summary:hover { color: #38bdf8; }
+.gh-panel .inner { margin-top: 10px; }
+.save-status { font-size: 12px; margin-top: 8px; padding: 4px 8px; border-radius: 3px; display: inline-block; }
+.save-status.ok   { background: #14532d; color: #4ade80; }
+.save-status.skip { background: #1e293b; color: #94a3b8; }
+.save-status.err  { background: #450a0a; color: #f87171; }
+</style>
+</head>
+<body>
+
+<!--
+  ⚠️ E-17: シミュレーターは実機よりタワーが強く出る傾向がある。
+  このツールは「絶対無理な配置を切るフィルター」として使うこと。
+  最終確認は必ず実機で行うこと。
+-->
+
+<!-- エンジンモジュール（draw()は呼ばない。Phaser不要） -->
+<script src="js/config.js"></script>
+<script src="js/pathfinder.js"></script>
+<script src="js/FlowField.js"></script>
+<script src="js/SpawnEventManager.js"></script>
+<script src="js/Escort.js"></script>
+<script src="js/Zombie.js"></script>
+
+<script>
+/* ============================================================
+   ZOMBIE ESCORT TD — ステージシミュレーター
+   ⚠️ E-17: タワーは実機より強く出る傾向あり（弾着弾タイミング差）。
+            このツールは「絶対無理な配置を切るフィルター」として使うこと。
+            最終確認は必ず実機で行うこと。
+   ============================================================ */
+
+// Phaser/audio スタブ（draw() を呼ばない前提）
+const audioSynth = { hit() {}, escortHit() {} };
+
+// ─── SimTower ──────────────────────────────────────────────────────────
+class SimTower {
+  constructor(col, row, type) {
+    const cc      = cellCenter(col, row);
+    this.x        = cc.x;
+    this.y        = cc.y;
+    const d       = TOWER_DEFS[type] ?? TOWER_DEFS.basic;
+    this.range    = d.range * CELL;
+    this.fireRate = d.fireRate;
+    this.damage   = d.damage;
+    this.lastFire = -99999;
+    this._bullets = [];  // { arrivesAt, target }
+  }
+
+  update(scaledTime, zombies, escort) {
+    // 着弾処理
+    this._bullets = this._bullets.filter(b => {
+      if (scaledTime < b.arrivesAt) return true;
+      if (b.target.alive) b.target.takeDamage(this.damage);
+      return false;
+    });
+
+    if (scaledTime - this.lastFire < this.fireRate) return;
+
+    // 射程内で護衛に最も近いゾンビを狙う（仕様通り）
+    let best = null, bestDist = Infinity;
+    for (const z of zombies) {
+      if (!z.alive) continue;
+      const tdx = z.x - this.x, tdy = z.y - this.y;
+      if (Math.sqrt(tdx*tdx + tdy*tdy) > this.range) continue;
+      const ref = escort ?? { x: this.x, y: this.y };
+      const edx = z.x - ref.x, edy = z.y - ref.y;
+      const d   = Math.sqrt(edx*edx + edy*edy);
+      if (d < bestDist) { bestDist = d; best = z; }
+    }
+    if (!best) return;
+
+    // 弾丸発射（speed=500px/s ホーミング近似、発射時の距離で飛行時間計算）
+    const fdx  = best.x - this.x, fdy = best.y - this.y;
+    const dist = Math.sqrt(fdx*fdx + fdy*fdy);
+    this._bullets.push({ arrivesAt: scaledTime + (dist / 500) * 1000, target: best });
+    this.lastFire = scaledTime;
+  }
+}
+
+// ─── タワー配置テキスト解析 ───────────────────────────────────────────────
+// 形式: "basic:5,3 sniper:8,3" or "basic:5,3\nsniper:8,3"
+function parseTowerPattern(text) {
+  return text.trim().split(/[\s\n]+/).flatMap(token => {
+    const m = token.match(/^(\w+):(\d+),(\d+)$/);
+    return m ? [{ type: m[1], col: +m[2], row: +m[3] }] : [];
+  });
+}
+
+// ─── StageSimulator ───────────────────────────────────────────────────────
+// ⚠️ E-17: タワーが実機より強く出る（瞬間着弾ではなく弾速500px/sを反映しているが
+//          FlowFieldのBFS精度差・フレームレート差により実機と完全一致しない）
+class StageSimulator {
+  run(stage, towerPlacements, opts = {}) {
+    const log = [];
+    let scaledTime = 0;
+
+    // グリッド設定（config.js の let 変数を上書き）
+    COLS  = stage.grid.cols;
+    ROWS  = stage.grid.rows;
+    MAP_W = CELL * COLS;
+    MAP_H = CELL * ROWS;
+
+    const pf = new Pathfinder(COLS, ROWS, stage.obstacles ?? []);
+    const ff = new FlowField(pf);
+
+    // モックScene（draw() 呼び出しなし前提）
+    const mockScene = { flowField: ff, _playLog: log, scaledTime: 0 };
+
+    // 護衛
+    const escDef = { ...stage.escorts[0] };
+    if (opts.escortSpeed) escDef.speed = +opts.escortSpeed;
+    const pixelPath = escDef.path.map(p => cellCenter(p.col, p.row));
+    const escort    = new Escort(mockScene, pixelPath, escDef);
+
+    // SpawnEventManager
+    const sem = new SpawnEventManager(stage.spawns ?? {}, stage.spawnEvents ?? []);
+    sem.start(0);
+
+    // タワー配置（資金順）
+    let money = stage.startMoney ?? 500;
+    const simTowers = [];
+    for (const tp of towerPlacements) {
+      const def = TOWER_DEFS[tp.type];
+      if (!def)          { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }
+      if (money < def.cost) { log.push(`[WARN]   資金不足でスキップ: ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`); continue; }
+      simTowers.push(new SimTower(tp.col, tp.row, tp.type));
+      money -= def.cost;
+      log.push(`[BUILD]  ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`);
+    }
+
+    // ゾンビ管理
+    let zombies    = [];
+    let allSpawned = [];
+    let spawnTotal = 0, killCount = 0, idSeq = 0;
+
+    const spawnFn = (col, row, def, waveNum, leader) => {
+      const finalDef = opts.enemySpeed ? { ...def, speed: +opts.enemySpeed } : def;
+      spawnTotal++;
+      const z          = new Zombie(mockScene, col, row, finalDef, waveNum, leader);
+      z._simId         = idSeq++;
+      z._firstContact  = null;
+
+      z.onDeath = () => {
+        killCount++;
+        log.push(`[KILL]   t=${Math.round(scaledTime)}ms  killCount=${killCount}`);
+      };
+
+      zombies.push(z);
+      allSpawned.push(z);
+      log.push(`[SPAWN]  t=${Math.round(scaledTime)}ms  spawn=(${col},${row})  hp=${finalDef.hp}  total=${spawnTotal}`);
+      return z;
+    };
+
+    // ─── シミュレーションループ ─────────────────────────────────────────
+    const DT       = 50;         // ms/tick（20Hz）
+    const MAX_TIME = 600_000;    // 10分タイムアウト
+
+    while (scaledTime <= MAX_TIME) {
+      mockScene.scaledTime = scaledTime;
+
+      if (!escort.defeated && !escort.reached) ff.update(escort.col, escort.row);
+
+      sem.update(scaledTime, spawnFn, escort.defeated ? null : escort);
+
+      const alive = zombies.filter(z => z.alive);
+
+      // ゾンビ更新 + 初接触追跡
+      for (const z of alive) {
+        z.update(scaledTime, DT, escort.defeated ? null : escort);
+        if (!z._firstContact && !escort.defeated) {
+          const dx = escort.x - z.x, dy = escort.y - z.y;
+          if (Math.sqrt(dx*dx + dy*dy) < CELL * 0.95) {
+            z._firstContact = { col: z.col, row: z.row, t: scaledTime };
+          }
+        }
+      }
+
+      for (const t of simTowers) {
+        t.update(scaledTime, alive, escort.defeated ? null : escort);
+      }
+
+      escort.update(DT);
+
+      if (escort.defeated) {
+        log.push(`[GAMEOVER] t=${Math.round(scaledTime)}ms  護衛HP=0`);
+        break;
+      }
+      // state='exiting' = ゴール到達直後（off-map まで待たない）
+      if (escort.state === 'exiting' || escort.reached) {
+        log.push(`[REACH]  t=${Math.round(scaledTime)}ms  護衛ゴール到達  生存護衛=1`);
+        break;
+      }
+
+      if (zombies.length > 400) zombies = zombies.filter(z => z.alive);
+      scaledTime += DT;
+    }
+    if (scaledTime > MAX_TIME) log.push(`[TIMEOUT] 最大時間(10分)超過`);
+
+    // RESULT
+    const survived    = (escort.state === 'exiting' || escort.reached) ? 1 : 0;
+    const passThrough = spawnTotal - killCount;
+    const judgment    = survived >= (stage.minSurvivors ?? 1) ? 'CLEAR' : 'GAMEOVER';
+    const hpPct       = Math.round(escort.hp / escort.maxHp * 100);
+    log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survived}/1 HP残=${hpPct}% 判定=${judgment}`);
+
+    // 交戦地分析（encounterHints）
+    if (stage.encounterHints?.length > 0) {
+      log.push('');
+      log.push('──── 交戦地分析 ──────────────────────────────────────');
+      for (const hint of stage.encounterHints) {
+        const nearby = allSpawned.filter(z => {
+          if (!z._firstContact) return false;
+          return Math.abs(z._firstContact.col - hint.col) + Math.abs(z._firstContact.row - hint.row) <= 3;
+        });
+        const note = hint.note ?? `(${hint.col},${hint.row})`;
+        if (nearby.length === 0) {
+          log.push(`  ${note}`);
+          log.push(`    → 交戦なし（全撃破 or 護衛敗北前に未到達）`);
+        } else {
+          const aC = Math.round(nearby.reduce((s,z) => s + z._firstContact.col, 0) / nearby.length);
+          const aR = Math.round(nearby.reduce((s,z) => s + z._firstContact.row, 0) / nearby.length);
+          const dC = aC - hint.col, dR = aR - hint.row;
+          const firstT = Math.min(...nearby.map(z => z._firstContact.t));
+          log.push(`  ${note}`);
+          log.push(`    計画(${hint.col},${hint.row}) 実際(${aC},${aR}) ズレΔ(${dC>=0?'+':''}${dC},${dR>=0?'+':''}${dR})  最初接触t=${Math.round(firstT)}ms  交戦${nearby.length}体`);
+        }
+      }
+      log.push('──────────────────────────────────────────────────────');
+    }
+
+    return { log: log.join('\n'), judgment, hpPct };
+  }
+}
+
+// ─── balance.json ロード ─────────────────────────────────────────────────
+let _balanceApplied = false;
+async function ensureBalance() {
+  if (_balanceApplied) return;
+  try {
+    const r = await fetch('balance.json');
+    applyBalance(await r.json());
+  } catch (e) {
+    console.warn('balance.json 読み込み失敗（config.js デフォルト値を使用）');
+  }
+  _balanceApplied = true;
+}
+
+// ─── GitHub設定 ──────────────────────────────────────────────────────────
+const GH_KEYS = ['gh_pat','gh_owner','gh_repo','gh_branch','gh_path'];
+
+function loadGhSettings() {
+  document.getElementById('ghPat').value    = localStorage.getItem('gh_pat')    || '';
+  document.getElementById('ghOwner').value  = localStorage.getItem('gh_owner')  || '';
+  document.getElementById('ghRepo').value   = localStorage.getItem('gh_repo')   || '';
+  document.getElementById('ghBranch').value = localStorage.getItem('gh_branch') || 'master';
+  document.getElementById('ghPath').value   = localStorage.getItem('gh_path')   || 'docs/sim_log.md';
+}
+
+function saveGhSettings() {
+  localStorage.setItem('gh_pat',    document.getElementById('ghPat').value.trim());
+  localStorage.setItem('gh_owner',  document.getElementById('ghOwner').value.trim());
+  localStorage.setItem('gh_repo',   document.getElementById('ghRepo').value.trim());
+  localStorage.setItem('gh_branch', document.getElementById('ghBranch').value.trim() || 'master');
+  localStorage.setItem('gh_path',   document.getElementById('ghPath').value.trim()   || 'docs/sim_log.md');
+  showSaveStatus('設定を保存しました', 'ok');
+}
+
+function showSaveStatus(msg, type) {
+  const el = document.getElementById('saveStatus');
+  el.textContent = msg;
+  el.className = `save-status ${type}`;
+  el.style.display = 'inline-block';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+// UTF-8文字列 → base64（btoa は ASCII のみのため変換が必要）
+function utf8ToBase64(str) {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p) => String.fromCharCode(parseInt(p, 16))));
+}
+
+// ─── GitHub Contents API ─────────────────────────────────────────────────
+async function githubSave(entries) {
+  const pat    = localStorage.getItem('gh_pat')    || '';
+  const owner  = localStorage.getItem('gh_owner')  || '';
+  const repo   = localStorage.getItem('gh_repo')   || '';
+  const branch = localStorage.getItem('gh_branch') || 'master';
+  const path   = localStorage.getItem('gh_path')   || 'docs/sim_log.md';
+
+  if (!pat || !owner || !repo) return { status: 'skip', reason: 'GitHub設定未入力' };
+
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  const headers = {
+    'Authorization': `Bearer ${pat}`,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+
+  // 既存ファイル取得
+  let currentContent = '';
+  let sha = null;
+  const getRes = await fetch(`${apiUrl}?ref=${branch}`, { headers });
+  if (getRes.ok) {
+    const data = await getRes.json();
+    sha = data.sha;
+    currentContent = decodeURIComponent(
+      atob(data.content.replace(/\n/g, '')).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2,'0')).join('')
+    );
+  } else if (getRes.status !== 404) {
+    const err = await getRes.json().catch(() => ({}));
+    return { status: 'err', reason: `GET失敗 ${getRes.status}: ${err.message ?? ''}` };
+  }
+
+  // 重複フィルタ（dedupKeyが本文に含まれていたらスキップ）
+  const toAdd = entries.filter(e => !currentContent.includes(e.dedupKey));
+  if (toAdd.length === 0) return { status: 'skip', reason: '全エントリ重複のためスキップ' };
+
+  const newContent = currentContent + toAdd.map(e => e.markdown).join('');
+  const putBody = {
+    message: `sim: ${toAdd.map(e => e.title).join(', ')}`,
+    content:  utf8ToBase64(newContent),
+    branch,
+  };
+  if (sha) putBody.sha = sha;
+
+  const putRes = await fetch(apiUrl, {
+    method: 'PUT',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify(putBody),
+  });
+
+  if (!putRes.ok) {
+    const err = await putRes.json().catch(() => ({}));
+    return { status: 'err', reason: `PUT失敗 ${putRes.status}: ${err.message ?? ''}` };
+  }
+
+  return { status: 'ok', count: toAdd.length };
+}
+
+// ─── シミュレート結果 → Markdownエントリ ────────────────────────────────
+function buildEntry(stageName, stageId, patternName, towerText, res) {
+  const date     = new Date().toISOString().slice(0, 10);
+  const towerStr = towerText.trim().replace(/\s+/g, ' ') || '(なし)';
+  // 重複検知キー（同ステージ・同タワー構成・同判定・同HP）
+  const dedupKey = `<!-- dedup:${stageId}|${towerStr}|${res.judgment}|${res.hpPct} -->`;
+  const title    = `${date} ${stageId} ${patternName} ${res.judgment} HP${res.hpPct}%`;
+
+  const markdown =
+    `\n## ${title}\n` +
+    `${dedupKey}\n` +
+    `- ステージ: ${stageName}\n` +
+    `- タワー: \`${towerStr}\`\n` +
+    `- 判定: **${res.judgment}** HP残 ${res.hpPct}%\n\n` +
+    `<details><summary>詳細ログ</summary>\n\n` +
+    `\`\`\`\n${res.log}\n\`\`\`\n\n` +
+    `</details>\n\n---\n`;
+
+  return { dedupKey, markdown, title };
+}
+
+// ─── UIイベント ───────────────────────────────────────────────────────────
+function addPattern() {
+  const n = document.getElementById('patterns').children.length + 1;
+  const row = document.createElement('div');
+  row.className = 'pattern-row';
+  row.innerHTML = `
+    <input type="text" class="pname" value="パターン${n}" style="width:80px">
+    <textarea class="ptowers" rows="2" style="flex:1;width:auto" placeholder="basic:5,3 sniper:8,3 ..."></textarea>
+    <button class="sm red" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById('patterns').appendChild(row);
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'コピー済';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  }).catch(() => {
+    btn.textContent = '失敗';
+    setTimeout(() => { btn.textContent = 'コピー'; }, 1500);
+  });
+}
+
+async function runAll() {
+  await ensureBalance();
+
+  let stage;
+  try   { stage = JSON.parse(document.getElementById('stageJson').value.trim()); }
+  catch (e) { alert('ステージ JSON のパースエラー:\n' + e.message); return; }
+
+  const opts = {
+    escortSpeed: document.getElementById('escortSpeed').value || null,
+    enemySpeed:  document.getElementById('enemySpeed').value  || null,
+  };
+
+  const results = document.getElementById('results');
+  results.innerHTML = '';
+  const sim     = new StageSimulator();
+  const entries = [];
+
+  document.querySelectorAll('#patterns .pattern-row').forEach(row => {
+    const name      = row.querySelector('.pname').value   || 'パターン';
+    const towerText = row.querySelector('.ptowers').value;
+    const towers    = parseTowerPattern(towerText);
+    const res       = sim.run(stage, towers, opts);
+
+    const cls = res.judgment === 'CLEAR' ? 'clear' : 'gameover';
+    const div = document.createElement('div');
+    div.className = 'result';
+
+    const header = document.createElement('div');
+    header.className = 'result-header';
+    header.innerHTML = `<h2>${name} — <span class="${cls}">${res.judgment} HP残 ${res.hpPct}%</span></h2>`;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'sm gray';
+    copyBtn.textContent = 'コピー';
+    copyBtn.onclick = () => copyText(res.log, copyBtn);
+    header.appendChild(copyBtn);
+
+    const pre = document.createElement('pre');
+    pre.textContent = res.log;
+
+    div.appendChild(header);
+    div.appendChild(pre);
+    results.appendChild(div);
+
+    entries.push(buildEntry(
+      stage.name ?? stage.id ?? 'unknown',
+      stage.id   ?? 'unknown',
+      name, towerText, res
+    ));
+  });
+
+  // GitHub自動保存
+  if (entries.length > 0) {
+    showSaveStatus('GitHub に保存中…', 'skip');
+    try {
+      const r = await githubSave(entries);
+      if      (r.status === 'ok')   showSaveStatus(`GitHub 保存完了（${r.count}件追記）`, 'ok');
+      else if (r.status === 'skip') showSaveStatus(`スキップ: ${r.reason}`, 'skip');
+      else                          showSaveStatus(`エラー: ${r.reason}`, 'err');
+    } catch (e) {
+      showSaveStatus(`例外: ${e.message}`, 'err');
+    }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', loadGhSettings);
+</script>
+
+<h1>🧟 Zombie Escort TD — ステージシミュレーター</h1>
+<div class="warn">
+  ⚠️ <b>E-17 注意</b>: タワーは実機より強く出る傾向あり（弾速差・FlowFieldタイミング差）。<br>
+  このツールは「<b>絶対無理な配置を切るフィルター</b>」として使うこと。最終確認は必ず実機で行うこと。
+</div>
+
+<!-- GitHub自動保存設定 -->
+<details class="gh-panel">
+  <summary>▸ GitHub 自動保存設定（クリックで展開）</summary>
+  <div class="inner">
+    <div class="flex" style="margin-bottom:8px">
+      <div class="col">
+        <label>Personal Access Token（repo 権限）</label>
+        <input type="password" id="ghPat" style="width:260px" placeholder="ghp_xxxxxxxxxxxx">
+      </div>
+      <div class="col">
+        <label>Owner</label>
+        <input type="text" id="ghOwner" style="width:110px" placeholder="88tom">
+      </div>
+      <div class="col">
+        <label>Repo</label>
+        <input type="text" id="ghRepo" style="width:180px" placeholder="zombie-escort-td">
+      </div>
+      <div class="col">
+        <label>Branch</label>
+        <input type="text" id="ghBranch" style="width:80px">
+      </div>
+      <div class="col">
+        <label>保存先パス</label>
+        <input type="text" id="ghPath" style="width:180px">
+      </div>
+    </div>
+    <button class="sm green" onclick="saveGhSettings()">設定を保存</button>
+    <span style="font-size:11px;color:#64748b;margin-left:8px">設定は localStorage に保存されます（このブラウザのみ）</span>
+  </div>
+</details>
+
+<div class="flex">
+  <div class="col">
+    <label>ステージ JSON（クリップボードからペースト）</label>
+    <textarea id="stageJson" rows="14" style="width:500px" placeholder="stages/stage_01.json の内容をペースト..."></textarea>
+  </div>
+  <div class="col" style="min-width:300px; flex:1">
+    <label>速度オーバーライド（空欄 = JSON の値を使用）</label>
+    <div class="flex" style="margin-bottom:10px">
+      <div class="col">
+        <label>護衛 speed (px/s)</label>
+        <input type="number" id="escortSpeed" style="width:80px" placeholder="40">
+      </div>
+      <div class="col">
+        <label>全敵 speed (px/s)</label>
+        <input type="number" id="enemySpeed" style="width:80px" placeholder="50">
+      </div>
+    </div>
+
+    <label>タワー配置パターン &nbsp;<code>type:col,row</code>&nbsp; 例: <code>basic:5,3 sniper:8,3</code></label>
+    <div id="patterns">
+      <div class="pattern-row">
+        <input type="text" class="pname" value="良配置" style="width:80px">
+        <textarea class="ptowers" rows="2" style="flex:1;width:auto" placeholder="basic:5,3 sniper:8,3 basic:10,4"></textarea>
+        <button class="sm red" onclick="this.parentElement.remove()">×</button>
+      </div>
+      <div class="pattern-row">
+        <input type="text" class="pname" value="雑配置" style="width:80px">
+        <textarea class="ptowers" rows="2" style="flex:1;width:auto" placeholder="basic:1,1"></textarea>
+        <button class="sm red" onclick="this.parentElement.remove()">×</button>
+      </div>
+    </div>
+    <button class="sm gray" onclick="addPattern()" style="margin-top:6px">＋ パターン追加</button>
+  </div>
+</div>
+
+<div style="display:flex;align-items:center;gap:14px">
+  <button onclick="runAll()">▶ シミュレーション実行</button>
+  <span id="saveStatus" class="save-status" style="display:none"></span>
+</div>
+
+<hr>
+<div id="results"></div>
+</body>
+</html>

@@ -66,7 +66,8 @@ class GameScene extends Phaser.Scene {
     // 外周1マスを自動ブロック（128pxスプライトのはみ出し防止）
     // スポーン・護衛の全経路セルとその隣接セルは例外として通行可にする
     const _perimEx = new Set();
-    for (const sp of (sd.zombieSpawns || [])) {
+    const _spawnCoords = sd.zombieSpawns || (sd.spawns ? Object.values(sd.spawns) : []);
+    for (const sp of _spawnCoords) {
       _perimEx.add(`${sp.col},${sp.row}`);
     }
     for (const esc of (sd.escorts || [])) {
@@ -201,13 +202,21 @@ class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.pan(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2, 600, 'Power2');
 
-    // ウェーブマネージャー
-    this.waveManager = new WaveManager(def.waves, this.stageData.zombieSpawns, this.escort);
-    this.waveManager.setFlowField(this.flowField);
-    this.waveManager.onWaveStart((n, t) => this._setWaveLabel(n, t));
-    this.waveManager.start(timeOffset);
-
-    this._setWaveLabel(1, def.waves.length);
+    // スポーンマネージャー（spawnEvents方式 or 旧waves方式を自動判別）
+    if (this.stageData.spawnEvents) {
+      this.waveManager = new SpawnEventManager(
+        this.stageData.spawns ?? {},
+        this.stageData.spawnEvents
+      );
+      this.waveManager.start(timeOffset);
+      this.waveLabel = '';
+    } else {
+      this.waveManager = new WaveManager(def.waves, this.stageData.zombieSpawns, this.escort);
+      this.waveManager.setFlowField(this.flowField);
+      this.waveManager.onWaveStart((n, t) => this._setWaveLabel(n, t));
+      this.waveManager.start(timeOffset);
+      this._setWaveLabel(1, def.waves.length);
+    }
     this._updateRelayHUD();
     this.relayPhase = 'active';
   }
@@ -294,12 +303,12 @@ class GameScene extends Phaser.Scene {
       this.bullets = this.bullets.filter(b => b.active);
       this.bullets.forEach(b => b.update(dt));
 
-      this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader));
+      this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader), escortTarget);
 
       // スポーンカウントダウン更新（次に湧くスポーン地点だけに表示）
       if (this._spawnCountdownTexts?.length) {
         const warning = this.waveManager.getWarning(this.scaledTime);
-        const spawns  = this.stageData.zombieSpawns || [];
+        const spawns  = this.stageData.zombieSpawns || (this.stageData.spawns ? Object.values(this.stageData.spawns) : []);
         this._spawnCountdownTexts.forEach((txt, i) => {
           const sp = spawns[i];
           if (warning && sp.col === warning.spawn.col && sp.row === warning.spawn.row) {
@@ -467,7 +476,8 @@ class GameScene extends Phaser.Scene {
     const GRAVE_KEYS  = ['decal_RIP墓', 'decal_Z墓'];
     const GRAVE_SIZES = { 'decal_RIP墓': [CELL, CELL], 'decal_Z墓': [CELL, Math.round(CELL * 74 / 64)] };
     this._spawnCountdownTexts = [];
-    for (const [i, sp] of (this.stageData.zombieSpawns || []).entries()) {
+    const _gravSpawns = this.stageData.zombieSpawns || (this.stageData.spawns ? Object.values(this.stageData.spawns) : []);
+    for (const [i, sp] of _gravSpawns.entries()) {
       const cx  = sp.col * CELL + CELL / 2;
       const cy  = sp.row * CELL + CELL / 2;
       const key = GRAVE_KEYS[i % GRAVE_KEYS.length];
@@ -1118,6 +1128,7 @@ class GameScene extends Phaser.Scene {
       speed:             enemyDef.speed  != null ? enemyDef.speed  : base.speed  * (enemyDef.speedMul  ?? 1),
       damage: Math.round(enemyDef.damage != null ? enemyDef.damage : base.damage * (enemyDef.damageMul ?? 1)),
       reward: Math.round(enemyDef.reward != null ? enemyDef.reward : base.reward * (enemyDef.rewardMul ?? 1)),
+      leashTo: enemyDef.leashTo,
     };
     const z = new Zombie(this, col, row, def, waveNum, leader);
     this.spawnCount++;

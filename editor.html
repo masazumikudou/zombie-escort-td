@@ -148,6 +148,7 @@
     <button class="mode-btn"        id="btn-paint"      onclick="setMode('paint')">🎨 地面ペイント</button>
     <button class="mode-btn"        id="btn-decal"      onclick="setMode('decal')">🟦 装飾(decal)配置</button>
     <button class="mode-btn"        id="btn-underlay"   onclick="setMode('underlay')">🔻 アンダーレイ（はみ出し吸収）</button>
+    <button class="mode-btn"        id="btn-encounter"  onclick="setMode('encounter')">⚔ 交戦希望地（導線上のみ）</button>
   </div>
 
   <!-- Y寄り道設定モード時のみ表示 -->
@@ -269,6 +270,7 @@
     <div class="leg-item"><div class="leg-swatch" style="background:#ff6600;opacity:0.5"></div>アンダーレイ</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#00ccff;opacity:0.7"></div>護衛導線</div>
     <div class="leg-item"><div class="leg-swatch" style="background:#ffcc00;opacity:0.7"></div>Y寄り道</div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#ff6600;opacity:0.9"></div>交戦希望地</div>
   </div>
 
   <div class="sep"></div>
@@ -329,8 +331,9 @@
 const CELL = 40;  // エディタ内の表示セルサイズ
 let COLS = 20, ROWS = 15;
 
-let obstacles  = new Set();  // "col,row"
-let buildSpots = new Set();  // "col,row"
+let obstacles      = new Set();  // "col,row"
+let buildSpots     = new Set();  // "col,row"
+let encounterHints = [];         // [{col, row}, ...] 交戦希望地（導線上のみ・ゲームに影響なし）
 let startCell  = null;
 let goalCell   = null;
 let spawns     = [];
@@ -758,6 +761,26 @@ function handleCell(col, row, isDown) {
       spawns.splice(idx, 1);
     } else {
       spawns.push({ col, row });
+    }
+
+  } else if (mode === 'encounter' && isDown) {
+    // 導線上のセルのみ許可
+    const onPath = escortPath.some(p => p.col === col && p.row === row);
+    if (!onPath) return;
+    const idx = encounterHints.findIndex(e => e.col === col && e.row === row);
+    if (idx >= 0) {
+      // 既存：クリックでメモ編集、Cancelで削除
+      const cur  = encounterHints[idx].note ?? '';
+      const note = prompt(`交戦地 ${idx + 1} のメモを編集（Cancelで削除）:`, cur);
+      if (note === null) {
+        encounterHints.splice(idx, 1);
+      } else {
+        encounterHints[idx].note = note;
+      }
+    } else {
+      const note = prompt(`交戦地 ${encounterHints.length + 1} のメモを入力（例: salaryman第1波 t=18s）:`, '');
+      if (note === null) return;  // Cancelは配置しない
+      encounterHints.push({ col, row, note });
     }
 
   } else if (mode === 'prop' && isDown) {
@@ -1294,6 +1317,35 @@ function redraw() {
     ctx.strokeRect(sp.col * CELL + 2, sp.row * CELL + 2, CELL - 4, CELL - 4);
   }
 
+  // 交戦希望地（オレンジ×マーカー、番号＋メモ付き）
+  for (let i = 0; i < encounterHints.length; i++) {
+    const {col: ec, row: er, note} = encounterHints[i];
+    const cx = ec * CELL + CELL / 2, cy = er * CELL + CELL / 2;
+    const r  = CELL * 0.32;
+    ctx.save();
+    ctx.strokeStyle = '#ff8800';
+    ctx.lineWidth   = 2.5;
+    ctx.beginPath(); ctx.moveTo(cx - r, cy - r); ctx.lineTo(cx + r, cy + r); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + r, cy - r); ctx.lineTo(cx - r, cy + r); ctx.stroke();
+    ctx.fillStyle = '#ff8800';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`⚔${i + 1}`, cx + r + 2, cy - r + 2);
+    if (note) {
+      ctx.font = '9px Arial';
+      ctx.fillStyle = 'rgba(255,200,100,0.95)';
+      ctx.fillText(note, cx - r, cy + r + 11);
+    }
+    ctx.restore();
+  }
+
+  // 交戦希望地モード：ホバーハイライト（導線上のみ）
+  if (mode === 'encounter' && hoverCell && hoverCell.col >= 0 && hoverCell.col < COLS && hoverCell.row >= 0 && hoverCell.row < ROWS) {
+    const onPath = escortPath.some(p => p.col === hoverCell.col && p.row === hoverCell.row);
+    ctx.fillStyle = onPath ? 'rgba(255,136,0,0.35)' : 'rgba(80,80,80,0.15)';
+    ctx.fillRect(hoverCell.col * CELL, hoverCell.row * CELL, CELL, CELL);
+  }
+
   // 遮蔽物
   for (const k of obstacles) {
     const [c, r] = k.split(',').map(Number);
@@ -1620,6 +1672,7 @@ function buildJSON() {
     obstacles:    obsArr,
     zombieSpawns: spawns.map(s => ({ ...s })),
     buildSpots:   bsArr,
+    ...(encounterHints.length > 0 ? { encounterHints: encounterHints.map(e => ({ col: e.col, row: e.row, ...(e.note ? { note: e.note } : {}) })) } : {}),
   };
 
   const roadsArr = buildRoadsArray();
@@ -1711,6 +1764,9 @@ function applyJSON(obj) {
 
   spawns = [];
   for (const s of (obj.zombieSpawns ?? [])) spawns.push({ ...s });
+
+  encounterHints = [];
+  for (const e of (obj.encounterHints ?? [])) encounterHints.push({ col: e.col, row: e.row, note: e.note ?? '' });
 
   const escs = obj.escorts ?? [];
   const s = escs[0]?.start;
@@ -1876,7 +1932,8 @@ function clearAll() {
   cellGrounds.clear();
   decals = [];
   underlayCells.clear();
-  spawns = [];
+  spawns         = [];
+  encounterHints = [];
   escortPath      = [];
   detourBranchIdx = -1;
   detourPath      = [];

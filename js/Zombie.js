@@ -36,6 +36,13 @@ class Zombie {
     this._lastTrailCol = spawnCol;
     this._lastTrailRow = spawnRow;
     this._trailIdx     = 0;
+    this.leashTarget   = def.leashTo ?? null;  // {col,row} 到達後護衛まで待機
+    this._leashWaiting = false;
+    this._leashWaitMs  = 0;
+    // 隊列（フォーメーション）
+    this._formation  = null;   // FormationGroup 参照（null = 非隊列 or 解除済み）
+    this._fmIdx      = 0;      // 隊列内インデックス（0 = 先頭）
+    this._fmReleased = false;  // FormationGroup による解除済みフラグ
   }
 
   get col() { return Math.floor(this.x / CELL); }
@@ -74,6 +81,77 @@ class Zombie {
       this.leader = null;
       if (this.cellTrail === null) this.cellTrail = [];  // フォロワー→リーダー昇格時に初期化
     }
+
+    // ─── 隊列フォロワー（先頭以外・未解除）────────────────────────────────
+    if (this._formation && this._fmIdx > 0) {
+      const prev = this._formation.members[this._fmIdx - 1];
+      if (!prev || !prev.alive) return;  // 前が死亡 → 次tickで繰り上がり反映
+
+      if (this._leashWaiting) {
+        // 整列着座中: アニメ停止して待機
+        this._animTime = 0; this._animFrame = 1;
+        return;
+      }
+
+      const moved = FormationGroup.followerMove(this, prev, dt);
+      if (!moved && prev._leashWaiting) {
+        // pitch以内かつ前も着座 → 自分も整列着座
+        this._leashWaiting = true;
+        this._leashWaitMs  = 0;
+      }
+      return;
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
+    // ─── leashTo: 指定座標へ向かい、護衛が近接するまで待機 ──────────────
+    if (this.leashTarget) {
+      // リーダーのみ移動トレイルを記録（leash中も継続）
+      if (this.leader === null) {
+        if (this.col !== this._lastTrailCol || this.row !== this._lastTrailRow) {
+          this._lastTrailCol = this.col;
+          this._lastTrailRow = this.row;
+          this.cellTrail.push(cellCenter(this.col, this.row));
+        }
+      }
+      if (this._leashWaiting) {
+        // 待機中：アニメ停止
+        this._animTime = 0; this._animFrame = 1;
+        this._leashWaitMs += dt;
+        // 隊列先頭は FormationGroup.tick() が解除を管理（タイムアウトのみ個別処理）
+        if (this._formation) {
+          if (this._leashWaitMs > 15000) {
+            this.leashTarget   = null;
+            this._leashWaiting = false;
+            this._formation    = null;
+          }
+          return;
+        }
+        // 非隊列: 護衛 CELL*1.5 以内 or タイムアウトで解除
+        if (distToEscort < CELL * 1.5 || this._leashWaitMs > 15000) {
+          this.leashTarget   = null;
+          this._leashWaiting = false;
+          // leash後はリーダートレイルをスキップしてFlowFieldへ直接移行
+          if (this.leader !== null && this.leader.cellTrail) {
+            this._trailIdx = this.leader.cellTrail.length;
+          }
+        }
+        return;
+      }
+      // leashTo セルに到達したか判定
+      if (this.col === this.leashTarget.col && this.row === this.leashTarget.row) {
+        this._leashWaiting = true;
+        this._leashWaitMs  = 0;
+        return;
+      }
+      // leashTo へ直線ウェイポイントで移動（設計側が障害物なしを保証）
+      if (this.wpIdx >= this.path.length) {
+        this.path  = [cellCenter(this.leashTarget.col, this.leashTarget.row)];
+        this.wpIdx = 0;
+      }
+      this._advancePath(dt);
+      return;
+    }
+    // ───────────────────────────────────────────────────────────────────
 
     if (this.leader !== null) {
       // フォロワー：リーダーの実際に歩いたトレイルを追う
