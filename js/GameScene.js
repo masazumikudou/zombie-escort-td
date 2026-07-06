@@ -386,8 +386,16 @@ class GameScene extends Phaser.Scene {
     for (const cell of cellGrounds) {
       const ck = `ground_${cell.type}`;
       if (this.textures.exists(ck)) {
-        this.add.image(cell.col * CELL + CELL / 2, cell.row * CELL + CELL / 2, ck)
+        const img = this.add.image(cell.col * CELL + CELL / 2, cell.row * CELL + CELL / 2, ck)
           .setDisplaySize(CELL, CELL).setDepth(-2);
+        // blockCells > 1 の場合、セル位置に応じて画像をクロップ（2×2タイルなど）
+        const bdef = GROUND_BLOCK_DEFS[cell.type];
+        if (bdef && bdef.blockCells > 1) {
+          const pxPer = bdef.imagePx / bdef.blockCells;
+          const sx = (cell.col % bdef.blockCells) * pxPer;
+          const sy = (cell.row % bdef.blockCells) * pxPer;
+          img.setCrop(sx, sy, pxPer, pxPer);
+        }
       } else {
         if (!byType[cell.type]) byType[cell.type] = [];
         byType[cell.type].push(cell);

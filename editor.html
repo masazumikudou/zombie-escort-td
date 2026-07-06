@@ -184,6 +184,9 @@
       <button class="sub-btn"        id="paint-btn-道路縦"       onclick="selectPaintType('道路縦')">🛣 縦道路</button>
       <button class="sub-btn"        id="paint-btn-道路横"       onclick="selectPaintType('道路横')">🛣 横道路</button>
       <button class="sub-btn"        id="paint-btn-road_vertical" onclick="selectPaintType('road_vertical')">🛤 縦縁石</button>
+      <button class="sub-btn"        id="paint-btn-道横ノーマル"   onclick="selectPaintType('道横ノーマル')">🛣 横2×2</button>
+      <button class="sub-btn"        id="paint-btn-道縦ノーマル"   onclick="selectPaintType('道縦ノーマル')">🛣 縦2×2</button>
+      <button class="sub-btn"        id="paint-btn-道縦マンホール" onclick="selectPaintType('道縦マンホール')">🕳 縦MH</button>
     </div>
     <div style="font-size:10px;color:#557;margin-top:4px">ドラッグで範囲を塗る<br>ベースと同色＝上書き削除</div>
   </div>
@@ -366,9 +369,12 @@ const GROUND_COLORS = {
   grass:      '#2d6b2a',
   dirt:       '#7a5a2a',
   asphalt:    '#3a3a3a',
-  道路縦:     '#888888',
-  道路横:     '#777777',
+  道路縦:       '#888888',
+  道路横:       '#777777',
   road_vertical: '#777777',
+  道横ノーマル:   '#999999',
+  道縦ノーマル:   '#999999',
+  道縦マンホール: '#999999',
 };
 function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
 
@@ -377,11 +383,14 @@ function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
 // imagePx / blockCells = 画像上での1セルあたりのpx数（端ブロックのクロップ計算に使用）。
 // エディタ表示はCELL=40、ゲームはCELL=64で異なるためdrawImageの9引数形式でスケーリング。
 const GROUND_BLOCK_DEFS = {
-  grass:        { blockCells: 4, imagePx: 256 },
-  asphalt:      { blockCells: 4, imagePx: 256 },
-  道路縦:       { blockCells: 1, imagePx: 256 },
-  道路横:       { blockCells: 1, imagePx: 592 }, // 横道路（縁石付き）
-  road_vertical:{ blockCells: 1, imagePx: 591 }, // 縦道路（縁石付き）
+  grass:          { blockCells: 4, imagePx: 256 },
+  asphalt:        { blockCells: 4, imagePx: 256 },
+  道路縦:         { blockCells: 1, imagePx: 256 },
+  道路横:         { blockCells: 1, imagePx: 592 }, // 横道路（縁石付き）
+  road_vertical:  { blockCells: 1, imagePx: 591 }, // 縦道路（縁石付き）
+  道横ノーマル:   { blockCells: 2, imagePx: 256 }, // 横2×2（縁石付き・256px）
+  道縦ノーマル:   { blockCells: 2, imagePx: 256 }, // 縦2×2（縁石付き・256px）
+  道縦マンホール: { blockCells: 2, imagePx: 256 }, // 縦2×2＋マンホール
 };
 
 const groundImgs = {};
@@ -466,7 +475,7 @@ function selectPaintType(type) {
 let underlayCells  = new Map(); // "col,row" → type
 let underlayType   = 'road';
 
-const UNDERLAY_COLORS = { road: '#ff6600', grass: '#44aa44', dirt: '#aa7733', asphalt: '#666666', 道路縦: '#888888', 道路横: '#777777', road_vertical: '#777777' };
+const UNDERLAY_COLORS = { road: '#ff6600', grass: '#44aa44', dirt: '#aa7733', asphalt: '#666666', 道路縦: '#888888', 道路横: '#777777', road_vertical: '#777777', 道横ノーマル: '#999999', 道縦ノーマル: '#999999', 道縦マンホール: '#999999' };
 function underlayColor(type) { return UNDERLAY_COLORS[type] || '#ff6600'; }
 
 function selectUnderlayType(type) {

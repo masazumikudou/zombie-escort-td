@@ -1,3 +1,16 @@
+// ─── 地面ブロック定義（editor.html の GROUND_BLOCK_DEFS と手動同期すること）
+// blockCells: 1タイルが占めるセル数（正方形）。imagePx: 元画像の一辺px。
+const GROUND_BLOCK_DEFS = {
+  grass:          { blockCells: 4, imagePx: 256 },
+  asphalt:        { blockCells: 4, imagePx: 256 },
+  道路縦:         { blockCells: 1, imagePx: 256 },
+  道路横:         { blockCells: 1, imagePx: 592 },
+  road_vertical:  { blockCells: 1, imagePx: 591 },
+  道横ノーマル:   { blockCells: 2, imagePx: 256 },
+  道縦ノーマル:   { blockCells: 2, imagePx: 256 },
+  道縦マンホール: { blockCells: 2, imagePx: 256 },
+};
+
 // ─── グリッド ───────────────────────────────────────────────
 const CELL    = 100;  // 1マスのピクセルサイズ
 const MAX_ZOMBIES = 120; // 同時存在ゾンビ数の安全上限（クラッシュ防止用、難易度調整ではない）
