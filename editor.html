@@ -1715,8 +1715,8 @@ function applyJSON(obj) {
   if (obj.grid) {
     COLS = obj.grid.cols ?? COLS;
     ROWS = obj.grid.rows ?? ROWS;
-    document.getElementById('cols-input').value = COLS;
-    document.getElementById('rows-input').value = ROWS;
+    document.getElementById('cols').value = COLS;
+    document.getElementById('rows').value = ROWS;
   }
 
   if (obj.ground_base) {
