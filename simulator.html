@@ -436,14 +436,17 @@ async function runAll() {
 
   const results = document.getElementById('results');
   results.innerHTML = '';
-  const sim     = new StageSimulator();
-  const entries = [];
+  const sim      = new StageSimulator();
+  const entries  = [];
+  const allLogs  = [];
 
   document.querySelectorAll('#patterns .pattern-row').forEach(row => {
     const name      = row.querySelector('.pname').value   || 'パターン';
     const towerText = row.querySelector('.ptowers').value;
     const towers    = parseTowerPattern(towerText);
     const res       = sim.run(stage, towers, opts);
+
+    allLogs.push(`=== ${name} [${res.judgment} HP残${res.hpPct}%] ===\n${res.log}`);
 
     const cls = res.judgment === 'CLEAR' ? 'clear' : 'gameover';
     const div = document.createElement('div');
@@ -473,6 +476,9 @@ async function runAll() {
     ));
   });
 
+  window._lastAllLogs = allLogs;
+  document.getElementById('copyAllBtn').style.display = allLogs.length > 1 ? '' : 'none';
+
   // GitHub自動保存
   if (entries.length > 0) {
     showSaveStatus('GitHub に保存中…', 'skip');
@@ -485,6 +491,29 @@ async function runAll() {
       showSaveStatus(`例外: ${e.message}`, 'err');
     }
   }
+}
+
+function copyAllResults() {
+  const logs = window._lastAllLogs ?? [];
+  if (!logs.length) return;
+  const text = logs.join('\n\n' + '─'.repeat(60) + '\n\n');
+  const btn = document.getElementById('copyAllBtn');
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'コピー済';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  }).catch(() => {
+    btn.textContent = '失敗';
+    setTimeout(() => { btn.textContent = '📋 全パターン一括コピー'; }, 1500);
+  });
+}
+
+function openInEditor() {
+  const raw = document.getElementById('stageJson').value.trim();
+  if (!raw) { alert('ステージ JSON を入力してください'); return; }
+  try { JSON.parse(raw); } catch(e) { alert('JSON パースエラー:\n' + e.message); return; }
+  localStorage.setItem('editorIncoming', raw);
+  window.open('editor.html', '_blank');
 }
 
 window.addEventListener('DOMContentLoaded', loadGhSettings);
@@ -531,6 +560,7 @@ window.addEventListener('DOMContentLoaded', loadGhSettings);
   <div class="col">
     <label>ステージ JSON（クリップボードからペースト）</label>
     <textarea id="stageJson" rows="14" style="width:500px" placeholder="stages/stage_01.json の内容をペースト..."></textarea>
+    <button class="sm green" style="margin-top:6px;width:500px" onclick="openInEditor()">🗺 エディターで開く</button>
   </div>
   <div class="col" style="min-width:300px; flex:1">
     <label>速度オーバーライド（空欄 = JSON の値を使用）</label>
@@ -564,6 +594,7 @@ window.addEventListener('DOMContentLoaded', loadGhSettings);
 
 <div style="display:flex;align-items:center;gap:14px">
   <button onclick="runAll()">▶ シミュレーション実行</button>
+  <button class="gray" id="copyAllBtn" onclick="copyAllResults()" style="display:none">📋 全パターン一括コピー</button>
   <span id="saveStatus" class="save-status" style="display:none"></span>
 </div>
 

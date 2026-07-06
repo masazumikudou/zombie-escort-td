@@ -1,0 +1,72 @@
+{
+  "id": "stage_01_meander",
+  "name": "つづら折り・最重要基準ステージ",
+  "_comment": "2026-07-05確立。1交戦地1体・向き合い型・護衛hp100固定。良100%/並90%/捨て死の3段勾配が検証済み。前半4交戦地のみ実装済み。交戦地(6,2)と最終ストレート(row21逃げ切り)は隊列システム実装後に追従型で追加予定。",
+  "grid": { "cols": 25, "rows": 25 },
+  "ground_base": "grass",
+  "startMoney": 500,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "startTrigger": "immediate",
+      "start": { "col": 0, "row": 2 },
+      "goal": { "col": 24, "row": 21 },
+      "hp": 100,
+      "speed": 40,
+      "path": [
+        { "col": 0, "row": 2 }, { "col": 1, "row": 2 }, { "col": 2, "row": 2 }, { "col": 3, "row": 2 },
+        { "col": 4, "row": 2 }, { "col": 5, "row": 2 }, { "col": 6, "row": 2 }, { "col": 7, "row": 2 },
+        { "col": 8, "row": 2 }, { "col": 9, "row": 2 },
+        { "col": 9, "row": 3 }, { "col": 9, "row": 4 }, { "col": 9, "row": 5 }, { "col": 9, "row": 6 },
+        { "col": 9, "row": 7 }, { "col": 9, "row": 8 }, { "col": 9, "row": 9 },
+        { "col": 10, "row": 9 }, { "col": 11, "row": 9 }, { "col": 12, "row": 9 }, { "col": 13, "row": 9 },
+        { "col": 14, "row": 9 }, { "col": 15, "row": 9 }, { "col": 16, "row": 9 }, { "col": 17, "row": 9 },
+        { "col": 17, "row": 10 }, { "col": 17, "row": 11 }, { "col": 17, "row": 12 }, { "col": 17, "row": 13 },
+        { "col": 17, "row": 14 }, { "col": 17, "row": 15 },
+        { "col": 16, "row": 15 }, { "col": 15, "row": 15 }, { "col": 14, "row": 15 }, { "col": 13, "row": 15 },
+        { "col": 12, "row": 15 }, { "col": 11, "row": 15 }, { "col": 10, "row": 15 }, { "col": 9, "row": 15 },
+        { "col": 8, "row": 15 }, { "col": 7, "row": 15 }, { "col": 6, "row": 15 }, { "col": 5, "row": 15 },
+        { "col": 4, "row": 15 },
+        { "col": 4, "row": 16 }, { "col": 4, "row": 17 }, { "col": 4, "row": 18 }, { "col": 4, "row": 19 },
+        { "col": 4, "row": 20 }, { "col": 4, "row": 21 },
+        { "col": 5, "row": 21 }, { "col": 6, "row": 21 }, { "col": 7, "row": 21 }, { "col": 8, "row": 21 },
+        { "col": 9, "row": 21 }, { "col": 10, "row": 21 }, { "col": 11, "row": 21 }, { "col": 12, "row": 21 },
+        { "col": 13, "row": 21 }, { "col": 14, "row": 21 }, { "col": 15, "row": 21 }, { "col": 16, "row": 21 },
+        { "col": 17, "row": 21 }, { "col": 18, "row": 21 }, { "col": 19, "row": 21 }, { "col": 20, "row": 21 },
+        { "col": 21, "row": 21 }, { "col": 22, "row": 21 }, { "col": 23, "row": 21 }, { "col": 24, "row": 21 }
+      ]
+    }
+  ],
+  "spawns": {
+    "S1": { "col": 9,  "row": 13 },
+    "S2": { "col": 15, "row": 3  },
+    "S3": { "col": 23, "row": 13 },
+    "S4": { "col": 7,  "row": 21 }
+  },
+  "spawnEvents": [
+    { "time": 12.5, "spawn": "S1", "enemy": "salaryman", "count": 1, "interval": 450, "speed": 30, "hp": 150, "leashTo": { "col": 9,  "row": 7  } },
+    { "time": 30.0, "spawn": "S2", "enemy": "salaryman", "count": 1, "interval": 450, "speed": 30, "hp": 150, "leashTo": { "col": 15, "row": 9  } },
+    { "time": 45.0, "spawn": "S3", "enemy": "salaryman", "count": 1, "interval": 450, "speed": 30, "hp": 150, "leashTo": { "col": 17, "row": 13 } },
+    { "time": 75.0, "spawn": "S4", "enemy": "salaryman", "count": 1, "interval": 450, "speed": 30, "hp": 150, "leashTo": { "col": 7,  "row": 15 } }
+  ],
+  "encounterHints": [
+    { "col": 9,  "row": 7,  "note": "交戦地1（下降1）護衛到達t=37.5s" },
+    { "col": 15, "row": 9,  "note": "交戦地2（東進中腹・一等地）護衛到達t=55.0s" },
+    { "col": 17, "row": 13, "note": "交戦地3（下降2）護衛到達t=70.0s" },
+    { "col": 7,  "row": 15, "note": "交戦地4（西進・一等地）護衛到達t=100.0s" }
+  ],
+  "obstacles": [],
+  "zombieSpawns": [],
+  "buildSpots": [
+    { "col": 8,  "row": 6 }, { "col": 10, "row": 6 }, { "col": 8,  "row": 8 }, { "col": 10, "row": 8 },
+    { "col": 14, "row": 8 }, { "col": 16, "row": 8 }, { "col": 14, "row": 10 }, { "col": 16, "row": 10 },
+    { "col": 13, "row": 12 }, { "col": 15, "row": 12 },
+    { "col": 16, "row": 12 }, { "col": 18, "row": 12 }, { "col": 16, "row": 14 }, { "col": 18, "row": 14 },
+    { "col": 6,  "row": 14 }, { "col": 8,  "row": 14 }, { "col": 6,  "row": 16 }, { "col": 8,  "row": 16 },
+    { "col": 12, "row": 13 }, { "col": 13, "row": 10 }, { "col": 11, "row": 11 }, { "col": 20, "row": 20 }
+  ],
+  "ground_cells": [],
+  "props": [],
+  "decals": []
+}

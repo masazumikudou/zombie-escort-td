@@ -6,7 +6,7 @@ const PhaserConfig = {
   height:     window.innerHeight,
   backgroundColor: '#1e2840',
   parent:     'game-container',
-  scene:      [BootScene, GameScene, UIScene],
+  scene:      [StageSelectScene, BootScene, GameScene, UIScene],
   resolution: window.devicePixelRatio || 1,  // HiDPI対応：フォントを鮮明に
   scale: {
     mode:       Phaser.Scale.RESIZE,

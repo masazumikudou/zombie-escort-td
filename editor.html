@@ -2196,7 +2196,20 @@ function buildWaveTabs() {
 buildPropTypeButtons();
 buildDecalTypeButtons();
 buildWaveTabs();
-loadIndex().then(() => restoreAutoSave());
+loadIndex().then(() => {
+  const incoming = localStorage.getItem('editorIncoming');
+  if (incoming) {
+    localStorage.removeItem('editorIncoming');
+    try {
+      applyJSON(JSON.parse(incoming));
+      setStageStatus('✓ シミュレーターから受け取りました');
+    } catch(e) {
+      setStageStatus('⚠ シミュレーターからのJSONパースエラー');
+    }
+  } else {
+    restoreAutoSave();
+  }
+});
 </script>
 </body>
 </html>

@@ -1265,6 +1265,17 @@ class GameScene extends Phaser.Scene {
       padding: { x: 16, y: 8 }, fontFamily: 'Arial, Helvetica, sans-serif',
     }).setScrollFactor(0).setDepth(80).setOrigin(0.5).setInteractive();
     btn.on('pointerdown', () => this.scene.restart());
+
+    const btnSelect = this.add.text(cx, cy + 136, '[ ステージ選択へ ]', {
+      fontSize: '18px', color: '#aaccff', backgroundColor: '#1a2a3a',
+      padding: { x: 16, y: 8 }, fontFamily: 'Arial, Helvetica, sans-serif',
+    }).setScrollFactor(0).setDepth(80).setOrigin(0.5).setInteractive();
+    btnSelect.on('pointerover',  () => btnSelect.setStyle({ color: '#ffffff' }));
+    btnSelect.on('pointerout',   () => btnSelect.setStyle({ color: '#aaccff' }));
+    btnSelect.on('pointerdown',  () => {
+      this.scene.stop('UIScene');
+      this.scene.start('StageSelectScene');
+    });
   }
 
   // ─── カメラ操作 ──────────────────────────────────────────
