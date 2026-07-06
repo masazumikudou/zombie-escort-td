@@ -3,12 +3,12 @@
 const GROUND_BLOCK_DEFS = {
   grass:          { blockCells: 4, imagePx: 256 },
   asphalt:        { blockCells: 4, imagePx: 256 },
-  道路縦:         { blockCells: 1, imagePx: 256 },
-  道路横:         { blockCells: 1, imagePx: 592 },
-  road_vertical:  { blockCells: 1, imagePx: 591 },
-  道横ノーマル:   { blockCells: 2, imagePx: 256 },
-  道縦ノーマル:   { blockCells: 2, imagePx: 256 },
-  道縦マンホール: { blockCells: 2, imagePx: 256 },
+  道路縦:             { blockCells: 1, imagePx: 256  },
+  道路横:             { blockCells: 1, imagePx: 592  },
+  road_vertical:      { blockCells: 1, imagePx: 591  },
+  '道縦ノーマル (2)': { blockCells: 2, imagePx: 400  },
+  '道縦マンホール (2)':{ blockCells: 2, imagePx: 400  },
+  '道横':             { blockCells: 2, imagePx: 1060 },
 };
 
 // ─── グリッド ───────────────────────────────────────────────

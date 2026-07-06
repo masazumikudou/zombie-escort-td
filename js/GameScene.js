@@ -386,15 +386,20 @@ class GameScene extends Phaser.Scene {
     for (const cell of cellGrounds) {
       const ck = `ground_${cell.type}`;
       if (this.textures.exists(ck)) {
-        const img = this.add.image(cell.col * CELL + CELL / 2, cell.row * CELL + CELL / 2, ck)
-          .setDisplaySize(CELL, CELL).setDepth(-2);
-        // blockCells > 1 の場合、セル位置に応じて画像をクロップ（2×2タイルなど）
         const bdef = GROUND_BLOCK_DEFS[cell.type];
         if (bdef && bdef.blockCells > 1) {
-          const pxPer = bdef.imagePx / bdef.blockCells;
-          const sx = (cell.col % bdef.blockCells) * pxPer;
-          const sy = (cell.row % bdef.blockCells) * pxPer;
-          img.setCrop(sx, sy, pxPer, pxPer);
+          // 偶数グリッドにスナップ済みなのでmodulo判定で原点検出
+          const bc = bdef.blockCells;
+          if (cell.col % bc === 0 && cell.row % bc === 0) {
+            const size = bc * CELL;
+            this.add.image(cell.col * CELL, cell.row * CELL, ck)
+              .setOrigin(0, 0)
+              .setDisplaySize(size, size)
+              .setDepth(-2);
+          }
+        } else {
+          this.add.image(cell.col * CELL + CELL / 2, cell.row * CELL + CELL / 2, ck)
+            .setDisplaySize(CELL, CELL).setDepth(-2);
         }
       } else {
         if (!byType[cell.type]) byType[cell.type] = [];

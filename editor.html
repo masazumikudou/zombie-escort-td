@@ -184,9 +184,9 @@
       <button class="sub-btn"        id="paint-btn-道路縦"       onclick="selectPaintType('道路縦')">🛣 縦道路</button>
       <button class="sub-btn"        id="paint-btn-道路横"       onclick="selectPaintType('道路横')">🛣 横道路</button>
       <button class="sub-btn"        id="paint-btn-road_vertical" onclick="selectPaintType('road_vertical')">🛤 縦縁石</button>
-      <button class="sub-btn"        id="paint-btn-道横ノーマル"   onclick="selectPaintType('道横ノーマル')">🛣 横2×2</button>
-      <button class="sub-btn"        id="paint-btn-道縦ノーマル"   onclick="selectPaintType('道縦ノーマル')">🛣 縦2×2</button>
-      <button class="sub-btn"        id="paint-btn-道縦マンホール" onclick="selectPaintType('道縦マンホール')">🕳 縦MH</button>
+      <button class="sub-btn"        id="paint-btn-道縦ノーマル" onclick="selectPaintType('道縦ノーマル (2)')">🛣 縦2×2</button>
+      <button class="sub-btn"        id="paint-btn-道縦マンホール" onclick="selectPaintType('道縦マンホール (2)')">🕳 縦MH</button>
+      <button class="sub-btn"        id="paint-btn-道横" onclick="selectPaintType('道横')">🛣 横2×2</button>
     </div>
     <div style="font-size:10px;color:#557;margin-top:4px">ドラッグで範囲を塗る<br>ベースと同色＝上書き削除</div>
   </div>
@@ -372,9 +372,9 @@ const GROUND_COLORS = {
   道路縦:       '#888888',
   道路横:       '#777777',
   road_vertical: '#777777',
-  道横ノーマル:   '#999999',
-  道縦ノーマル:   '#999999',
-  道縦マンホール: '#999999',
+  '道縦ノーマル (2)':  '#888888',
+  '道縦マンホール (2)':'#888888',
+  '道横':              '#888888',
 };
 function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
 
@@ -385,12 +385,12 @@ function groundColor() { return GROUND_COLORS[groundBase] ?? '#1a1a2e'; }
 const GROUND_BLOCK_DEFS = {
   grass:          { blockCells: 4, imagePx: 256 },
   asphalt:        { blockCells: 4, imagePx: 256 },
-  道路縦:         { blockCells: 1, imagePx: 256 },
-  道路横:         { blockCells: 1, imagePx: 592 }, // 横道路（縁石付き）
-  road_vertical:  { blockCells: 1, imagePx: 591 }, // 縦道路（縁石付き）
-  道横ノーマル:   { blockCells: 2, imagePx: 256 }, // 横2×2（縁石付き・256px）
-  道縦ノーマル:   { blockCells: 2, imagePx: 256 }, // 縦2×2（縁石付き・256px）
-  道縦マンホール: { blockCells: 2, imagePx: 256 }, // 縦2×2＋マンホール
+  道路縦:              { blockCells: 1, imagePx: 256  },
+  道路横:              { blockCells: 1, imagePx: 592  },
+  road_vertical:       { blockCells: 1, imagePx: 591  },
+  '道縦ノーマル (2)':  { blockCells: 2, imagePx: 400  },
+  '道縦マンホール (2)':{ blockCells: 2, imagePx: 400  },
+  '道横':              { blockCells: 2, imagePx: 1060 },
 };
 
 const groundImgs = {};
@@ -475,7 +475,7 @@ function selectPaintType(type) {
 let underlayCells  = new Map(); // "col,row" → type
 let underlayType   = 'road';
 
-const UNDERLAY_COLORS = { road: '#ff6600', grass: '#44aa44', dirt: '#aa7733', asphalt: '#666666', 道路縦: '#888888', 道路横: '#777777', road_vertical: '#777777', 道横ノーマル: '#999999', 道縦ノーマル: '#999999', 道縦マンホール: '#999999' };
+const UNDERLAY_COLORS = { road: '#ff6600', grass: '#44aa44', dirt: '#aa7733', asphalt: '#666666', 道路縦: '#888888', 道路横: '#777777', road_vertical: '#777777', '道縦ノーマル (2)': '#888888', '道縦マンホール (2)': '#888888', '道横': '#888888' };
 function underlayColor(type) { return UNDERLAY_COLORS[type] || '#ff6600'; }
 
 function selectUnderlayType(type) {
@@ -1011,12 +1011,14 @@ function applyPaint() {
   let maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
   let minRow = Math.min(paintDragStart.row, paintDragEnd.row);
   let maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
-  // ブロックテクスチャ型かつシングルクリック：左上起点でbc×bcブロック、マップ端クリップ
+  // blockCells>1 のタイプ：偶数グリッドにスナップしてbc×bcブロック単位で塗る
   const def = GROUND_BLOCK_DEFS[paintType];
-  if (def && minCol === maxCol && minRow === maxRow) {
+  if (def && def.blockCells > 1) {
     const bc = def.blockCells;
-    maxCol = Math.min(minCol + bc - 1, COLS - 1);
-    maxRow = Math.min(minRow + bc - 1, ROWS - 1);
+    minCol = Math.floor(minCol / bc) * bc;
+    minRow = Math.floor(minRow / bc) * bc;
+    maxCol = Math.min((Math.floor(maxCol / bc) + 1) * bc - 1, COLS - 1);
+    maxRow = Math.min((Math.floor(maxRow / bc) + 1) * bc - 1, ROWS - 1);
   }
   for (let col = minCol; col <= maxCol; col++) {
     for (let row = minRow; row <= maxRow; row++) {
@@ -1115,10 +1117,19 @@ function redraw() {
     const def = GROUND_BLOCK_DEFS[type];
     const img = def ? groundImgs[type] : null;
     if (img && img.complete && img.naturalWidth > 0) {
-      const pxPerCell = def.imagePx / def.blockCells;
-      const srcX = (c % def.blockCells) * pxPerCell;
-      const srcY = (r % def.blockCells) * pxPerCell;
-      ctx.drawImage(img, srcX, srcY, pxPerCell, pxPerCell, c * CELL, r * CELL, CELL, CELL);
+      if (def.blockCells > 1) {
+        // 偶数グリッドにスナップ済みなのでmodulo判定で原点検出
+        const bc = def.blockCells;
+        if (c % bc === 0 && r % bc === 0) {
+          const size = bc * CELL;
+          ctx.drawImage(img, 0, 0, def.imagePx, def.imagePx, c * CELL, r * CELL, size, size);
+        }
+      } else {
+        const pxPerCell = def.imagePx / def.blockCells;
+        const srcX = (c % def.blockCells) * pxPerCell;
+        const srcY = (r % def.blockCells) * pxPerCell;
+        ctx.drawImage(img, srcX, srcY, pxPerCell, pxPerCell, c * CELL, r * CELL, CELL, CELL);
+      }
     } else {
       ctx.fillStyle = GROUND_COLORS[type] ?? '#1a1a2e';
       ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
