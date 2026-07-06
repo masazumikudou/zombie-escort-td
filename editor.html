@@ -334,6 +334,8 @@ let COLS = 20, ROWS = 15;
 let obstacles      = new Set();  // "col,row"
 let buildSpots     = new Set();  // "col,row"
 let encounterHints = [];         // [{col, row}, ...] 交戦希望地（導線上のみ・ゲームに影響なし）
+let _passthruSpawns      = null; // 新フォーマット: spawns辞書をそのまま保持して書き出す
+let _passthruSpawnEvents = null; // 新フォーマット: spawnEventsをそのまま保持して書き出す
 let startCell  = null;
 let goalCell   = null;
 let spawns     = [];
@@ -1669,12 +1671,14 @@ function buildJSON() {
           } : {}),
           hp:    esc.hp    ?? 100,
           speed: esc.speed ?? 80,
-          waves,
+          ...(_passthruSpawnEvents ? {} : { waves }),
         };
       });
     })(),
     obstacles:    obsArr,
-    zombieSpawns: spawns.map(s => ({ ...s })),
+    ...(_passthruSpawnEvents
+      ? { spawns: _passthruSpawns, spawnEvents: _passthruSpawnEvents }
+      : { zombieSpawns: spawns.map(s => ({ ...s })) }),
     buildSpots:   bsArr,
     ...(encounterHints.length > 0 ? { encounterHints: encounterHints.map(e => ({ col: e.col, row: e.row, ...(e.note ? { note: e.note } : {}) })) } : {}),
   };
@@ -1769,10 +1773,17 @@ function applyJSON(obj) {
   spawns = [];
   for (const s of (obj.zombieSpawns ?? [])) spawns.push({ ...s });
   // 新フォーマット: spawnsディクショナリ {"S1":{col,row},...} からも読む
-  if (spawns.length === 0 && obj.spawns && typeof obj.spawns === 'object' && !Array.isArray(obj.spawns)) {
-    for (const pos of Object.values(obj.spawns)) {
-      if (pos.col != null) spawns.push({ col: pos.col, row: pos.row });
+  if (obj.spawns && typeof obj.spawns === 'object' && !Array.isArray(obj.spawns)) {
+    _passthruSpawns      = obj.spawns;
+    _passthruSpawnEvents = obj.spawnEvents ?? null;
+    if (spawns.length === 0) {
+      for (const pos of Object.values(obj.spawns)) {
+        if (pos.col != null) spawns.push({ col: pos.col, row: pos.row });
+      }
     }
+  } else {
+    _passthruSpawns      = null;
+    _passthruSpawnEvents = null;
   }
 
   encounterHints = [];
@@ -1933,6 +1944,8 @@ function copyStageJSON() {
 
 function clearAll() {
   if (!confirm('全消去しますか？')) return;
+  _passthruSpawns      = null;
+  _passthruSpawnEvents = null;
   obstacles.clear();
   buildSpots.clear();
   props = [];
