@@ -1768,6 +1768,12 @@ function applyJSON(obj) {
 
   spawns = [];
   for (const s of (obj.zombieSpawns ?? [])) spawns.push({ ...s });
+  // 新フォーマット: spawnsディクショナリ {"S1":{col,row},...} からも読む
+  if (spawns.length === 0 && obj.spawns && typeof obj.spawns === 'object' && !Array.isArray(obj.spawns)) {
+    for (const pos of Object.values(obj.spawns)) {
+      if (pos.col != null) spawns.push({ col: pos.col, row: pos.row });
+    }
+  }
 
   encounterHints = [];
   for (const e of (obj.encounterHints ?? [])) encounterHints.push({ col: e.col, row: e.row, note: e.note ?? '' });
