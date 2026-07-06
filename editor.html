@@ -555,6 +555,8 @@ const PROP_DEFS = {
   house:       { cols: 3, rows: 3 },
   hospital:    { cols: 4, rows: 3 },
   police:      { cols: 3, rows: 3 },
+  道路横_prop:       { cols: 1, rows: 1, texture: 'ground/道路横.png' },
+  road_vertical_prop: { cols: 1, rows: 1, texture: 'ground/road_vertical.png' },
 };
 
 const PROP_COLORS = {
@@ -574,7 +576,9 @@ const propImages = {};
 for (const type of Object.keys(PROP_DEFS)) {
   const img = new Image();
   img.onload = () => { propImages[type] = img; redraw(); };
-  img.src = `assets/sprites/prop/${type}.png`;
+  img.src = PROP_DEFS[type].texture
+    ? `assets/sprites/${PROP_DEFS[type].texture}`
+    : `assets/sprites/prop/${type}.png`;
 }
 
 function buildPropTypeButtons() {

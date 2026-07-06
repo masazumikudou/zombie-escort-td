@@ -20,5 +20,7 @@
   "escort":      { "cols": 1, "rows": 2 },
   "crosswalk_h": { "cols": 2, "rows": 1 },
   "crosswalk_v": { "cols": 1, "rows": 2 },
-  "manhole":     { "cols": 1, "rows": 1 }
+  "manhole":     { "cols": 1, "rows": 1 },
+  "道路横_prop":       { "cols": 1, "rows": 1 },
+  "road_vertical_prop": { "cols": 1, "rows": 1 }
 }

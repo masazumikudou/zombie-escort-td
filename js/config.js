@@ -64,6 +64,8 @@ const PROP_DEFS = {
   商店街:       { texture: 'prop/商店街.png',  cols: 15, rows: 3 },
   house5_front: { texture: 'prop/house5_front.png',  cols: 15, rows: 3 },
   house5_back:  { texture: 'prop/house5_back.png',   cols: 15, rows: 3 },
+  道路横_prop:       { texture: 'ground/道路横.png',       cols: 1, rows: 1 },
+  road_vertical_prop: { texture: 'ground/road_vertical.png', cols: 1, rows: 1 },
 };
 
 // ─── デカール定義（地面装飾、当たり判定なし） ─────────────────
