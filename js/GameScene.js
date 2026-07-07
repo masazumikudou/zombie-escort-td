@@ -66,7 +66,7 @@ class GameScene extends Phaser.Scene {
     // 外周1マスを自動ブロック（128pxスプライトのはみ出し防止）
     // スポーン・護衛の全経路セルとその隣接セルは例外として通行可にする
     const _perimEx = new Set();
-    const _spawnCoords = sd.zombieSpawns || (sd.spawns ? Object.values(sd.spawns) : []);
+    const _spawnCoords = sd.zombieSpawns?.length ? sd.zombieSpawns : (sd.spawns ? Object.values(sd.spawns) : []);
     for (const sp of _spawnCoords) {
       _perimEx.add(`${sp.col},${sp.row}`);
     }
@@ -308,7 +308,7 @@ class GameScene extends Phaser.Scene {
       // スポーンカウントダウン更新（次に湧くスポーン地点だけに表示）
       if (this._spawnCountdownTexts?.length) {
         const warning = this.waveManager.getWarning(this.scaledTime);
-        const spawns  = this.stageData.zombieSpawns || (this.stageData.spawns ? Object.values(this.stageData.spawns) : []);
+        const spawns  = this._graveSpawnList ?? [];
         this._spawnCountdownTexts.forEach((txt, i) => {
           const sp = spawns[i];
           if (warning && sp.col === warning.spawn.col && sp.row === warning.spawn.row) {
@@ -486,10 +486,23 @@ class GameScene extends Phaser.Scene {
   // ─── デカールレイヤー（depth 0、当たり判定なし） ──────────────
   _drawDecalLayer() {
     // スポーン地点にお墓＋カウントダウンテキストを表示
-    const GRAVE_KEYS  = ['decal_RIP墓', 'decal_Z墓'];
-    const GRAVE_SIZES = { 'decal_RIP墓': [CELL, CELL], 'decal_Z墓': [CELL, Math.round(CELL * 74 / 64)] };
+    const GRAVE_KEYS  = ['decal_grave_rip', 'decal_grave_z'];
+    const GRAVE_SIZES = { 'decal_grave_rip': [CELL, CELL], 'decal_grave_z': [CELL, Math.round(CELL * 74 / 64)] };
     this._spawnCountdownTexts = [];
-    const _gravSpawns = this.stageData.zombieSpawns || (this.stageData.spawns ? Object.values(this.stageData.spawns) : []);
+    let _gravSpawns;
+    if (this.stageData.zombieSpawns?.length) {
+      _gravSpawns = this.stageData.zombieSpawns;
+    } else if (this.stageData.spawns) {
+      const leashKeys = this.stageData.spawnEvents
+        ? new Set(this.stageData.spawnEvents.filter(e => e.leashTo).map(e => e.spawn))
+        : null;
+      _gravSpawns = Object.entries(this.stageData.spawns)
+        .filter(([k]) => !leashKeys || leashKeys.has(k))
+        .map(([, v]) => v);
+    } else {
+      _gravSpawns = [];
+    }
+    this._graveSpawnList = _gravSpawns;
     for (const [i, sp] of _gravSpawns.entries()) {
       const cx  = sp.col * CELL + CELL / 2;
       const cy  = sp.row * CELL + CELL / 2;
@@ -1102,8 +1115,10 @@ class GameScene extends Phaser.Scene {
 
   _tryPlace(col, row, type) {
     if (!this._canPlace(col, row, type)) return;
-    this.money -= TOWER_DEFS[type].cost;
+    const cost = TOWER_DEFS[type].cost;
+    this.money -= cost;
     this.towers.push(new Tower(this, col, row, type));
+    this._playLog.push(`[BUILD]  t=${Math.round(this.scaledTime)}ms  type=${type}  pos=(${col},${row})  cost=${cost}  money=${this.money}`);
     audioSynth.coin();
     this._closePopup();
     // レーザー・パンチは設置後に方向選択ポップアップを表示
@@ -1118,7 +1133,9 @@ class GameScene extends Phaser.Scene {
   }
 
   _sellTower(tower) {
-    this.money += tower.sell;
+    const refund = tower.sell;
+    this.money += refund;
+    this._playLog.push(`[SELL]   t=${Math.round(this.scaledTime)}ms  type=${tower.type}  pos=(${tower.col},${tower.row})  refund=${refund}  money=${this.money}`);
     tower.cleanup();
     this.towers = this.towers.filter(t => t !== tower);
     audioSynth.coin();
@@ -1150,7 +1167,9 @@ class GameScene extends Phaser.Scene {
     z.onDeath = () => {
       this.money += z.reward;
       this.killCount++;
-      this._playLog.push(`[KILL]   t=${Math.round(this.scaledTime)}ms  wave=${z.waveNum}  killCount=${this.killCount}`);
+      const src = z._lastHitBy;
+      const srcStr = src ? `  by=${src.type}@(${src.col},${src.row})` : '';
+      this._playLog.push(`[KILL]   t=${Math.round(this.scaledTime)}ms  wave=${z.waveNum}  killCount=${this.killCount}${srcStr}`);
       if (origOnDeath) origOnDeath();
     };
     this.zombies.push(z);

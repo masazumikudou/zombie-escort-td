@@ -205,8 +205,9 @@ class Zombie {
     }
   }
 
-  takeDamage(amount) {
+  takeDamage(amount, source = null) {
     if (!this.alive) return false;
+    if (source) this._lastHitBy = source;
     this.hp -= amount;
     this.hitFlash = 100;
     if (this.hp <= 0) {

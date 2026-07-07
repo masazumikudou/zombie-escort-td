@@ -1,11 +1,12 @@
 // ─── 弾丸 ────────────────────────────────────────────────────
 class Bullet {
-  constructor(x, y, target, damage, speed = 500) {
+  constructor(x, y, target, damage, speed = 500, source = null) {
     this.x      = x;
     this.y      = y;
     this.target = target;
     this.damage = damage;
     this.speed  = speed;
+    this.source = source;
     this.active = true;
   }
 
@@ -14,7 +15,7 @@ class Bullet {
     if (!this.target.alive) { this.active = false; return; }
     const dx = this.target.x - this.x, dy = this.target.y - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 10) { this.target.takeDamage(this.damage); this.active = false; return; }
+    if (dist < 10) { this.target.takeDamage(this.damage, this.source); this.active = false; return; }
     const step = this.speed * dt / 1000;
     this.x += (dx / dist) * step;
     this.y += (dy / dist) * step;
@@ -172,7 +173,7 @@ class Tower {
         for (const z of zombies) {
           if (!z.alive || z._spawnTimer > 0) continue;
           if (Math.floor(z.x / CELL) === tc && Math.floor(z.y / CELL) === tr) {
-            z.takeDamage(this.damage);
+            z.takeDamage(this.damage, { type: this.type, col: this.col, row: this.row });
             hit = true;
           }
         }
@@ -193,7 +194,7 @@ class Tower {
         Math.floor(z.x / CELL) === tc && Math.floor(z.y / CELL) === tr);
       if (!target) return;
       this.lastFire = scaledTime;
-      target.takeDamage(this.damage);
+      target.takeDamage(this.damage, { type: this.type, col: this.col, row: this.row });
       this._punchAnim();
       audioSynth.shoot();
       return;
@@ -226,7 +227,7 @@ class Tower {
       const target = this._findNearest(zombies);
       if (!target) return;
       this.lastFire = scaledTime;
-      bullets.push(new Bullet(this.x, this.y, target, this.damage));
+      bullets.push(new Bullet(this.x, this.y, target, this.damage, 500, { type: this.type, col: this.col, row: this.row }));
       audioSynth.shoot();
     }
   }
@@ -260,7 +261,7 @@ class Tower {
       if (this.direction === 'left'  && dx < 0 && -dx <= range && Math.abs(dy) < half) inBeam = true;
       if (this.direction === 'down'  && dy > 0 && dy <= range && Math.abs(dx) < half) inBeam = true;
       if (this.direction === 'up'    && dy < 0 && -dy <= range && Math.abs(dx) < half) inBeam = true;
-      if (inBeam) { z.takeDamage(this.damage); hit++; }
+      if (inBeam) { z.takeDamage(this.damage, { type: this.type, col: this.col, row: this.row }); hit++; }
     }
     return hit;
   }
