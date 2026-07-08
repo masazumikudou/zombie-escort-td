@@ -145,19 +145,22 @@ class Tower {
     });
   }
 
-  _findNearest(zombies) {
+  _findNearest(zombies, escort = null) {
     const range2 = this.range * this.range;
-    let nearest = null, minDist2 = Infinity;
+    const ref    = escort ?? this;  // 護衛基準、なければタワー基準
+    let nearest = null, minDist = Infinity;
     for (const z of zombies) {
       if (!z.alive || z._spawnTimer > 0) continue;
       const dx = z.x - this.x, dy = z.y - this.y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 <= range2 && d2 < minDist2) { minDist2 = d2; nearest = z; }
+      if (dx * dx + dy * dy > range2) continue;
+      const ex = z.x - ref.x, ey = z.y - ref.y;
+      const d  = Math.sqrt(ex * ex + ey * ey);
+      if (d < minDist) { minDist = d; nearest = z; }
     }
     return nearest;
   }
 
-  update(scaledTime, dt, zombies, bullets) {
+  update(scaledTime, dt, zombies, bullets, escort = null) {
     this._laserFlash = Math.max(0, this._laserFlash - dt);
     if (scaledTime - this.lastFire < this.fireRate) return;
 
@@ -201,7 +204,7 @@ class Tower {
     }
 
     if (this.type === 'cannon') {
-      const target = this._findNearest(zombies);
+      const target = this._findNearest(zombies, escort);
       if (!target) return;
       this.lastFire = scaledTime;
       bullets.push(new ArcBullet(
@@ -224,9 +227,11 @@ class Tower {
         audioSynth.shoot();
       }
     } else {
-      const target = this._findNearest(zombies);
+      const target = this._findNearest(zombies, escort);
       if (!target) return;
       this.lastFire = scaledTime;
+      const _fd = target.x - this.x, _fd2 = target.y - this.y;
+      this.scene._playLog?.push(`[FIRE] t=${Math.round(scaledTime)}ms tower=${this.type}@(${this.col},${this.row}) → id=${target._logId} dist=${Math.round(Math.sqrt(_fd*_fd+_fd2*_fd2))}`);
       bullets.push(new Bullet(this.x, this.y, target, this.damage, 500, { type: this.type, col: this.col, row: this.row }));
       audioSynth.shoot();
     }

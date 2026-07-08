@@ -76,7 +76,7 @@ const audioSynth = { hit() {}, escortHit() {} };
 
 // ─── SimTower ──────────────────────────────────────────────────────────
 class SimTower {
-  constructor(col, row, type) {
+  constructor(col, row, type, logArr = null) {
     const cc      = cellCenter(col, row);
     this.x        = cc.x;
     this.y        = cc.y;
@@ -86,10 +86,14 @@ class SimTower {
     this.damage   = d.damage;
     this.lastFire = -99999;
     this._bullets = [];  // { arrivesAt, target }
+    this._logArr  = logArr;
+    this._label   = `${type}@(${col},${row})`;
   }
 
+  _log(msg) { if (this._logArr) this._logArr.push(msg); }
+
   update(scaledTime, zombies, escort) {
-    // 着弾処理
+    // 着弾処理（HITはZombie.takeDamage._log経由でlogArrに記録される）
     this._bullets = this._bullets.filter(b => {
       if (scaledTime < b.arrivesAt) return true;
       if (b.target.alive) b.target.takeDamage(this.damage);
@@ -114,8 +118,10 @@ class SimTower {
     // 弾丸発射（speed=500px/s ホーミング近似、発射時の距離で飛行時間計算）
     const fdx  = best.x - this.x, fdy = best.y - this.y;
     const dist = Math.sqrt(fdx*fdx + fdy*fdy);
-    this._bullets.push({ arrivesAt: scaledTime + (dist / 500) * 1000, target: best });
+    const arrivesAt = scaledTime + (dist / 500) * 1000;
+    this._bullets.push({ arrivesAt, target: best });
     this.lastFire = scaledTime;
+    this._log(`[FIRE] t=${Math.round(scaledTime)}ms tower=${this._label} → id=${best._logId} dist=${Math.round(dist)} eta=${Math.round(arrivesAt)}ms`);
   }
 }
 
@@ -162,7 +168,7 @@ class StageSimulator {
     const simTowers = [];
     for (const t of (stage.initialTowers || [])) {
       if (!TOWER_DEFS[t.type]) { log.push(`[WARN]   不明タワー種別: ${t.type}`); continue; }
-      simTowers.push(new SimTower(t.col, t.row, t.type));
+      simTowers.push(new SimTower(t.col, t.row, t.type, log));
       log.push(`[INIT]   ${t.type}@(${t.col},${t.row}) 初期配置（コスト無消費）`);
     }
 
@@ -172,7 +178,7 @@ class StageSimulator {
       const def = TOWER_DEFS[tp.type];
       if (!def)          { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }
       if (money < def.cost) { log.push(`[WARN]   資金不足でスキップ: ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`); continue; }
-      simTowers.push(new SimTower(tp.col, tp.row, tp.type));
+      simTowers.push(new SimTower(tp.col, tp.row, tp.type, log));
       money -= def.cost;
       log.push(`[BUILD]  ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`);
     }
@@ -191,12 +197,12 @@ class StageSimulator {
 
       z.onDeath = () => {
         killCount++;
-        log.push(`[KILL]   t=${Math.round(scaledTime)}ms  killCount=${killCount}`);
+        log.push(`[KILL]   t=${Math.round(scaledTime)}ms  id=${z._logId}  killCount=${killCount}`);
       };
 
       zombies.push(z);
       allSpawned.push(z);
-      log.push(`[SPAWN]  t=${Math.round(scaledTime)}ms  spawn=(${col},${row})  hp=${finalDef.hp}  total=${spawnTotal}`);
+      log.push(`[SPAWN]  t=${Math.round(scaledTime)}ms  id=${z._logId}  spawn=(${col},${row})  hp=${finalDef.hp}  total=${spawnTotal}`);
       return z;
     };
 

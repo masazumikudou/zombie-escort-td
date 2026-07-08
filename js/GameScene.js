@@ -302,7 +302,7 @@ class GameScene extends Phaser.Scene {
 
       const escortTarget = this.relayPhase === 'active' ? this.escort : null;
       this.zombies.forEach(z => z.update(this.scaledTime, dt, escortTarget));
-      this.towers.forEach(t  => t.update(this.scaledTime, dt, this.zombies, this.bullets));
+      this.towers.forEach(t  => t.update(this.scaledTime, dt, this.zombies, this.bullets, escortTarget));
 
       this.bullets = this.bullets.filter(b => b.active);
       this.bullets.forEach(b => b.update(dt));
@@ -1196,14 +1196,14 @@ class GameScene extends Phaser.Scene {
     };
     const z = new Zombie(this, col, row, def, waveNum, leader);
     this.spawnCount++;
-    this._playLog.push(`[SPAWN]  t=${Math.round(this.scaledTime)}ms  wave=${waveNum}  spawn=(${col},${row})  hp=${def.hp}  total=${this.spawnCount}`);
+    this._playLog.push(`[SPAWN]  t=${Math.round(this.scaledTime)}ms  id=${z._logId}  wave=${waveNum}  spawn=(${col},${row})  hp=${def.hp}  total=${this.spawnCount}`);
     const origOnDeath = z.onDeath;
     z.onDeath = () => {
       this.money += z.reward;
       this.killCount++;
       const src = z._lastHitBy;
       const srcStr = src ? `  by=${src.type}@(${src.col},${src.row})` : '';
-      this._playLog.push(`[KILL]   t=${Math.round(this.scaledTime)}ms  wave=${z.waveNum}  killCount=${this.killCount}${srcStr}`);
+      this._playLog.push(`[KILL]   t=${Math.round(this.scaledTime)}ms  id=${z._logId}  wave=${z.waveNum}  killCount=${this.killCount}${srcStr}`);
       if (origOnDeath) origOnDeath();
     };
     this.zombies.push(z);

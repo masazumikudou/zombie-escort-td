@@ -43,10 +43,16 @@ class Zombie {
     this._formation  = null;   // FormationGroup 参照（null = 非隊列 or 解除済み）
     this._fmIdx      = 0;      // 隊列内インデックス（0 = 先頭）
     this._fmReleased = false;  // FormationGroup による解除済みフラグ
+    this._logId      = (Zombie._seq = (Zombie._seq ?? 0) + 1);
   }
 
   get col() { return Math.floor(this.x / CELL); }
   get row() { return Math.floor(this.y / CELL); }
+
+  _log(msg) {
+    if (Array.isArray(this.scene?._playLog)) this.scene._playLog.push(msg);
+    else console.log(msg);
+  }
 
   update(scaledTime, dt, escort) {
     if (!this.alive) return;
@@ -128,6 +134,8 @@ class Zombie {
         }
         // 非隊列: 護衛 CELL*1.5 以内 or タイムアウトで解除
         if (distToEscort < CELL * 1.5 || this._leashWaitMs > 15000) {
+          const _r = distToEscort < CELL * 1.5 ? 'escort_near' : 'timeout';
+          this._log(`[LEASH_RELEASE] t=${Math.round(scaledTime)}ms id=${this._logId} at=(${this.col},${this.row}) waitMs=${Math.round(this._leashWaitMs)} dist=${Math.round(distToEscort)} reason=${_r}`);
           this.leashTarget   = null;
           this._leashWaiting = false;
           // leash後はリーダートレイルをスキップしてFlowFieldへ直接移行
@@ -141,6 +149,7 @@ class Zombie {
       if (this.col === this.leashTarget.col && this.row === this.leashTarget.row) {
         this._leashWaiting = true;
         this._leashWaitMs  = 0;
+        this._log(`[LEASH_ARRIVE] t=${Math.round(scaledTime)}ms id=${this._logId} at=(${this.leashTarget.col},${this.leashTarget.row})`);
         return;
       }
       // leashTo へ直線ウェイポイントで移動（設計側が障害物なしを保証）
@@ -210,6 +219,7 @@ class Zombie {
     if (source) this._lastHitBy = source;
     this.hp -= amount;
     this.hitFlash = 100;
+    this._log(`[HIT] t=${Math.round(this.scene?.scaledTime ?? 0)}ms id=${this._logId} hp=${Math.max(0, this.hp)}/${this.maxHp} dmg=${amount}`);
     if (this.hp <= 0) {
       this.hp    = 0;
       this.alive = false;
