@@ -388,9 +388,9 @@ const GROUND_BLOCK_DEFS = {
   道路縦:              { blockCells: 1, imagePx: 256  },
   道路横:              { blockCells: 1, imagePx: 592  },
   road_vertical:       { blockCells: 1, imagePx: 591  },
-  '道縦ノーマル (2)':  { blockCells: 2, imagePx: 400  },
-  '道縦マンホール (2)':{ blockCells: 2, imagePx: 400  },
-  '道横':              { blockCells: 2, imagePx: 1060 },
+  '道縦ノーマル (2)':  { blockW: 2, blockH: 1, imagePxW: 400, imagePxH: 200  },
+  '道縦マンホール (2)':{ blockW: 2, blockH: 1, imagePxW: 400, imagePxH: 200  },
+  '道横':              { blockW: 1, blockH: 2, imagePxW: 530, imagePxH: 1060 },
 };
 
 const groundImgs = {};
@@ -655,7 +655,7 @@ function findDecalAtPixel(px, py) {
 
 function screenToPixel(e) {
   const rect = canvas.getBoundingClientRect();
-  return [e.clientX - rect.left - CELL, e.clientY - rect.top - CELL];
+  return [(e.clientX - rect.left) / zoomScale - CELL, (e.clientY - rect.top) / zoomScale - CELL];
 }
 
 // ─── 汎用 ───────────────────────────────────────────────────
@@ -993,7 +993,8 @@ canvas.addEventListener('mouseleave', () => {
 
 function screenToCell(e) {
   const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const x = (e.clientX - rect.left) / zoomScale;
+  const y = (e.clientY - rect.top) / zoomScale;
   return [Math.floor(x / CELL) - 1, Math.floor(y / CELL) - 1];
 }
 
@@ -1005,32 +1006,60 @@ function isUnderlayBorder(col, row) {
   return col === -1 || col === COLS || row === -1 || row === ROWS;
 }
 
+function _blockWH(def) {
+  return { bw: def.blockW ?? def.blockCells ?? 1, bh: def.blockH ?? def.blockCells ?? 1 };
+}
+
+function _eraseBlocksInArea(c0, r0, c1, r1) {
+  for (const [key, t] of [...cellGrounds]) {
+    const bdef = GROUND_BLOCK_DEFS[t];
+    if (!bdef) continue;
+    const { bw, bh } = _blockWH(bdef);
+    if (bw <= 1 && bh <= 1) continue;
+    const [oc, or_] = key.split(',').map(Number);
+    if (oc + bw - 1 >= c0 && oc <= c1 && or_ + bh - 1 >= r0 && or_ <= r1)
+      cellGrounds.delete(key);
+  }
+}
+
 function applyPaint() {
   if (!paintDragStart || !paintDragEnd) return;
-  let minCol = Math.min(paintDragStart.col, paintDragEnd.col);
-  let maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
-  let minRow = Math.min(paintDragStart.row, paintDragEnd.row);
-  let maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
-  // blockCells>1 のタイプ：偶数グリッドにスナップしてbc×bcブロック単位で塗る
+  const minCol = Math.min(paintDragStart.col, paintDragEnd.col);
+  const maxCol = Math.max(paintDragStart.col, paintDragEnd.col);
+  const minRow = Math.min(paintDragStart.row, paintDragEnd.row);
+  const maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
   const def = GROUND_BLOCK_DEFS[paintType];
-  if (def && def.blockCells > 1) {
-    const bc = def.blockCells;
-    minCol = Math.floor(minCol / bc) * bc;
-    minRow = Math.floor(minRow / bc) * bc;
-    maxCol = Math.min((Math.floor(maxCol / bc) + 1) * bc - 1, COLS - 1);
-    maxRow = Math.min((Math.floor(maxRow / bc) + 1) * bc - 1, ROWS - 1);
+
+  if (def && paintType !== groundBase) {
+    const { bw, bh } = _blockWH(def);
+    if (bw > 1 || bh > 1) {
+      // 非正方形・ブロックタイル: 原点1セル保存、bw/bhステップで配置
+      _eraseBlocksInArea(minCol, minRow, maxCol + bw - 1, maxRow + bh - 1);
+      for (let c = minCol; c <= maxCol; c += bw) {
+        for (let r = minRow; r <= maxRow; r += bh) {
+          if (c >= 0 && c < COLS && r >= 0 && r < ROWS)
+            cellGrounds.set(cellKey(c, r), paintType);
+        }
+      }
+      redraw();
+      return;
+    }
   }
+
+  // bc=1 または消去（groundBase）
   for (let col = minCol; col <= maxCol; col++) {
     for (let row = minRow; row <= maxRow; row++) {
       if (col < 0 || col >= COLS || row < 0 || row >= ROWS) continue;
       const k = cellKey(col, row);
       if (paintType === groundBase) {
-        cellGrounds.delete(k);  // ベースと同色はセル上書きを削除
+        cellGrounds.delete(k);
       } else {
         cellGrounds.set(k, paintType);
       }
     }
   }
+  // bc>1ブロックとの重複セルも除去
+  _eraseBlocksInArea(minCol, minRow, maxCol, maxRow);
   redraw();
 }
 
@@ -1117,22 +1146,27 @@ function redraw() {
     const def = GROUND_BLOCK_DEFS[type];
     const img = def ? groundImgs[type] : null;
     if (img && img.complete && img.naturalWidth > 0) {
-      if (def.blockCells > 1) {
-        // 偶数グリッドにスナップ済みなのでmodulo判定で原点検出
-        const bc = def.blockCells;
-        if (c % bc === 0 && r % bc === 0) {
-          const size = bc * CELL;
-          ctx.drawImage(img, 0, 0, def.imagePx, def.imagePx, c * CELL, r * CELL, size, size);
-        }
+      const { bw, bh } = _blockWH(def);
+      if (bw > 1 || bh > 1) {
+        // ブロックタイル: 任意位置から右下へ描画、マップ境界でクリップ
+        const imgW = def.imagePxW ?? def.imagePx;
+        const imgH = def.imagePxH ?? def.imagePx;
+        const totalW = bw * CELL, totalH = bh * CELL;
+        const drawW = Math.min(totalW, COLS * CELL - c * CELL);
+        const drawH = Math.min(totalH, ROWS * CELL - r * CELL);
+        if (drawW > 0 && drawH > 0)
+          ctx.drawImage(img, 0, 0, (drawW / totalW) * imgW, (drawH / totalH) * imgH, c * CELL, r * CELL, drawW, drawH);
       } else {
-        const pxPerCell = def.imagePx / def.blockCells;
-        const srcX = (c % def.blockCells) * pxPerCell;
-        const srcY = (r % def.blockCells) * pxPerCell;
+        const bc = def.blockCells ?? 1;
+        const pxPerCell = def.imagePx / bc;
+        const srcX = (c % bc) * pxPerCell;
+        const srcY = (r % bc) * pxPerCell;
         ctx.drawImage(img, srcX, srcY, pxPerCell, pxPerCell, c * CELL, r * CELL, CELL, CELL);
       }
     } else {
+      const { bw, bh } = def ? _blockWH(def) : { bw: 1, bh: 1 };
       ctx.fillStyle = GROUND_COLORS[type] ?? '#1a1a2e';
-      ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+      ctx.fillRect(c * CELL, r * CELL, bw * CELL, bh * CELL);
     }
   }
 
@@ -1443,9 +1477,9 @@ function redraw() {
       const maxRow = Math.max(paintDragStart.row, paintDragEnd.row);
       drawPaintPreview(minCol, minRow, maxCol, maxRow);
     } else if (hoverCell && def && hoverCell.col >= 0 && hoverCell.row >= 0) {
-      const bc   = def.blockCells;
-      const endC = Math.min(hoverCell.col + bc - 1, COLS - 1);
-      const endR = Math.min(hoverCell.row + bc - 1, ROWS - 1);
+      const { bw, bh } = _blockWH(def);
+      const endC = Math.min(hoverCell.col + bw - 1, COLS - 1);
+      const endR = Math.min(hoverCell.row + bh - 1, ROWS - 1);
       drawPaintPreview(hoverCell.col, hoverCell.row, endC, endR);
     }
   }
@@ -1846,7 +1880,21 @@ function applyJSON(obj) {
   for (const u of (obj.underlay ?? [])) underlayCells.set(`${u.col},${u.row}`, u.type);
 
   cellGrounds.clear();
-  for (const c of (obj.ground_cells ?? [])) cellGrounds.set(`${c.col},${c.row}`, c.type);
+  { // 旧フォーマット(全セル保存)互換: ブロックタイルは原点のみ取り込む
+    const _ic = new Set();
+    for (const c of (obj.ground_cells ?? [])) {
+      const bdef = GROUND_BLOCK_DEFS[c.type];
+      const { bw, bh } = bdef ? _blockWH(bdef) : { bw: 1, bh: 1 };
+      if (bw > 1 || bh > 1) {
+        const k = `${c.col},${c.row}`;
+        if (_ic.has(k)) continue;
+        for (let dc = 0; dc < bw; dc++) for (let dr = 0; dr < bh; dr++) _ic.add(`${c.col+dc},${c.row+dr}`);
+        cellGrounds.set(k, c.type);
+      } else {
+        cellGrounds.set(`${c.col},${c.row}`, c.type);
+      }
+    }
+  }
 
   const hpEl2 = document.getElementById('esc-hp');
   const spEl2 = document.getElementById('esc-speed');

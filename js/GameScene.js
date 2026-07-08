@@ -384,23 +384,26 @@ class GameScene extends Phaser.Scene {
         .fillRect(0, 0, MAP_W, MAP_H);
     }
 
-    // セル別地面上書き
+    // セル別地面上書き（bc>1は原点1セル保存方式・旧フォーマット互換）
     const cellGrounds = this.stageData.ground_cells || [];
+    const _claimed = new Set();
     const byType = {};
     for (const cell of cellGrounds) {
       const ck = `ground_${cell.type}`;
       if (this.textures.exists(ck)) {
         const bdef = GROUND_BLOCK_DEFS[cell.type];
-        if (bdef && bdef.blockCells > 1) {
-          // 偶数グリッドにスナップ済みなのでmodulo判定で原点検出
-          const bc = bdef.blockCells;
-          if (cell.col % bc === 0 && cell.row % bc === 0) {
-            const size = bc * CELL;
-            this.add.image(cell.col * CELL, cell.row * CELL, ck)
-              .setOrigin(0, 0)
-              .setDisplaySize(size, size)
-              .setDepth(-2);
-          }
+        const bw = bdef ? (bdef.blockW ?? bdef.blockCells ?? 1) : 1;
+        const bh = bdef ? (bdef.blockH ?? bdef.blockCells ?? 1) : 1;
+        if (bw > 1 || bh > 1) {
+          const cellKey = `${cell.col},${cell.row}`;
+          if (_claimed.has(cellKey)) continue; // 旧フォーマット非原点セルをスキップ
+          this.add.image(cell.col * CELL, cell.row * CELL, ck)
+            .setOrigin(0, 0)
+            .setDisplaySize(bw * CELL, bh * CELL)
+            .setDepth(-2);
+          for (let dc = 0; dc < bw; dc++)
+            for (let dr = 0; dr < bh; dr++)
+              _claimed.add(`${cell.col+dc},${cell.row+dr}`);
         } else {
           this.add.image(cell.col * CELL + CELL / 2, cell.row * CELL + CELL / 2, ck)
             .setDisplaySize(CELL, CELL).setDepth(-2);

@@ -6,9 +6,9 @@ const GROUND_BLOCK_DEFS = {
   道路縦:             { blockCells: 1, imagePx: 256  },
   道路横:             { blockCells: 1, imagePx: 592  },
   road_vertical:      { blockCells: 1, imagePx: 591  },
-  '道縦ノーマル (2)': { blockCells: 2, imagePx: 400  },
-  '道縦マンホール (2)':{ blockCells: 2, imagePx: 400  },
-  '道横':             { blockCells: 2, imagePx: 1060 },
+  '道縦ノーマル (2)': { blockW: 2, blockH: 1, imagePxW: 400, imagePxH: 200  },
+  '道縦マンホール (2)':{ blockW: 2, blockH: 1, imagePxW: 400, imagePxH: 200  },
+  '道横':             { blockW: 1, blockH: 2, imagePxW: 530, imagePxH: 1060 },
 };
 
 // ─── グリッド ───────────────────────────────────────────────
