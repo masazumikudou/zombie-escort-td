@@ -2,6 +2,7 @@
   "stages": [
     { "id": 1, "file": "stages/stage_01.json", "title": "カスタムステージ（v5・敵統一/難易度計測用）" },
     { "id": 2, "file": "stages/stage_01_meander.json", "title": "つづら折り・最重要基準ステージ" },
-    { "id": 3, "file": "stages/stage_02.json", "title": "ステージ2" }
+    { "id": 3, "file": "stages/stage_02.json", "title": "ステージ2" },
+    { "id": 4, "file": "stages/stage_01_meander_verified.json", "title": "【検証用】つづら折り・sniper3基初期配置済み" }
   ]
 }

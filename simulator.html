@@ -158,9 +158,16 @@ class StageSimulator {
     const sem = new SpawnEventManager(stage.spawns ?? {}, stage.spawnEvents ?? []);
     sem.start(0);
 
+    // 初期配置タワー（JSON指定・コスト無消費・チェックバイパス）
+    const simTowers = [];
+    for (const t of (stage.initialTowers || [])) {
+      if (!TOWER_DEFS[t.type]) { log.push(`[WARN]   不明タワー種別: ${t.type}`); continue; }
+      simTowers.push(new SimTower(t.col, t.row, t.type));
+      log.push(`[INIT]   ${t.type}@(${t.col},${t.row}) 初期配置（コスト無消費）`);
+    }
+
     // タワー配置（資金順）
     let money = stage.startMoney ?? 500;
-    const simTowers = [];
     for (const tp of towerPlacements) {
       const def = TOWER_DEFS[tp.type];
       if (!def)          { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }

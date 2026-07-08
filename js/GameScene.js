@@ -174,6 +174,9 @@ class GameScene extends Phaser.Scene {
     // 入力設定
     this._setupInput();
 
+    // 初期配置タワー（JSON指定・コスト無消費・チェックバイパス）
+    this._placeInitialTowers();
+
     // 最初の護衛者をスタート
     this._startEscort(0, 0);
   }
@@ -1102,6 +1105,14 @@ class GameScene extends Phaser.Scene {
       this._drawMapStatic();
     }
     this.popupState = null;
+  }
+
+  // ─── 初期配置タワー（JSON直置き・コスト無消費・チェックバイパス） ───
+  _placeInitialTowers() {
+    for (const t of (this.stageData.initialTowers || [])) {
+      if (!TOWER_DEFS[t.type]) continue;
+      this.towers.push(new Tower(this, t.col, t.row, t.type));
+    }
   }
 
   // ─── タワー配置 ──────────────────────────────────────────
