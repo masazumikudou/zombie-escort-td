@@ -5,8 +5,9 @@ class GameScene extends Phaser.Scene {
   constructor() { super('GameScene'); }
 
   // ─── 初期化 ───────────────────────────────────────────────
-  init({ stageData }) {
-    this.stageData = stageData;
+  init({ stageData, sessionTowerText }) {
+    this.stageData        = stageData;
+    this.sessionTowerText = sessionTowerText ?? '';
   }
 
   create() {
@@ -1107,11 +1108,33 @@ class GameScene extends Phaser.Scene {
     this.popupState = null;
   }
 
-  // ─── 初期配置タワー（JSON直置き・コスト無消費・チェックバイパス） ───
+  // ─── 初期配置タワー（JSON + ステージ選択画面入力・コスト無消費・チェックバイパス） ───
   _placeInitialTowers() {
-    for (const t of (this.stageData.initialTowers || [])) {
-      if (!TOWER_DEFS[t.type]) continue;
+    // JSONのinitialTowers
+    const fromJson = this.stageData.initialTowers || [];
+
+    // ステージ選択画面のテキスト入力をパース（書式: type:col,row ...）
+    const fromText = (this.sessionTowerText || '').trim()
+      .split(/[\s\n]+/)
+      .flatMap(token => {
+        const m = token.match(/^(\w+):(\d+),(\d+)$/);
+        return m ? [{ type: m[1], col: +m[2], row: +m[3] }] : [];
+      });
+
+    const errors = [];
+    for (const t of [...fromJson, ...fromText]) {
+      if (!TOWER_DEFS[t.type]) {
+        errors.push(`不明なタワー種別: "${t.type}"`);
+        continue;
+      }
+      if (t.col < 0 || t.col >= COLS || t.row < 0 || t.row >= ROWS) {
+        errors.push(`範囲外: ${t.type}@(${t.col},${t.row})`);
+        continue;
+      }
       this.towers.push(new Tower(this, t.col, t.row, t.type));
+    }
+    if (errors.length > 0) {
+      alert('initialTowers エラー:\n' + errors.join('\n'));
     }
   }
 

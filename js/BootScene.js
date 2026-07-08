@@ -4,7 +4,8 @@ class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
 
   init(data) {
-    this.stageFile = data.stageFile || 'stages/stage_01.json';
+    this.stageFile        = data.stageFile || 'stages/stage_01.json';
+    this.sessionTowerText = data.sessionTowerText ?? '';
   }
 
   preload() {
@@ -159,7 +160,7 @@ class BootScene extends Phaser.Scene {
       });
     }
 
-    this.scene.start('GameScene', { stageData });
+    this.scene.start('GameScene', { stageData, sessionTowerText: this.sessionTowerText });
   }
 
   // ─── スプライット試し読み込み ─────────────────────────────

@@ -22,9 +22,11 @@ class StageSelectScene extends Phaser.Scene {
       fontFamily: 'Arial, Helvetica, sans-serif',
     }).setOrigin(0.5);
 
-    const startY = h * 0.33;
-    const step   = Math.min(90, (h * 0.55) / Math.max(list.length, 1));
+    const startY = h * 0.28;
+    const step   = Math.min(110, (h * 0.65) / Math.max(list.length, 1));
 
+    // タワー入力欄（DOM）
+    const inputs = [];
     list.forEach((stage, i) => {
       const y = startY + i * step;
 
@@ -38,8 +40,31 @@ class StageSelectScene extends Phaser.Scene {
       btn.on('pointerover',  () => btn.setStyle({ backgroundColor: '#2a5488' }));
       btn.on('pointerout',   () => btn.setStyle({ backgroundColor: '#1e3a5f' }));
       btn.on('pointerdown',  () => {
-        this.scene.start('BootScene', { stageFile: stage.file });
+        const raw = inputs[i]?.value?.trim() ?? '';
+        this.scene.start('BootScene', { stageFile: stage.file, sessionTowerText: raw });
       });
+
+      // タワー入力欄（HTMLオーバーレイ）
+      const inp = document.createElement('input');
+      inp.type        = 'text';
+      inp.placeholder = 'タワー追加: sniper:10,8 basic:5,3 …';
+      inp.style.cssText = [
+        'position:absolute',
+        `left:50%`, `transform:translateX(-50%)`,
+        `top:${y + 36}px`,
+        'width:420px', 'max-width:90vw',
+        'background:#0d1a2e', 'color:#aaddff',
+        'border:1px solid #2a4a6a', 'border-radius:4px',
+        'padding:4px 10px', 'font-size:12px',
+        'font-family:monospace', 'outline:none',
+      ].join(';');
+      document.body.appendChild(inp);
+      inputs.push(inp);
+    });
+
+    // シーン離脱時にDOM要素を削除
+    this.events.once('shutdown', () => {
+      inputs.forEach(el => el.remove());
     });
   }
 }
