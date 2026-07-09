@@ -288,6 +288,15 @@ class GameScene extends Phaser.Scene {
     this._dt    = dt;  // _drawDynamic から矢印アニメに使う
     if (scale > 0) this.scaledTime += delta * scale;
 
+    // 時間指定タワーの建設チェック（@ms 構文）
+    if (this._delayedTowerQueue?.length > 0) {
+      while (this._delayedTowerQueue.length > 0 && this._delayedTowerQueue[0].buildAt <= this.scaledTime) {
+        const t = this._delayedTowerQueue.shift();
+        this.towers.push(new Tower(this, t.col, t.row, t.type));
+        this._playLog?.push(`[BUILD]  t=${Math.round(this.scaledTime)}ms  ${t.type}@(${t.col},${t.row})`);
+      }
+    }
+
     if (this.gameState === 'playing' && dt > 0) {
       this.escort.update(dt);
 
@@ -1116,16 +1125,17 @@ class GameScene extends Phaser.Scene {
     // JSONのinitialTowers
     const fromJson = this.stageData.initialTowers || [];
 
-    // ステージ選択画面のテキスト入力をパース（書式: type:col,row ...）
+    // ステージ選択画面のテキスト入力をパース（書式: type:col,row or type:col,row@ms）
     const fromText = (this.sessionTowerText || '').trim()
       .split(/[\s\n]+/)
       .flatMap(token => {
-        const m = token.match(/^(\w+):(\d+),(\d+)$/);
-        return m ? [{ type: m[1], col: +m[2], row: +m[3] }] : [];
+        const m = token.match(/^(\w+):(\d+),(\d+)(?:@(\d+))?$/);
+        return m ? [{ type: m[1], col: +m[2], row: +m[3], buildAt: m[4] !== undefined ? +m[4] : 0 }] : [];
       });
 
+    this._delayedTowerQueue = [];
     const errors = [];
-    for (const t of [...fromJson, ...fromText]) {
+    for (const t of [...fromJson.map(t => ({ ...t, buildAt: 0 })), ...fromText]) {
       if (!TOWER_DEFS[t.type]) {
         errors.push(`不明なタワー種別: "${t.type}"`);
         continue;
@@ -1134,8 +1144,13 @@ class GameScene extends Phaser.Scene {
         errors.push(`範囲外: ${t.type}@(${t.col},${t.row})`);
         continue;
       }
-      this.towers.push(new Tower(this, t.col, t.row, t.type));
+      if (t.buildAt > 0) {
+        this._delayedTowerQueue.push(t);
+      } else {
+        this.towers.push(new Tower(this, t.col, t.row, t.type));
+      }
     }
+    this._delayedTowerQueue.sort((a, b) => a.buildAt - b.buildAt);
     if (errors.length > 0) {
       alert('initialTowers エラー:\n' + errors.join('\n'));
     }
