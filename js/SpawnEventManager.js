@@ -242,12 +242,16 @@ class SpawnEventManager {
   }
 
   _buildEnemyDef(ev) {
-    const base = ZOMBIE_BASE[ev.enemy] ?? {};
-    const def  = { ...base, type: ev.enemy };
-    if (ev.hp     !== undefined) def.hp     = ev.hp;
-    if (ev.speed  !== undefined) def.speed  = ev.speed;
-    if (ev.damage !== undefined) def.damage = ev.damage;
-    if (ev.reward !== undefined) def.reward = ev.reward;
+    // enemy: "salaryman"（旧形式）or { type, hp, speed, ... }（新形式）の両対応
+    const isObj    = ev.enemy && typeof ev.enemy === 'object';
+    const typeName = isObj ? ev.enemy.type : ev.enemy;
+    const src      = isObj ? ev.enemy : ev;   // プロパティの取得元
+    const base     = ZOMBIE_BASE[typeName] ?? {};
+    const def      = { ...base, type: typeName };
+    if (src.hp     !== undefined) def.hp     = src.hp;
+    if (src.speed  !== undefined) def.speed  = src.speed;
+    if (src.damage !== undefined) def.damage = src.damage;
+    if (src.reward !== undefined) def.reward = src.reward;
     if (ev.leashTo !== undefined) def.leashTo = ev.leashTo;
     return def;
   }
