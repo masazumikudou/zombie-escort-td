@@ -12,6 +12,7 @@
 | [docs/spec02_roster.md](docs/spec02_roster.md) | 家族リレー・ロースター（5名・startTrigger・即敗北判定） |
 | [docs/spec03_economy_towers.md](docs/spec03_economy_towers.md) | 経済設計・タワー6種・balance.json設計 |
 | [docs/spec04_enemies.md](docs/spec04_enemies.md) | 特殊ゾンビ・敵ロードマップ（第1〜4陣） |
+| [docs/spec05_stage_design.md](docs/spec05_stage_design.md) | ステージ設計ガイド（prop衝突ルール・シム手順・確定ステージデータ） |
 
 ## 数値調整ルール
 **`balance.json` のみを編集すること。コードに数値を書かない。**

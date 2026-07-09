@@ -510,7 +510,7 @@ class GameScene extends Phaser.Scene {
       _gravSpawns = this.stageData.zombieSpawns;
     } else if (this.stageData.spawns) {
       const leashKeys = this.stageData.spawnEvents
-        ? new Set(this.stageData.spawnEvents.filter(e => e.leashTo).map(e => e.spawn))
+        ? new Set(this.stageData.spawnEvents.map(e => e.spawn))
         : null;
       _gravSpawns = Object.entries(this.stageData.spawns)
         .filter(([k]) => !leashKeys || leashKeys.has(k))
@@ -1142,6 +1142,10 @@ class GameScene extends Phaser.Scene {
       }
       if (t.col < 0 || t.col >= COLS || t.row < 0 || t.row >= ROWS) {
         errors.push(`範囲外: ${t.type}@(${t.col},${t.row})`);
+        continue;
+      }
+      if (!this.pf.isWalkable(t.col, t.row)) {
+        errors.push(`prop衝突（配置不可）: ${t.type}@(${t.col},${t.row})`);
         continue;
       }
       if (t.buildAt > 0) {
