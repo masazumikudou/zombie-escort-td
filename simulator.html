@@ -126,11 +126,12 @@ class SimTower {
 }
 
 // ─── タワー配置テキスト解析 ───────────────────────────────────────────────
-// 形式: "basic:5,3 sniper:8,3" or "basic:5,3\nsniper:8,3"
+// 形式: "basic:5,3 sniper:8,3"  即時建設
+//       "sniper:7,14@90000"      t=90000ms に建設（道中資金で）
 function parseTowerPattern(text) {
   return text.trim().split(/[\s\n]+/).flatMap(token => {
-    const m = token.match(/^(\w+):(\d+),(\d+)$/);
-    return m ? [{ type: m[1], col: +m[2], row: +m[3] }] : [];
+    const m = token.match(/^(\w+):(\d+),(\d+)(?:@(\d+))?$/);
+    return m ? [{ type: m[1], col: +m[2], row: +m[3], buildAt: m[4] !== undefined ? +m[4] : 0 }] : [];
   });
 }
 
@@ -172,16 +173,19 @@ class StageSimulator {
       log.push(`[INIT]   ${t.type}@(${t.col},${t.row}) 初期配置（コスト無消費）`);
     }
 
-    // タワー配置（資金順）
+    // タワー配置（即時分: buildAt=0）/ 時間指定分はキューへ
     let money = stage.startMoney ?? 500;
+    const delayedQueue = [];
     for (const tp of towerPlacements) {
       const def = TOWER_DEFS[tp.type];
-      if (!def)          { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }
+      if (!def) { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }
+      if (tp.buildAt > 0) { delayedQueue.push(tp); continue; }
       if (money < def.cost) { log.push(`[WARN]   資金不足でスキップ: ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`); continue; }
       simTowers.push(new SimTower(tp.col, tp.row, tp.type, log));
       money -= def.cost;
-      log.push(`[BUILD]  ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`);
+      log.push(`[BUILD]  ${tp.type}@(${tp.col},${tp.row})  cost=${def.cost}  残=${money}`);
     }
+    delayedQueue.sort((a, b) => a.buildAt - b.buildAt);
 
     // ゾンビ管理
     let zombies    = [];
@@ -197,7 +201,8 @@ class StageSimulator {
 
       z.onDeath = () => {
         killCount++;
-        log.push(`[KILL]   t=${Math.round(scaledTime)}ms  id=${z._logId}  killCount=${killCount}`);
+        money += z.reward ?? 0;
+        log.push(`[KILL]   t=${Math.round(scaledTime)}ms  id=${z._logId}  killCount=${killCount}  reward+${z.reward ?? 0}  残=${money}`);
       };
 
       zombies.push(z);
@@ -212,6 +217,20 @@ class StageSimulator {
 
     while (scaledTime <= MAX_TIME) {
       mockScene.scaledTime = scaledTime;
+
+      // 時間指定タワーの建設チェック（資金が足りれば建設、足りなければWARN）
+      while (delayedQueue.length > 0 && delayedQueue[0].buildAt <= scaledTime) {
+        const tp  = delayedQueue.shift();
+        const def = TOWER_DEFS[tp.type];
+        if (!def) { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }
+        if (money < def.cost) {
+          log.push(`[WARN]   t=${Math.round(scaledTime)}ms 資金不足: ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`);
+          continue;
+        }
+        simTowers.push(new SimTower(tp.col, tp.row, tp.type, log));
+        money -= def.cost;
+        log.push(`[BUILD]  t=${Math.round(scaledTime)}ms  ${tp.type}@(${tp.col},${tp.row})  cost=${def.cost}  残=${money}`);
+      }
 
       if (!escort.defeated && !escort.reached) ff.update(escort.col, escort.row);
 
@@ -588,7 +607,7 @@ window.addEventListener('DOMContentLoaded', loadGhSettings);
       </div>
     </div>
 
-    <label>タワー配置パターン &nbsp;<code>type:col,row</code>&nbsp; 例: <code>basic:5,3 sniper:8,3</code></label>
+    <label>タワー配置パターン &nbsp;<code>type:col,row</code>&nbsp; 例: <code>basic:5,3 sniper:8,3</code> &nbsp;|&nbsp; 道中建設: <code>sniper:7,14@90000</code>（@ms）</label>
     <div id="patterns">
       <div class="pattern-row">
         <input type="text" class="pname" value="良配置" style="width:80px">
