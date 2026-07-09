@@ -6,7 +6,7 @@
     "rows": 20
   },
   "ground_base": "grass",
-  "startMoney": 750,
+  "startMoney": 900,
   "minSurvivors": 1,
   "escorts": [
     {
