@@ -42,8 +42,8 @@
   "obstacles": [],
   "spawns": {
     "A":  { "col": 19, "row": 3 },
-    "B":  { "col": 14, "row": 14 },
-    "C":  { "col": 0,  "row": 9 },
+    "B":  { "col": 14, "row": 15 },
+    "C":  { "col": 0,  "row": 8 },
     "D":  { "col": 0,  "row": 15 },
     "E":  { "col": 9,  "row": 19 },
     "F1": { "col": 3,  "row": 19 },
