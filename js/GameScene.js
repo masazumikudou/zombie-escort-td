@@ -318,8 +318,7 @@ class GameScene extends Phaser.Scene {
           this._playLog?.push(`[BUILD]  t=${Math.round(this.scaledTime)}ms  ${t.type}@(${t.col},${t.row})`);
         }
 
-        this.escort.update(step);
-
+        // シムと同じ更新順: ff→sem→zombie→tower→escort の順で処理
         if (this.escort.alive && !this.escort.reached) {
           this.flowField.update(
             Math.floor(this.escort.x / CELL),
@@ -328,16 +327,18 @@ class GameScene extends Phaser.Scene {
         }
 
         const escortTarget = this.relayPhase === 'active' ? this.escort : null;
+        this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader), escortTarget);
+
         this.zombies.forEach(z => z.update(this.scaledTime, step, escortTarget));
         this.towers.forEach(t  => t.update(this.scaledTime, step, this.zombies, this.bullets, escortTarget));
 
         this.bullets = this.bullets.filter(b => b.active);
         this.bullets.forEach(b => b.update(step));
 
-        this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader), escortTarget);
-
         this.zombies.forEach(z => { if (!z.alive) z.cleanup(); });
         this.zombies = this.zombies.filter(z => z.alive);
+
+        this.escort.update(step);  // escort は最後に更新（シムと同じ順序）
 
         if (this.relayPhase === 'active') this._checkWinLose();
       }
@@ -1256,7 +1257,7 @@ class GameScene extends Phaser.Scene {
     if (this.gameState !== 'playing') return;
     if (this.relayPhase !== 'active') return;
 
-    if (this.escort.reached) {
+    if (this.escort.reached || this.escort.state === 'exiting') {
       this._onEscortDone(true);
       return;
     }
