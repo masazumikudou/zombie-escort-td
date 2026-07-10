@@ -8,6 +8,8 @@ class Zombie {
     this.scene         = scene;
     this.x             = x;
     this.y             = y;
+    this._spawnX       = x;  // 時刻ベースleash計算の原点
+    this._spawnY       = y;
     this.hp            = def.hp;
     this.maxHp         = def.hp;
     this.speed         = def.speed;
@@ -36,9 +38,10 @@ class Zombie {
     this._lastTrailCol = spawnCol;
     this._lastTrailRow = spawnRow;
     this._trailIdx     = 0;
-    this.leashTarget   = def.leashTo ?? null;  // {col,row} 到達後護衛まで待機
-    this._leashWaiting = false;
-    this._leashWaitMs  = 0;
+    this.leashTarget      = def.leashTo ?? null;  // {col,row} 到達後護衛まで待機
+    this._leashWaiting    = false;
+    this._leashWaitMs     = 0;
+    this._leashMoveStart  = null;  // spawnTimer満了後の移動開始scaledTime（時刻ベース計算用）
     // 隊列（フォーメーション）
     this._formation  = null;   // FormationGroup 参照（null = 非隊列 or 解除済み）
     this._fmIdx      = 0;      // 隊列内インデックス（0 = 先頭）
@@ -145,19 +148,27 @@ class Zombie {
         }
         return;
       }
-      // leashTo セルに到達したか判定
-      if (this.col === this.leashTarget.col && this.row === this.leashTarget.row) {
+      // 時刻ベース直線移動（スポーン位置→leashTarget）
+      if (this._leashMoveStart === null) this._leashMoveStart = scaledTime;
+      const tgt  = cellCenter(this.leashTarget.col, this.leashTarget.row);
+      const ldx  = tgt.x - this._spawnX, ldy = tgt.y - this._spawnY;
+      const lLen = Math.sqrt(ldx * ldx + ldy * ldy);
+      if (lLen > 0) {
+        const traveled = Math.min(
+          Math.max(0, this.speed * (scaledTime - this._leashMoveStart) / 1000), lLen
+        );
+        this.x = this._spawnX + (ldx / lLen) * traveled;
+        this.y = this._spawnY + (ldy / lLen) * traveled;
+        this.lastDx = ldx; this.lastDy = ldy;
+        if (traveled >= lLen) {
+          this._leashWaiting = true;
+          this._leashWaitMs  = 0;
+          this._log(`[LEASH_ARRIVE] t=${Math.round(scaledTime)}ms id=${this._logId} at=(${this.leashTarget.col},${this.leashTarget.row})`);
+        }
+      } else if (!this._leashWaiting) {
         this._leashWaiting = true;
         this._leashWaitMs  = 0;
-        this._log(`[LEASH_ARRIVE] t=${Math.round(scaledTime)}ms id=${this._logId} at=(${this.leashTarget.col},${this.leashTarget.row})`);
-        return;
       }
-      // leashTo へ直線ウェイポイントで移動（設計側が障害物なしを保証）
-      if (this.wpIdx >= this.path.length) {
-        this.path  = [cellCenter(this.leashTarget.col, this.leashTarget.row)];
-        this.wpIdx = 0;
-      }
-      this._advancePath(dt);
       return;
     }
     // ───────────────────────────────────────────────────────────────────

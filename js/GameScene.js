@@ -303,8 +303,8 @@ class GameScene extends Phaser.Scene {
     this._dt      = totalDt;  // _drawDynamic から矢印アニメに使う
 
     if (scale > 0 && this.gameState === 'playing') {
-      // サブステップ: シムのDT=50msに合わせて分割し速度依存の挙動差をなくす
-      const MAX_STEP = 50;
+      // サブステップ: 速度倍率による挙動差を最小化するため16msに細分化
+      const MAX_STEP = 16;
       let remaining  = totalDt;
       while (remaining > 0 && this.gameState === 'playing') {
         const step = Math.min(remaining, MAX_STEP);

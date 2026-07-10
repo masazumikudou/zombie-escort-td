@@ -78,6 +78,9 @@ class Escort {
     this.onDetourEnd      = null;  // Y出発時コールバック（GameScene用）
     this._announceTimer   = 0;
     this._waitText        = null;
+    // 時刻ベース位置計算
+    this._walkOriginTime  = this.scene?.scaledTime ?? 0;
+    this._pauseStart      = null;  // detour一時停止開始時刻（_finishDetourで補正に使用）
     if (this._detourDef?.path?.length > 0) {
       this._detourPixelPath = this._detourDef.path.map(p => cellCenter(p.col, p.row));
     }
@@ -125,27 +128,28 @@ class Escort {
     this._animFrame  = Math.floor(this._animTime / (1000 / escortFps(this.variant))) % escortFrameCount(this.variant) + 1;
 
     if (this.state === 'walking') {
-      if (this.wpIdx >= this.path.length) { this.reached = true; return; }
+      const now       = this.scene?.scaledTime ?? 0;
+      const traveled  = Math.max(0, this.speed * (now - this._walkOriginTime) / 1000);
+      const pos       = this._posOnPath(traveled);
+      const prevWpIdx = this.wpIdx;
 
-      const wp   = this.path[this.wpIdx];
-      const dx   = wp.x - this.x, dy = wp.y - this.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const step = this.speed * dt / 1000;
+      const ddx = pos.x - this.x, ddy = pos.y - this.y;
+      if (Math.abs(ddx) + Math.abs(ddy) > 0) { this.lastDx = ddx; this.lastDy = ddy; }
+      this.x     = pos.x;
+      this.y     = pos.y;
+      this.wpIdx = pos.wpIdx;
 
-      if (dist <= step) {
-        this.x = wp.x; this.y = wp.y;
-        this.wpIdx++;
-        // C5到達チェック（branchIdxに到達したらdetour開始）
-        if (!this._detourDone && this._detourPixelPath && (this.wpIdx - 1) === this._detourDef.branchIdx) {
-          this._enterDetour();
-        } else if (this.wpIdx >= this.path.length) {
-          this._enterExit();
-        }
-      } else {
-        this.lastDx = dx; this.lastDy = dy;
-        this.x += (dx / dist) * step;
-        this.y += (dy / dist) * step;
+      // Y分岐チェック（branchIdx通過時にdetour開始）
+      if (!this._detourDone && this._detourPixelPath &&
+          prevWpIdx < this._detourDef.branchIdx &&
+          this.wpIdx >= this._detourDef.branchIdx) {
+        this.x = this.path[this._detourDef.branchIdx].x;
+        this.y = this.path[this._detourDef.branchIdx].y;
+        this._enterDetour();
+        return;
       }
+
+      if (pos.done) { this._enterExit(); }
 
     } else if (this.state === 'detouring') {
       const wp   = this._detourPixelPath[this._detourWpIdx];
@@ -196,6 +200,7 @@ class Escort {
 
   // C5到達 → detour開始
   _enterDetour() {
+    this._pauseStart = this.scene?.scaledTime ?? 0;
     this.state = 'detouring';
     this._detourWpIdx = 1;  // detourPath[0]=C5には既にいる
     if (this._detourWpIdx >= this._detourPixelPath.length) {
@@ -222,9 +227,34 @@ class Escort {
   _finishDetour() {
     if (this._waitText) { this._waitText.destroy(); this._waitText = null; }
     this._detourDone = true;
+    // detour/wait/returning 中に経過した時間を _walkOriginTime へ加算（時刻ベース計算の補正）
+    if (this._pauseStart !== null) {
+      this._walkOriginTime += (this.scene?.scaledTime ?? 0) - this._pauseStart;
+      this._pauseStart = null;
+    }
     this.state = 'walking';
     this.wpIdx = this._detourDef.branchIdx + 1;
     if (this.onDetourEnd) this.onDetourEnd();
+  }
+
+  // path上の累積距離 dist に対応する座標と wpIdx を返す
+  _posOnPath(dist) {
+    let remain = dist;
+    for (let i = 1; i < this.path.length; i++) {
+      const dx     = this.path[i].x - this.path[i - 1].x;
+      const dy     = this.path[i].y - this.path[i - 1].y;
+      const segLen = Math.sqrt(dx * dx + dy * dy);
+      if (remain < segLen) {
+        const f = segLen > 0 ? remain / segLen : 0;
+        return { x: this.path[i - 1].x + dx * f, y: this.path[i - 1].y + dy * f, wpIdx: i - 1, done: false };
+      }
+      remain -= segLen;
+      if (remain <= 0) {
+        return { x: this.path[i].x, y: this.path[i].y, wpIdx: i, done: i >= this.path.length - 1 };
+      }
+    }
+    const last = this.path[this.path.length - 1];
+    return { x: last.x, y: last.y, wpIdx: this.path.length - 1, done: true };
   }
 
   takeDamage(amount) {
