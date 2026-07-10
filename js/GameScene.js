@@ -298,42 +298,51 @@ class GameScene extends Phaser.Scene {
 
   // ─── メインループ ─────────────────────────────────────────
   update(time, delta) {
-    const scale = TIME_SCALES[this.timeModeIdx];
-    const dt    = delta * scale;
-    this._dt    = dt;  // _drawDynamic から矢印アニメに使う
-    if (scale > 0) this.scaledTime += delta * scale;
+    const scale   = TIME_SCALES[this.timeModeIdx];
+    const totalDt = delta * scale;
+    this._dt      = totalDt;  // _drawDynamic から矢印アニメに使う
 
-    // 時間指定タワーの建設チェック（@ms 構文）
-    if (this._delayedTowerQueue?.length > 0) {
-      while (this._delayedTowerQueue.length > 0 && this._delayedTowerQueue[0].buildAt <= this.scaledTime) {
-        const t = this._delayedTowerQueue.shift();
-        this.towers.push(new Tower(this, t.col, t.row, t.type));
-        this._playLog?.push(`[BUILD]  t=${Math.round(this.scaledTime)}ms  ${t.type}@(${t.col},${t.row})`);
+    if (scale > 0 && this.gameState === 'playing') {
+      // サブステップ: シムのDT=50msに合わせて分割し速度依存の挙動差をなくす
+      const MAX_STEP = 50;
+      let remaining  = totalDt;
+      while (remaining > 0 && this.gameState === 'playing') {
+        const step = Math.min(remaining, MAX_STEP);
+        remaining -= step;
+        this.scaledTime += step;
+
+        // 時間指定タワーの建設チェック（@ms 構文）
+        while (this._delayedTowerQueue?.length > 0 && this._delayedTowerQueue[0].buildAt <= this.scaledTime) {
+          const t = this._delayedTowerQueue.shift();
+          this.towers.push(new Tower(this, t.col, t.row, t.type));
+          this._playLog?.push(`[BUILD]  t=${Math.round(this.scaledTime)}ms  ${t.type}@(${t.col},${t.row})`);
+        }
+
+        this.escort.update(step);
+
+        if (this.escort.alive && !this.escort.reached) {
+          this.flowField.update(
+            Math.floor(this.escort.x / CELL),
+            Math.floor(this.escort.y / CELL)
+          );
+        }
+
+        const escortTarget = this.relayPhase === 'active' ? this.escort : null;
+        this.zombies.forEach(z => z.update(this.scaledTime, step, escortTarget));
+        this.towers.forEach(t  => t.update(this.scaledTime, step, this.zombies, this.bullets, escortTarget));
+
+        this.bullets = this.bullets.filter(b => b.active);
+        this.bullets.forEach(b => b.update(step));
+
+        this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader), escortTarget);
+
+        this.zombies.forEach(z => { if (!z.alive) z.cleanup(); });
+        this.zombies = this.zombies.filter(z => z.alive);
+
+        if (this.relayPhase === 'active') this._checkWinLose();
       }
-    }
 
-    if (this.gameState === 'playing' && dt > 0) {
-      this.escort.update(dt);
-
-      // インターバル中はnullを渡しゾンビを既存パスで継続移動させる
-      // フローフィールドを護衛の現在セルで更新（護衛がセルを移動したときのみ再計算）
-      if (this.escort.alive && !this.escort.reached) {
-        this.flowField.update(
-          Math.floor(this.escort.x / CELL),
-          Math.floor(this.escort.y / CELL)
-        );
-      }
-
-      const escortTarget = this.relayPhase === 'active' ? this.escort : null;
-      this.zombies.forEach(z => z.update(this.scaledTime, dt, escortTarget));
-      this.towers.forEach(t  => t.update(this.scaledTime, dt, this.zombies, this.bullets, escortTarget));
-
-      this.bullets = this.bullets.filter(b => b.active);
-      this.bullets.forEach(b => b.update(dt));
-
-      this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader), escortTarget);
-
-      // スポーンカウントダウン更新（次に湧くスポーン地点だけに表示）
+      // スポーンカウントダウン更新（フレームに1回）
       if (this._spawnCountdownTexts?.length) {
         const warning = this.waveManager.getWarning(this.scaledTime);
         const spawns  = this._graveSpawnList ?? [];
@@ -347,16 +356,11 @@ class GameScene extends Phaser.Scene {
         });
       }
 
-      this.zombies.forEach(z => { if (!z.alive) z.cleanup(); });
-      this.zombies = this.zombies.filter(z => z.alive);
-
-      // インターバルカウントダウン
+      // インターバルカウントダウン（リアルタイムで計測）
       if (this.relayPhase === 'interval') {
-        this.intervalTimer -= delta;  // リアルタイムで計測
+        this.intervalTimer -= delta;
         if (this.intervalTimer <= 0) this._activateNextEscort();
       }
-
-      if (this.relayPhase === 'active') this._checkWinLose();
     }
 
     this._drawDynamic();
