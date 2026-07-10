@@ -54,12 +54,27 @@ class GameScene extends Phaser.Scene {
 
     // 経路探索（props の占有セルも obstacles と同等にブロック）
     this.pf = new Pathfinder(sd.grid.cols, sd.grid.rows, sd.obstacles);
+    this._propBlocked = new Set();
     for (const prop of (sd.props || [])) {
       const def = PROP_DEFS[prop.type];
       if (!def) continue;
       for (let dc = 0; dc < def.cols; dc++) {
         for (let dr = 0; dr < def.rows; dr++) {
-          this.pf.blocked.add(`${prop.col + dc},${prop.row + dr}`);
+          const key = `${prop.col + dc},${prop.row + dr}`;
+          this.pf.blocked.add(key);
+          this._propBlocked.add(key);
+        }
+      }
+    }
+
+    // road-only: ground_cells 以外のセルをすべてブロック（ゾンビは道路上のみ移動）
+    if (sd.ground_cells && sd.ground_cells.length > 0) {
+      const roadSet = new Set(sd.ground_cells.map(c => `${c.col},${c.row}`));
+      for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r < ROWS; r++) {
+          if (!roadSet.has(`${c},${r}`)) {
+            this.pf.blocked.add(`${c},${r}`);
+          }
         }
       }
     }
@@ -1144,7 +1159,7 @@ class GameScene extends Phaser.Scene {
         errors.push(`範囲外: ${t.type}@(${t.col},${t.row})`);
         continue;
       }
-      if (!this.pf.isWalkable(t.col, t.row)) {
+      if (this._propBlocked.has(`${t.col},${t.row}`)) {
         errors.push(`prop衝突（配置不可）: ${t.type}@(${t.col},${t.row})`);
         continue;
       }
