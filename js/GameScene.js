@@ -215,7 +215,7 @@ class GameScene extends Phaser.Scene {
     const _NAMES = { dad:'お父さん', mom:'お母さん', son:'息子', grandma:'おばあちゃん', cat:'猫' };
     const variantName = _NAMES[def.variant] ?? def.variant;
     this.escort.onDetourStart    = () => this._showDetourCard(variantName);
-    this.escort.onDetourActivate = () => { this.waveManager?.setSpawnMultiplier(0.5); };
+    this.escort.onDetourActivate = () => { this.waveManager?.setSpawnMultiplier(def.detour?.spawnMultiplier ?? 2.0); };
     this.escort.onDetourEnd      = () => { this.waveManager?.setSpawnMultiplier(1.0); this._closeDetourCard(); };
 
     const cam = this.cameras.main;
@@ -268,6 +268,8 @@ class GameScene extends Phaser.Scene {
     this.relayPhase    = 'interval';
     this.intervalTimer = RELAY_INTERVAL;
     const nextName = VARIANT_NAMES[this.escortDefs[nextIdx].variant] ?? this.escortDefs[nextIdx].variant;
+    this._playLog.push(`[RELAY_INTERVAL]  t=${Math.round(this.scaledTime)}ms  次の護衛=${nextName}  interval=${RELAY_INTERVAL}ms`);
+    console.log('--- RELAY CHECKPOINT (1人目終了) ---\n' + this._playLog.join('\n'));
     this._showNextWaveCard(this.escortIdx + 1, nextName);
   }
 
@@ -275,7 +277,18 @@ class GameScene extends Phaser.Scene {
     this.escortIdx++;
     this._closeBanner();
     this._closeNextWaveCard();
+    this._playLog.push(`[RELAY_START]  t=${Math.round(this.scaledTime)}ms  escortIdx=${this.escortIdx}  timeOffset=${Math.round(this.scaledTime)}ms`);
     this._startEscort(this.escortIdx, this.scaledTime);
+  }
+
+  // ログが長い場合に分割出力（Edgeコンソールの表示上限対策）
+  _printPlayLog() {
+    const CHUNK = 60;
+    const lines = this._playLog;
+    for (let i = 0; i < lines.length; i += CHUNK) {
+      const header = i === 0 ? '=== PLAY LOG ===' : `=== PLAY LOG (続き ${i + 1}〜) ===`;
+      console.log(header + '\n' + lines.slice(i, i + CHUNK).join('\n'));
+    }
   }
 
   _endGame() {
@@ -285,13 +298,13 @@ class GameScene extends Phaser.Scene {
       this.gameState = 'victory';
       audioSynth.stageClear();
       this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  判定=CLEAR`);
-      console.log('=== PLAY LOG ===\n' + this._playLog.join('\n'));
+      this._printPlayLog();
       this._showResult('STAGE CLEAR!', '#ffff44', 'リスタート', true);
     } else {
       this.gameState = 'defeat';
       audioSynth.gameOver();
       this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  判定=GAMEOVER`);
-      console.log('=== PLAY LOG ===\n' + this._playLog.join('\n'));
+      this._printPlayLog();
       this._showResult('GAME OVER', '#ff4444', 'もう一度', false);
     }
   }

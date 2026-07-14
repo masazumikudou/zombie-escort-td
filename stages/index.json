@@ -1,5 +1,6 @@
 {
   "stages": [
-    { "id": 1, "file": "stages/stage_01_meander_verified.json", "title": "確定中級ステージ" }
+    { "id": 1, "file": "stages/stage_01_meander_verified.json", "title": "確定中級ステージ" },
+    { "id": 2, "file": "stages/stage_y_tutorial.json",           "title": "Yチュートリアル" }
   ]
 }

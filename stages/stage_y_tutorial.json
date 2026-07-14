@@ -1,0 +1,138 @@
+{
+  "id": "stage_y_tutorial",
+  "name": "Yチュートリアル",
+  "grid": {
+    "cols": 11,
+    "rows": 11
+  },
+  "ground_base": "grass",
+  "startMoney": 600,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "startTrigger": "afterPrevious",
+      "start": { "col": 0, "row": 0 },
+      "goal":  { "col": 10, "row": 10 },
+      "hp": 100,
+      "speed": 40,
+      "path": [
+        { "col": 0, "row": 0 }, { "col": 0, "row": 1 }, { "col": 0, "row": 2 },
+        { "col": 0, "row": 3 }, { "col": 0, "row": 4 }, { "col": 0, "row": 5 },
+        { "col": 0, "row": 6 }, { "col": 0, "row": 7 }, { "col": 0, "row": 8 },
+        { "col": 0, "row": 9 }, { "col": 0, "row": 10 },
+        { "col": 1, "row": 10 }, { "col": 2, "row": 10 }, { "col": 3, "row": 10 },
+        { "col": 4, "row": 10 }, { "col": 5, "row": 10 },
+        { "col": 6, "row": 10 }, { "col": 7, "row": 10 }, { "col": 8, "row": 10 },
+        { "col": 9, "row": 10 }, { "col": 10, "row": 10 }
+      ],
+      "detour": {
+        "branchIdx": 15,
+        "path": [
+          { "col": 5, "row": 10 }, { "col": 5, "row": 9 }, { "col": 5, "row": 8 },
+          { "col": 5, "row": 7 }, { "col": 5, "row": 6 }, { "col": 5, "row": 5 },
+          { "col": 5, "row": 4 }, { "col": 5, "row": 3 }, { "col": 5, "row": 2 },
+          { "col": 5, "row": 1 }, { "col": 5, "row": 0 }
+        ],
+        "waitTime": 50000,
+        "spawnMultiplier": 2.0
+      }
+    }
+  ],
+  "spawns": {
+    "A": { "col": 10, "row": 9 }
+  },
+  "spawnEvents": [
+    {
+      "time": 8.0,
+      "spawn": "A",
+      "enemy": { "type": "salaryman", "hp": 30, "speed": 55, "damage": 10, "reward": 20 },
+      "count": 3,
+      "interval": 3000
+    },
+    {
+      "time": 65.0,
+      "spawn": "A",
+      "enemy": { "type": "worker", "hp": 45, "speed": 62, "damage": 13, "reward": 25 },
+      "count": 8,
+      "interval": 4000
+    },
+    {
+      "time": 90.0,
+      "spawn": "A",
+      "enemy": { "type": "police", "hp": 60, "speed": 70, "damage": 18, "reward": 30 },
+      "count": 6,
+      "interval": 3000
+    }
+  ],
+  "obstacles": [],
+  "zombieSpawns": [],
+  "buildSpots": [
+    { "col": 1,  "row": 3 },
+    { "col": 1,  "row": 5 },
+    { "col": 1,  "row": 8 },
+    { "col": 4,  "row": 3 },
+    { "col": 6,  "row": 3 },
+    { "col": 4,  "row": 5 },
+    { "col": 6,  "row": 5 },
+    { "col": 6,  "row": 8 },
+    { "col": 10, "row": 3 },
+    { "col": 10, "row": 5 }
+  ],
+  "ground_cells": [
+    { "col": 0, "row": 0, "type": "道縦ノーマル (2)" },
+    { "col": 5, "row": 0, "type": "道縦ノーマル (2)" },
+    { "col": 0, "row": 1, "type": "道縦ノーマル (2)" },
+    { "col": 5, "row": 1, "type": "道縦ノーマル (2)" },
+    { "col": 0, "row": 2, "type": "道縦ノーマル (2)" },
+    { "col": 5, "row": 2, "type": "道縦ノーマル (2)" },
+    { "col": 0, "row": 3, "type": "道縦ノーマル (2)" },
+    { "col": 5, "row": 3, "type": "道縦ノーマル (2)" },
+    { "col": 0, "row": 4, "type": "道縦ノーマル (2)" },
+    { "col": 2, "row": 4, "type": "道横" },
+    { "col": 3, "row": 4, "type": "道横" },
+    { "col": 4, "row": 4, "type": "道横" },
+    { "col": 5, "row": 4, "type": "道横" },
+    { "col": 6, "row": 4, "type": "道横" },
+    { "col": 7, "row": 4, "type": "道横" },
+    { "col": 8, "row": 4, "type": "道横" },
+    { "col": 9, "row": 4, "type": "道横" },
+    { "col": 10, "row": 4, "type": "道横" },
+    { "col": 0, "row": 5, "type": "道縦ノーマル (2)" },
+    { "col": 5, "row": 5, "type": "道縦ノーマル (2)" },
+    { "col": 0, "row": 6, "type": "道縦ノーマル (2)" },
+    { "col": 5, "row": 6, "type": "道縦ノーマル (2)" },
+    { "col": 0, "row": 7, "type": "道縦ノーマル (2)" },
+    { "col": 5, "row": 7, "type": "道縦ノーマル (2)" },
+    { "col": 0, "row": 8, "type": "道縦ノーマル (2)" },
+    { "col": 5, "row": 8, "type": "道縦ノーマル (2)" },
+    { "col": 0,  "row": 9, "type": "道横" },
+    { "col": 1,  "row": 9, "type": "道横" },
+    { "col": 2,  "row": 9, "type": "道横" },
+    { "col": 3,  "row": 9, "type": "道横" },
+    { "col": 4,  "row": 9, "type": "道横" },
+    { "col": 5,  "row": 9, "type": "道横" },
+    { "col": 6,  "row": 9, "type": "道横" },
+    { "col": 7,  "row": 9, "type": "道横" },
+    { "col": 8,  "row": 9, "type": "道横" },
+    { "col": 9,  "row": 9, "type": "道横" },
+    { "col": 10, "row": 9, "type": "道横" },
+    { "col": 0,  "row": 10, "type": "道横" },
+    { "col": 1,  "row": 10, "type": "道横" },
+    { "col": 2,  "row": 10, "type": "道横" },
+    { "col": 3,  "row": 10, "type": "道横" },
+    { "col": 4,  "row": 10, "type": "道横" },
+    { "col": 5,  "row": 10, "type": "道横" },
+    { "col": 6,  "row": 10, "type": "道横" },
+    { "col": 7,  "row": 10, "type": "道横" },
+    { "col": 8,  "row": 10, "type": "道横" },
+    { "col": 9,  "row": 10, "type": "道横" },
+    { "col": 10, "row": 10, "type": "道横" }
+  ],
+  "props": [
+    { "type": "アイスクリーム", "col": 2, "row": 0 },
+    { "type": "家青",           "col": 7, "row": 0 },
+    { "type": "家緑",           "col": 2, "row": 6 },
+    { "type": "家青",           "col": 7, "row": 6 }
+  ]
+}
