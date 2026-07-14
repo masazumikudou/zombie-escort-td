@@ -40,29 +40,40 @@
     }
   ],
   "spawns": {
-    "A": { "col": 10, "row": 9 }
+    "A": { "col": 10, "row": 9 },
+    "B": { "col": 10, "row": 4 },
+    "C": { "col":  0, "row": 9 }
   },
   "spawnEvents": [
     {
-      "time": 8.0,
-      "spawn": "A",
-      "enemy": { "type": "salaryman", "hp": 30, "speed": 55, "damage": 10, "reward": 20 },
-      "count": 3,
-      "interval": 3000
+      "time": 8.0, "spawn": "A",
+      "enemy": { "type": "salaryman", "hp": 200, "speed": 55, "damage": 10, "reward": 20 },
+      "count": 4, "interval": 4000
     },
     {
-      "time": 65.0,
-      "spawn": "A",
-      "enemy": { "type": "worker", "hp": 45, "speed": 62, "damage": 13, "reward": 25 },
-      "count": 8,
-      "interval": 4000
+      "time": 65.0, "spawn": "A",
+      "enemy": { "type": "salaryman", "hp": 200, "speed": 55, "damage": 10, "reward": 20 },
+      "count": 5, "interval": 4000
     },
     {
-      "time": 90.0,
-      "spawn": "A",
-      "enemy": { "type": "police", "hp": 60, "speed": 70, "damage": 18, "reward": 30 },
-      "count": 6,
-      "interval": 3000
+      "time": 65.5, "spawn": "B",
+      "enemy": { "type": "salaryman", "hp": 200, "speed": 55, "damage": 10, "reward": 20 },
+      "count": 2, "interval": 4000
+    },
+    {
+      "time": 88.0, "spawn": "A",
+      "enemy": { "type": "salaryman", "hp": 200, "speed": 55, "damage": 10, "reward": 20 },
+      "count": 4, "interval": 4000
+    },
+    {
+      "time": 88.0, "spawn": "B",
+      "enemy": { "type": "salaryman", "hp": 200, "speed": 55, "damage": 10, "reward": 20 },
+      "count": 3, "interval": 4000
+    },
+    {
+      "time": 91.0, "spawn": "C",
+      "enemy": { "type": "salaryman", "hp": 200, "speed": 55, "damage": 10, "reward": 20 },
+      "count": 4, "interval": 4500
     }
   ],
   "obstacles": [],
