@@ -214,9 +214,20 @@ class GameScene extends Phaser.Scene {
     // Yシステムコールバック接続
     const _NAMES = { dad:'お父さん', mom:'お母さん', son:'息子', grandma:'おばあちゃん', cat:'猫' };
     const variantName = _NAMES[def.variant] ?? def.variant;
-    this.escort.onDetourStart    = () => this._showDetourCard(variantName);
-    this.escort.onDetourActivate = () => { this.waveManager?.setSpawnMultiplier(def.detour?.spawnMultiplier ?? 2.0); };
-    this.escort.onDetourEnd      = () => { this.waveManager?.setSpawnMultiplier(1.0); this._closeDetourCard(); };
+    this.escort.onDetourStart    = () => {
+      this._playLog.push(`[DETOUR_START]    t=${Math.round(this.scaledTime)}ms variant=${variantName} → announcing`);
+      this._showDetourCard(variantName);
+    };
+    this.escort.onDetourActivate = () => {
+      const _mul = def.detour?.spawnMultiplier ?? 2.0;
+      this.waveManager?.setSpawnMultiplier(_mul);
+      this._playLog.push(`[DETOUR_ACTIVATE] t=${Math.round(this.scaledTime)}ms spawnMul=${_mul}`);
+    };
+    this.escort.onDetourEnd      = () => {
+      this.waveManager?.setSpawnMultiplier(1.0);
+      this._playLog.push(`[DETOUR_END]      t=${Math.round(this.scaledTime)}ms → spawn通常に戻す`);
+      this._closeDetourCard();
+    };
 
     const cam = this.cameras.main;
     cam.pan(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2, 600, 'Power2');
