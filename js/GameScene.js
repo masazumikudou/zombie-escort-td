@@ -1196,8 +1196,13 @@ class GameScene extends Phaser.Scene {
   // ─── タワー配置 ──────────────────────────────────────────
   _canPlace(col, row, type) {
     if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
-    if (!this.pf.isWalkable(col, row)) return false;
-    if (this.buildSpots.size > 0 && !this.buildSpots.has(`${col},${row}`)) return false;
+    if (this.buildSpots.size > 0) {
+      // buildSpots定義ステージ: buildSpotの権威を最優先（pf.blocked=草マスでも建設可）
+      if (!this.buildSpots.has(`${col},${row}`)) return false;
+    } else {
+      // buildSpots未定義の自由配置ステージ: walkable判定で道路・prop侵入を防ぐ
+      if (!this.pf.isWalkable(col, row)) return false;
+    }
     if (this.towers.some(t => t.col === col && t.row === row)) return false;
     return this.money >= TOWER_DEFS[type].cost;
   }
