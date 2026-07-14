@@ -30,13 +30,14 @@ class Bullet {
 
 // ─── 弧弾丸（影＋縦オフセット方式） ─────────────────────────────
 class ArcBullet {
-  constructor(scene, x, y, targetX, targetY, damage, aoeRadius, zombiesRef) {
-    this.scene     = scene;
-    this.startX    = x;       this.startY    = y;
-    this.targetX   = targetX; this.targetY   = targetY;
-    this.damage    = damage;
-    this.aoeRadius = aoeRadius;
-    this._zombies  = zombiesRef;
+  constructor(scene, x, y, targetX, targetY, damage, aoeRadius, zombiesRef, singleTarget = null) {
+    this.scene         = scene;
+    this.startX        = x;       this.startY    = y;
+    this.targetX       = targetX; this.targetY   = targetY;
+    this.damage        = damage;
+    this.aoeRadius     = aoeRadius;
+    this._zombies      = zombiesRef;
+    this._singleTarget = singleTarget;
     this.active    = true;
     this.elapsed   = 0;
     this.duration  = 1200;
@@ -66,11 +67,15 @@ class ArcBullet {
     }
 
     if (t >= 1) {
-      const r2 = this.aoeRadius * this.aoeRadius;
-      for (const z of this._zombies) {
-        if (!z.alive || z._spawnTimer > 0) continue;
-        const dx = z.x - this.targetX, dy = z.y - this.targetY;
-        if (dx * dx + dy * dy <= r2) z.takeDamage(this.damage);
+      if (this._singleTarget) {
+        if (this._singleTarget.alive) this._singleTarget.takeDamage(this.damage);
+      } else {
+        const r2 = this.aoeRadius * this.aoeRadius;
+        for (const z of this._zombies) {
+          if (!z.alive || z._spawnTimer > 0) continue;
+          const dx = z.x - this.targetX, dy = z.y - this.targetY;
+          if (dx * dx + dy * dy <= r2) z.takeDamage(this.damage);
+        }
       }
       this.active = false;
       if (this._ball) { this._ball.destroy(); this._ball = null; }
@@ -210,8 +215,7 @@ class Tower {
       bullets.push(new ArcBullet(
         this.scene, this.x, this.y,
         target.x, target.y,
-        this.damage, CELL * 1.5,
-        zombies
+        this.damage, 0, zombies, target
       ));
       audioSynth.shoot();
       return;
