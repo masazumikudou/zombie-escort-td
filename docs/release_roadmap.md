@@ -88,6 +88,8 @@ balance.json・config.js・run_sim.js への正式実装は未着手。以下が
 
 > ※ DPS・コスパは `rangeTest()` 実測値（speed=30px/s・hp=200基準）。A地点交戦テスト実施済み（leashTo=(14,3)・2体・1000ms間隔）。
 
+> **【CC確認事項】** タワー5種（normal/sniper/cannon/ice/punch）および sniper射程350px は、balance.json/config.js/run_sim.js にまだ未実装で合っているか確認すること。実装着手時は本工程表（v1.4）の最新値を正典として使うこと。旧パラメータ（sniper射程450px等）が残っている場合は上書き。
+
 ### 設計原則（タワー設計・ステージ設計共通）
 
 1. **単騎完結の禁止**: 1種のタワーだけでどんな交戦地も処理できる性能にしない
