@@ -39,7 +39,7 @@ const TIME_LABELS = ['⏸ 停止', '🐢 スロー', '▶ 通常', '⏩ 2倍', '
 // ここの数値は balance.json が読めなかった場合のフォールバック。
 const TOWER_DEFS = {
   normal: { label:'ノーマル',   color:0x4488ff, textColor:'#5599ff', cost:120, sell:84,  range:2.5, fireRate:800,  damage:50,  durability:null },
-  sniper: { label:'スナイパー', color:0x44ff88, textColor:'#55ffaa', cost:250, sell:175, range:4.5, fireRate:450,  damage:34,  durability:null },
+  sniper: { label:'スナイパー', color:0x44ff88, textColor:'#55ffaa', cost:250, sell:175, range:3.5, fireRate:450,  damage:34,  durability:null },
   cannon: { label:'砲',         color:0xff8822, textColor:'#ffaa44', cost:180, sell:126, range:3.0, fireRate:1600, damage:100, durability:null },
   ice:    { label:'アイス',     color:0x44ccff, textColor:'#66ddff', cost:150, sell:105, range:2.5, fireRate:900,  damage:25,  durability:null },
   punch:  { label:'パンチ',     color:0xff6600, textColor:'#ff8833', cost:120, sell:84,  range:1.0, fireRate:2000, damage:100, durability:null },

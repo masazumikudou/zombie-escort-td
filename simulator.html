@@ -80,7 +80,7 @@ class SimTower {
     const cc      = cellCenter(col, row);
     this.x        = cc.x;
     this.y        = cc.y;
-    const d       = TOWER_DEFS[type] ?? TOWER_DEFS.basic;
+    const d       = TOWER_DEFS[type] ?? TOWER_DEFS.normal;
     this.range    = d.range * CELL;
     this.fireRate = d.fireRate;
     this.damage   = d.damage;

@@ -5,7 +5,7 @@
 
   "towers": {
     "normal": { "cost": 120, "range": 2.5, "fireRate": 800,  "damage": 50,  "durability": null },
-    "sniper": { "cost": 250, "range": 4.5, "fireRate": 450,  "damage": 34,  "durability": null },
+    "sniper": { "cost": 250, "range": 3.5, "fireRate": 450,  "damage": 34,  "durability": null },
     "cannon": { "cost": 180, "range": 3.0, "fireRate": 1600, "damage": 100, "durability": null },
     "ice":    { "cost": 150, "range": 2.5, "fireRate": 900,  "damage": 25,  "durability": null },
     "punch":  { "cost": 120, "range": 1.0, "fireRate": 2000, "damage": 100, "durability": null }
