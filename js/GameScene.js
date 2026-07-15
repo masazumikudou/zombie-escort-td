@@ -1100,7 +1100,10 @@ class GameScene extends Phaser.Scene {
     const sx  = (tower.x - cam.scrollX) * cam.zoom;
     const sy  = (tower.y - cam.scrollY) * cam.zoom;
 
-    const popW = 152, popH = 72;
+    const upgCost    = tower.upgradeCost?.() ?? null;
+    const canUpgrade = upgCost !== null;
+    const popW = 152;
+    const popH = canUpgrade ? 110 : 72;
     let px = sx - popW / 2;
     let py = sy - (CELL * cam.zoom) / 2 - popH - 6;
     px = clamp(px, 6, CANVAS_W - popW - 6);
@@ -1117,27 +1120,44 @@ class GameScene extends Phaser.Scene {
       .setScrollFactor(0).setDepth(70).setStrokeStyle(1, 0x3a5070);
     this.popupObjects.push(bg);
 
-    const titleText = this.add.text(px + popW / 2, py + 8, `${def.label}タワー`, {
+    const titleText = this.add.text(px + popW / 2, py + 8, `${def.label}タワー  Lv${tower.upgradeLevel}`, {
       fontSize: '14px', fontFamily: 'Arial, Helvetica, sans-serif',
       color: def.textColor, stroke: '#000000', strokeThickness: 2,
     }).setScrollFactor(0).setDepth(71).setOrigin(0.5, 0);
     this.popupObjects.push(titleText);
 
-    const sbW = 128, sbH = 30;
-    const sbx = px + (popW - sbW) / 2;
-    const sby = py + popH - sbH - 8;
+    const btnW = 128, btnH = 30;
+    const btnX = px + (popW - btnW) / 2;
 
-    const sellBtn = this.add.rectangle(sbx + sbW / 2, sby + sbH / 2, sbW, sbH, 0x551111, 0.9)
+    if (canUpgrade) {
+      const ubY = py + 32;
+      const hasMoney = this.money >= upgCost;
+      const ubColor  = hasMoney ? 0x114411 : 0x222222;
+      const upgradeBtn = this.add.rectangle(btnX + btnW / 2, ubY + btnH / 2, btnW, btnH, ubColor, 0.9)
+        .setScrollFactor(0).setDepth(71).setStrokeStyle(1.5, hasMoney ? 0x44ff44 : 0x555555, 0.8).setInteractive();
+      if (hasMoney) {
+        upgradeBtn.on('pointerover',  () => upgradeBtn.setFillStyle(0x226622, 0.9));
+        upgradeBtn.on('pointerout',   () => upgradeBtn.setFillStyle(0x114411, 0.9));
+        upgradeBtn.on('pointerdown',  () => { this._popupJustActed = true; this._upgradeTower(tower); });
+      }
+      this.popupObjects.push(upgradeBtn);
+      const upgradeText = this.add.text(btnX + btnW / 2, ubY + btnH / 2,
+        hasMoney ? `強化 Lv${tower.upgradeLevel + 1}  ¥${upgCost}` : `強化 ¥${upgCost} (資金不足)`, {
+        fontSize: '13px', fontFamily: 'Arial, Helvetica, sans-serif',
+        color: hasMoney ? '#88ff88' : '#666666', stroke: '#000000', strokeThickness: 2,
+      }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0.5);
+      this.popupObjects.push(upgradeText);
+    }
+
+    const sbY = canUpgrade ? py + 72 : py + popH - btnH - 8;
+    const sellBtn = this.add.rectangle(btnX + btnW / 2, sbY + btnH / 2, btnW, btnH, 0x551111, 0.9)
       .setScrollFactor(0).setDepth(71).setStrokeStyle(1.5, 0xff4444, 0.8).setInteractive();
     sellBtn.on('pointerover',  () => sellBtn.setFillStyle(0x882222, 0.9));
     sellBtn.on('pointerout',   () => sellBtn.setFillStyle(0x551111, 0.9));
-    sellBtn.on('pointerdown',  () => {
-      this._popupJustActed = true;
-      this._sellTower(tower);
-    });
+    sellBtn.on('pointerdown',  () => { this._popupJustActed = true; this._sellTower(tower); });
     this.popupObjects.push(sellBtn);
 
-    const sellText = this.add.text(sbx + sbW / 2, sby + sbH / 2, `売却  +¥${tower.sell}`, {
+    const sellText = this.add.text(btnX + btnW / 2, sbY + btnH / 2, `売却  +¥${tower.sell}`, {
       fontSize: '14px', fontFamily: 'Arial, Helvetica, sans-serif',
       color: '#ff9999', stroke: '#000000', strokeThickness: 2,
     }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0.5);
@@ -1243,6 +1263,16 @@ class GameScene extends Phaser.Scene {
     this._playLog.push(`[SELL]   t=${Math.round(this.scaledTime)}ms  type=${tower.type}  pos=(${tower.col},${tower.row})  refund=${refund}  money=${this.money}`);
     tower.cleanup();
     this.towers = this.towers.filter(t => t !== tower);
+    audioSynth.coin();
+    this._closePopup();
+  }
+
+  _upgradeTower(tower) {
+    const cost = tower.upgradeCost?.() ?? null;
+    if (cost === null || this.money < cost) return;
+    this.money -= cost;
+    tower.upgrade();
+    this._playLog.push(`[UPGRADE] t=${Math.round(this.scaledTime)}ms  ${tower.type}@(${tower.col},${tower.row})  Lv${tower.upgradeLevel}  cost=${cost}  money=${this.money}`);
     audioSynth.coin();
     this._closePopup();
   }

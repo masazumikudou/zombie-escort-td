@@ -87,10 +87,32 @@ class SimTower {
     this.lastFire = -99999;
     this._bullets = [];  // { arrivesAt, target }
     this._logArr  = logArr;
-    this._label   = `${type}@(${col},${row})`;
+    this._type         = type;
+    this._col          = col;
+    this._row          = row;
+    this._label        = `${type}@(${col},${row})`;
+    this.upgradeLevel  = 1;
+    this._baseDamage   = d.damage;
+    this._baseFireRate = d.fireRate;
   }
 
   _log(msg) { if (this._logArr) this._logArr.push(msg); }
+
+  _applyUpgradeStats() {
+    const ups = UPGRADE_DEFS?.perType?.[this._type];
+    if (!ups) return;
+    const n = this.upgradeLevel - 1;
+    if (ups.dmgMult)      this.damage   = Math.round(this._baseDamage   * Math.pow(ups.dmgMult, n));
+    if (ups.fireRateMult) this.fireRate = Math.round(this._baseFireRate  / Math.pow(ups.fireRateMult, n));
+  }
+
+  upgrade() {
+    const maxLv = UPGRADE_DEFS?.maxLevel ?? 3;
+    if (this.upgradeLevel >= maxLv) return false;
+    this.upgradeLevel++;
+    this._applyUpgradeStats();
+    return true;
+  }
 
   update(scaledTime, zombies, escort) {
     // 着弾処理（HITはZombie.takeDamage._log経由でlogArrに記録される）
@@ -126,8 +148,9 @@ class SimTower {
 }
 
 // ─── タワー配置テキスト解析 ───────────────────────────────────────────────
-// 形式: "basic:5,3 sniper:8,3"  即時建設
-//       "sniper:7,14@90000"      t=90000ms に建設（道中資金で）
+// 形式: "normal:5,3 sniper:8,3"    即時建設
+//       "sniper:7,14@90000"         t=90000ms に建設（道中資金で）
+//       "upgrade:5,3@60000"         t=60000ms に (5,3) のタワーを強化
 function parseTowerPattern(text) {
   return text.trim().split(/[\s\n]+/).flatMap(token => {
     const m = token.match(/^(\w+):(\d+),(\d+)(?:@(\d+))?$/);
@@ -177,9 +200,15 @@ class StageSimulator {
     let money = stage.startMoney ?? 500;
     const delayedQueue = [];
     for (const tp of towerPlacements) {
+      if (tp.buildAt > 0) { delayedQueue.push(tp); continue; }
+      if (tp.type === 'upgrade') {
+        const t = simTowers.find(t => t._col === tp.col && t._row === tp.row);
+        if (t) { t.upgrade(); log.push(`[UPGRADE] upgrade@(${tp.col},${tp.row}) Lv${t.upgradeLevel}`); }
+        else    { log.push(`[WARN]   upgrade@(${tp.col},${tp.row}) タワー未発見`); }
+        continue;
+      }
       const def = TOWER_DEFS[tp.type];
       if (!def) { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }
-      if (tp.buildAt > 0) { delayedQueue.push(tp); continue; }
       if (money < def.cost) { log.push(`[WARN]   資金不足でスキップ: ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`); continue; }
       simTowers.push(new SimTower(tp.col, tp.row, tp.type, log));
       money -= def.cost;
@@ -218,9 +247,15 @@ class StageSimulator {
     while (scaledTime <= MAX_TIME) {
       mockScene.scaledTime = scaledTime;
 
-      // 時間指定タワーの建設チェック（資金が足りれば建設、足りなければWARN）
+      // 時間指定タワーの建設/強化チェック
       while (delayedQueue.length > 0 && delayedQueue[0].buildAt <= scaledTime) {
-        const tp  = delayedQueue.shift();
+        const tp = delayedQueue.shift();
+        if (tp.type === 'upgrade') {
+          const t = simTowers.find(t => t._col === tp.col && t._row === tp.row);
+          if (t) { t.upgrade(); log.push(`[UPGRADE] t=${Math.round(scaledTime)}ms  upgrade@(${tp.col},${tp.row}) Lv${t.upgradeLevel}`); }
+          else    { log.push(`[WARN]   t=${Math.round(scaledTime)}ms  upgrade@(${tp.col},${tp.row}) タワー未発見`); }
+          continue;
+        }
         const def = TOWER_DEFS[tp.type];
         if (!def) { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }
         if (money < def.cost) {

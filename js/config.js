@@ -38,11 +38,23 @@ const TIME_LABELS = ['⏸ 停止', '🐢 スロー', '▶ 通常', '⏩ 2倍', '
 // 数値（cost/range/fireRate/damage/durability）は balance.json で上書き。
 // ここの数値は balance.json が読めなかった場合のフォールバック。
 const TOWER_DEFS = {
-  normal: { label:'ノーマル',   color:0x4488ff, textColor:'#5599ff', cost:120, sell:84,  range:2.5, fireRate:800,  damage:50,  durability:null },
-  sniper: { label:'スナイパー', color:0x44ff88, textColor:'#55ffaa', cost:250, sell:175, range:3.5, fireRate:450,  damage:34,  durability:null },
-  cannon: { label:'砲',         color:0xff8822, textColor:'#ffaa44', cost:180, sell:126, range:3.0, fireRate:1600, damage:100, durability:null },
-  ice:    { label:'アイス',     color:0x44ccff, textColor:'#66ddff', cost:150, sell:105, range:2.5, fireRate:900,  damage:25,  durability:null },
-  punch:  { label:'パンチ',     color:0xff6600, textColor:'#ff8833', cost:120, sell:84,  range:1.0, fireRate:2000, damage:100, durability:null },
+  normal: { label:'ノーマル',   color:0x4488ff, textColor:'#5599ff', cost:100, sell:70,  range:2.5, fireRate:800,  damage:50,  durability:null },
+  sniper: { label:'スナイパー', color:0x44ff88, textColor:'#55ffaa', cost:300, sell:210, range:3.5, fireRate:450,  damage:34,  durability:null },
+  cannon: { label:'砲',         color:0xff8822, textColor:'#ffaa44', cost:200, sell:140, range:3.0, fireRate:1600, damage:100, durability:null },
+  ice:    { label:'アイス',     color:0x44ccff, textColor:'#66ddff', cost:300, sell:210, range:2.5, fireRate:900,  damage:25,  durability:null },
+  punch:  { label:'パンチ',     color:0xff6600, textColor:'#ff8833', cost:100, sell:70,  range:1.0, fireRate:2000, damage:100, durability:null },
+};
+
+const UPGRADE_DEFS = {
+  costRatio: [0.5, null],
+  maxLevel: 3,
+  perType: {
+    normal: { dmgMult: 1.15, fireRateMult: 1.15 },
+    sniper: { fireRateMult: 1.10 },
+    cannon: { dmgMult: 1.15 },
+    ice:    { fireRateMult: 1.15 },
+    punch:  { fireRateMult: 1.15 },
+  }
 };
 
 // ─── タワー表示制限（難易度計測フェーズ用）─────────────────────
@@ -117,6 +129,11 @@ function applyBalance(b) {
     const { hp, speed, damage, reward } = stats;
     ZOMBIE_BASE[type] = { ...ZOMBIE_BASE[type], hp, speed, damage, reward };
   });
+  if (b.upgrades) {
+    if (b.upgrades.costRatio !== undefined) UPGRADE_DEFS.costRatio = b.upgrades.costRatio;
+    if (b.upgrades.maxLevel  !== undefined) UPGRADE_DEFS.maxLevel  = b.upgrades.maxLevel;
+    if (b.upgrades.perType) Object.assign(UPGRADE_DEFS.perType, b.upgrades.perType);
+  }
 }
 
 // ─── アセットパス（差し替えポイント） ─────────────────────────

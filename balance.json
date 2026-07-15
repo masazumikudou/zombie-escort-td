@@ -4,11 +4,23 @@
   "sellRate": 0.70,
 
   "towers": {
-    "normal": { "cost": 120, "range": 2.5, "fireRate": 800,  "damage": 50,  "durability": null },
-    "sniper": { "cost": 250, "range": 3.5, "fireRate": 450,  "damage": 34,  "durability": null },
-    "cannon": { "cost": 180, "range": 3.0, "fireRate": 1600, "damage": 100, "durability": null },
-    "ice":    { "cost": 150, "range": 2.5, "fireRate": 900,  "damage": 25,  "durability": null },
-    "punch":  { "cost": 120, "range": 1.0, "fireRate": 2000, "damage": 100, "durability": null }
+    "normal": { "cost": 100, "range": 2.5, "fireRate": 800,  "damage": 50,  "durability": null },
+    "sniper": { "cost": 300, "range": 3.5, "fireRate": 450,  "damage": 34,  "durability": null },
+    "cannon": { "cost": 200, "range": 3.0, "fireRate": 1600, "damage": 100, "durability": null },
+    "ice":    { "cost": 300, "range": 2.5, "fireRate": 900,  "damage": 25,  "durability": null },
+    "punch":  { "cost": 100, "range": 1.0, "fireRate": 2000, "damage": 100, "durability": null }
+  },
+
+  "upgrades": {
+    "costRatio": [0.5, null],
+    "maxLevel": 3,
+    "perType": {
+      "normal": { "dmgMult": 1.15, "fireRateMult": 1.15 },
+      "sniper": { "fireRateMult": 1.10 },
+      "cannon": { "dmgMult": 1.15 },
+      "ice":    { "fireRateMult": 1.15 },
+      "punch":  { "fireRateMult": 1.15 }
+    }
   },
 
   "zombies": {

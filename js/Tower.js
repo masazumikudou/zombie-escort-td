@@ -107,6 +107,9 @@ class Tower {
     this.color    = def.color;
     this.sell       = def.sell;
     this.durability = def.durability ?? null;
+    this.upgradeLevel  = 1;
+    this._baseDamage   = def.damage;
+    this._baseFireRate = def.fireRate;
     this.direction  = null;   // laser専用：'up'|'down'|'left'|'right'
     this._laserFlash = 0;     // laser発射フラッシュ残り時間(ms)
     this.selected   = false;
@@ -357,6 +360,29 @@ class Tower {
         g.fillTriangle(this.x, this.y - 7, this.x - 6, this.y + 5, this.x + 6, this.y + 5);
       }
     }
+  }
+
+  _applyUpgradeStats() {
+    const ups = UPGRADE_DEFS?.perType?.[this.type];
+    if (!ups) return;
+    const n = this.upgradeLevel - 1;
+    if (ups.dmgMult)      this.damage   = Math.round(this._baseDamage   * Math.pow(ups.dmgMult, n));
+    if (ups.fireRateMult) this.fireRate = Math.round(this._baseFireRate  / Math.pow(ups.fireRateMult, n));
+  }
+
+  upgradeCost() {
+    const idx   = this.upgradeLevel - 1;
+    const ratio = UPGRADE_DEFS?.costRatio?.[idx] ?? null;
+    if (ratio === null) return null;
+    return Math.floor(TOWER_DEFS[this.type].cost * ratio);
+  }
+
+  upgrade() {
+    const maxLv = UPGRADE_DEFS?.maxLevel ?? 3;
+    if (this.upgradeLevel >= maxLv) return false;
+    this.upgradeLevel++;
+    this._applyUpgradeStats();
+    return true;
   }
 
   cleanup() {
