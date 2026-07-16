@@ -70,6 +70,7 @@ class Escort {
     this._animFrame = 1;
     this._sprite    = null;
     this._shadow    = null;
+    this._hpGfx     = scene.add.graphics().setDepth(5);
 
     // 寄り道(Y)システム
     this.state            = 'walking';  // 'walking'|'detouring'|'waiting'|'returning'|'exiting'
@@ -278,12 +279,14 @@ class Escort {
     if (!this.alive) {
       if (this._sprite) this._sprite.setVisible(false);
       if (this._shadow) this._shadow.setVisible(false);
+      if (this._hpGfx)  this._hpGfx.clear();
       return;
     }
 
     if (this.defeated) {
       if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
       if (this._shadow) this._shadow.setVisible(false);
+      if (this._hpGfx)  this._hpGfx.clear();
       const blink = Math.floor(this._defeatTimer / 200) % 2 === 0;
       if (blink) {
         g.fillStyle(0x555555, 0.7);
@@ -297,6 +300,7 @@ class Escort {
     if (this.reached) {
       if (this._sprite) this._sprite.setVisible(false);
       if (this._shadow) this._shadow.setVisible(false);
+      if (this._hpGfx)  this._hpGfx.clear();
       return;
     }
 
@@ -340,21 +344,23 @@ class Escort {
       // HPバーへ続く
     } else {
 
-    // 方向別シートキー
-    let sheetKey, animKey, sprDir;
-    if (dir === 'down' && this.scene.textures.exists(`${this.variant}_down`)) {
-      sheetKey = `${this.variant}_down`;
-      animKey  = `${this.variant}_walk_down`;
-      sprDir   = 'down';
-    } else if (dir === 'up' && this.scene.textures.exists(`${this.variant}_up`)) {
-      sheetKey = `${this.variant}_up`;
-      animKey  = `${this.variant}_walk_up`;
-      sprDir   = 'up';
+    // 方向別シートキー（スプライトがなければDADにフォールバック）
+    let sheetKey, animKey, sprDir, sprVariant;
+    const _v = this.variant;
+    if (dir === 'down' && this.scene.textures.exists(`${_v}_down`)) {
+      sheetKey = `${_v}_down`;   animKey = `${_v}_walk_down`;   sprDir = 'down';
+    } else if (dir === 'up' && this.scene.textures.exists(`${_v}_up`)) {
+      sheetKey = `${_v}_up`;     animKey = `${_v}_walk_up`;     sprDir = 'up';
+    } else if (this.scene.textures.exists(`${_v}_right`)) {
+      sheetKey = `${_v}_right`;  animKey = `${_v}_walk_right`;  sprDir = 'right';
+    } else if (dir === 'down' && this.scene.textures.exists('dad_down')) {
+      sheetKey = 'dad_down';     animKey = 'dad_walk_down';     sprDir = 'down';
+    } else if (dir === 'up' && this.scene.textures.exists('dad_up')) {
+      sheetKey = 'dad_up';       animKey = 'dad_walk_up';       sprDir = 'up';
     } else {
-      sheetKey = `${this.variant}_right`;
-      animKey  = `${this.variant}_walk_right`;
-      sprDir   = 'right';
+      sheetKey = 'dad_right';    animKey = 'dad_walk_right';    sprDir = 'right';
     }
+    sprVariant = this.scene.textures.exists(`${_v}_right`) ? _v : 'dad';
 
     if (this.scene.textures.exists(sheetKey)) {
       // ─── スプライットシートモード ────────────────────
@@ -364,8 +370,9 @@ class Escort {
         this._spriteKey = sheetKey;
         if (this.scene.anims.exists(animKey)) this._sprite.play(animKey);
       }
-      const cfg  = _escortSprCfg(this.variant, sprDir);
+      const cfg  = _escortSprCfg(sprVariant, sprDir);
       const posY = (this.y + ESCORT_GROUND_OFFSET) - (1 - cfg.oy) * cfg.frameH * cfg.scale;
+      this._headY = posY - cfg.oy * cfg.frameH * cfg.scale;
       this._sprite.setScale(cfg.scale);
       this._sprite.setOrigin(cfg.ox, cfg.oy);
       this._sprite.setPosition(this.x, posY).setVisible(true);
@@ -387,6 +394,7 @@ class Escort {
     } else {
       // ─── グレーボックス（単色円） ─────────────────────
       if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
+      this._headY = this.y - 22;
 
       const r       = 22;
       const flash   = this.hitFlash > 0;
@@ -402,19 +410,23 @@ class Escort {
     }
     } // end idle/walk branch
 
-    // HPバーは常にgで描画
-    const barW  = 44, barH = 5;
+    // HPバーはdepth5の専用gfxで描画（スプライトより前面・頭上に配置）
+    const hg    = this._hpGfx;
+    hg.clear();
+    const barW  = 50, barH = 7;
+    const barY  = (this._headY ?? this.y - 40) - 10;
     const ratio = this.hp / this.maxHp;
     const barC  = ratio > 0.5 ? 0x00ee00 : ratio > 0.25 ? 0xffaa00 : 0xff2222;
-    g.fillStyle(0x111122, 1);
-    g.fillRect(this.x - barW / 2, this.y - 34, barW, barH);
-    g.fillStyle(barC, 1);
-    g.fillRect(this.x - barW / 2, this.y - 34, barW * ratio, barH);
+    hg.fillStyle(0x111122, 0.85);
+    hg.fillRect(this.x - barW / 2, barY, barW, barH);
+    hg.fillStyle(barC, 1);
+    hg.fillRect(this.x - barW / 2, barY, barW * ratio, barH);
   }
 
   cleanup() {
     if (this._sprite)   { this._sprite.destroy();   this._sprite   = null; }
     if (this._waitText) { this._waitText.destroy();  this._waitText = null; }
     if (this._shadow)   { this._shadow.destroy();   this._shadow   = null; }
+    if (this._hpGfx)    { this._hpGfx.destroy();    this._hpGfx    = null; }
   }
 }

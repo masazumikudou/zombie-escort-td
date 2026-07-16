@@ -31,6 +31,14 @@
     "burger":     { "hp": 75,  "speed": 50, "damage": 10, "reward": 20 }
   },
 
+  "escorts": {
+    "dad":     { "hp": 120, "speed": 50 },
+    "mom":     { "hp": 90,  "speed": 65 },
+    "son":     { "hp": 80,  "speed": 70 },
+    "grandma": { "hp": 70,  "speed": 35 },
+    "cat":     { "hp": 60,  "speed": 75 }
+  },
+
   "economy": {
     "defaultStartMoney": 500,
     "starBonusGems": [0, 0, 1, 2]

@@ -201,7 +201,9 @@ class GameScene extends Phaser.Scene {
   _startEscort(idx, timeOffset) {
     if (this.escort) this.escort.cleanup();
 
-    const def     = this.escortDefs[idx];
+    const _baseDef = this.escortDefs[idx];
+    const _vStats  = ESCORT_DEFS[_baseDef.variant] ?? ESCORT_DEFS.dad;
+    const def      = { hp: _vStats.hp, speed: _vStats.speed, ..._baseDef };
     let   escPath;
     if (def.path && def.path.length > 0) {
       escPath = def.path.map(p => cellCenter(p.col, p.row));

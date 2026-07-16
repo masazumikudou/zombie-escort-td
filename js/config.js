@@ -107,6 +107,15 @@ const DECAL_DEFS = {
   grave_z:     { cols: 1, rows: 1 },
 };
 
+// ─── 護衛基準値（balance.json のフォールバック） ─────────────
+const ESCORT_DEFS = {
+  dad:     { hp: 120, speed: 50 },
+  mom:     { hp: 90,  speed: 65 },
+  son:     { hp: 80,  speed: 70 },
+  grandma: { hp: 70,  speed: 35 },
+  cat:     { hp: 60,  speed: 75 },
+};
+
 // ─── ゾンビ基準値 ────────────────────────────────────────────
 // balance.json が読めない場合のフォールバック。数値は balance.json を正とする
 const ZOMBIE_BASE = {
@@ -127,9 +136,11 @@ function applyBalance(b) {
     TOWER_DEFS[type].sell = Math.floor(TOWER_DEFS[type].cost * sellRate);
   });
   Object.entries(b.zombies ?? {}).forEach(([type, stats]) => {
-    // flags は別枠のため数値フィールドのみマージ
     const { hp, speed, damage, reward } = stats;
     ZOMBIE_BASE[type] = { ...ZOMBIE_BASE[type], hp, speed, damage, reward };
+  });
+  Object.entries(b.escorts ?? {}).forEach(([variant, stats]) => {
+    if (ESCORT_DEFS[variant]) Object.assign(ESCORT_DEFS[variant], stats);
   });
   if (b.upgrades) {
     if (b.upgrades.costRatio !== undefined) UPGRADE_DEFS.costRatio = b.upgrades.costRatio;
