@@ -27,9 +27,11 @@ class GameScene extends Phaser.Scene {
     this.zoomIdx      = DEFAULT_ZOOM_IDX;
     this.money        = sd.startMoney;
     this.gameState    = 'playing';
-    this.killCount    = 0;
-    this.spawnCount   = 0;
-    this._playLog     = [];
+    this.killCount       = 0;
+    this.spawnCount      = 0;
+    this._playLog        = [];
+    this._closecallCount = 0;
+    this._closestEver    = Infinity;
     this.debugOpen    = false;
     this.showGrid     = false;
     this.showPaths    = false;
@@ -312,13 +314,13 @@ class GameScene extends Phaser.Scene {
     if (this.survivors >= minS) {
       this.gameState = 'victory';
       audioSynth.stageClear();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  判定=CLEAR`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  CLOSE_CALL=${this._closecallCount}回  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=CLEAR`);
       this._printPlayLog();
       this._showResult('STAGE CLEAR!', '#ffff44', 'リスタート', true);
     } else {
       this.gameState = 'defeat';
       audioSynth.gameOver();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  判定=GAMEOVER`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  CLOSE_CALL=${this._closecallCount}回  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=GAMEOVER`);
       this._printPlayLog();
       this._showResult('GAME OVER', '#ff4444', 'もう一度', false);
     }
@@ -363,7 +365,16 @@ class GameScene extends Phaser.Scene {
         this.bullets = this.bullets.filter(b => b.active);
         this.bullets.forEach(b => b.update(step));
 
-        this.zombies.forEach(z => { if (!z.alive) z.cleanup(); });
+        this.zombies.forEach(z => {
+          if (!z.alive) {
+            if (z._closestToEscort < CELL * 1.5 && this.relayPhase === 'active') {
+              this._closecallCount++;
+              if (z._closestToEscort < this._closestEver) this._closestEver = z._closestToEscort;
+              this._playLog?.push(`[CLOSE_CALL] t=${Math.round(this.scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
+            }
+            z.cleanup();
+          }
+        });
         this.zombies = this.zombies.filter(z => z.alive);
 
         this.escort.update(step);  // escort は最後に更新（シムと同じ順序）

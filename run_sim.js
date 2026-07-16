@@ -172,7 +172,7 @@ function run(stageFile, towerPattern = '', opts = {}) {
 
   // ゾンビ管理
   let zombies = [], allSpawned = [];
-  let spawnTotal = 0, killCount = 0;
+  let spawnTotal = 0, killCount = 0, closecallCount = 0, closestEver = Infinity;
   let scaledTime = 0;
 
   const spawnFn = (col, row, def, waveNum, leader) => {
@@ -240,6 +240,13 @@ function run(stageFile, towerPattern = '', opts = {}) {
       log.push(`[REACH]  t=${Math.round(scaledTime)}ms  護衛ゴール到達`);
       break;
     }
+    for (const z of zombies) {
+      if (!z.alive && z._closestToEscort < CELL * 1.5) {
+        closecallCount++;
+        if (z._closestToEscort < closestEver) closestEver = z._closestToEscort;
+        log.push(`[CLOSE_CALL] t=${Math.round(scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
+      }
+    }
     if (zombies.length > 400) zombies = zombies.filter(z => z.alive);
     scaledTime += DT;
   }
@@ -249,9 +256,10 @@ function run(stageFile, towerPattern = '', opts = {}) {
   const passThrough = spawnTotal - killCount;
   const judgment   = survived >= (stage.minSurvivors ?? 1) ? 'CLEAR' : 'GAMEOVER';
   const hpPct      = Math.round(escort.hp / escort.maxHp * 100);
-  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survived}/1 HP残=${hpPct}% 判定=${judgment}`);
+  const closestPx = closestEver === Infinity ? '-' : Math.round(closestEver);
+  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survived}/1 HP残=${hpPct}% CLOSE_CALL=${closecallCount}回 最接近=${closestPx}px 判定=${judgment}`);
 
-  return { log, judgment, hpPct, spawnTotal, killCount, passThrough };
+  return { log, judgment, hpPct, spawnTotal, killCount, passThrough, closecallCount, closestEver };
 }
 
 // ─── CLI エントリ ─────────────────────────────────────────────────────────────

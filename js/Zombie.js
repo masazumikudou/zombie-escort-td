@@ -30,7 +30,8 @@ class Zombie {
     this.hitFlash      = 0;
     this._animTime     = 0;
     this._animFrame    = 1;
-    this.onDeath       = null;
+    this.onDeath          = null;
+    this._closestToEscort = Infinity;
     this._sprite       = null;
     this._dustEmitter  = null;
     this._speedLines   = [];
@@ -74,6 +75,7 @@ class Zombie {
 
     const dx = escort.x - this.x, dy = escort.y - this.y;
     const distToEscort = Math.sqrt(dx * dx + dy * dy);
+    if (distToEscort < this._closestToEscort) this._closestToEscort = distToEscort;
 
     if (distToEscort < CELL * 0.9) {
       // 攻撃中 - アニメ静止（フレーム1）
