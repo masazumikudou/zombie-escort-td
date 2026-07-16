@@ -385,9 +385,9 @@ class GameScene extends Phaser.Scene {
         });
       }
 
-      // インターバルカウントダウン（リアルタイムで計測）
+      // インターバルカウントダウン（ゲーム速度に連動）
       if (this.relayPhase === 'interval') {
-        this.intervalTimer -= delta;
+        this.intervalTimer -= totalDt;
         if (this.intervalTimer <= 0) this._activateNextEscort();
       }
     }
