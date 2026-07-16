@@ -257,7 +257,21 @@ class Zombie {
       : (this.skin === 'worker' && this.scene.textures.exists('worker_right')) ? 'worker'
       : 'salaryman';
 
-    if (this.skin === 'kickboard' && this.scene.textures.exists('kickboard')) {
+    if (this.skin === 'burger' && this.scene.textures.exists('burger')) {
+      // ─── バーガーゾンビ（25フレームスプライトシート） ────────
+      if (!this._sprite || this._spriteKey !== 'burger') {
+        if (this._sprite) this._sprite.destroy();
+        this._sprite    = this.scene.add.sprite(this.x, this.y, 'burger').setDepth(3);
+        this._spriteKey = 'burger';
+        if (this.scene.anims.exists('burger_walk_right')) this._sprite.play('burger_walk_right');
+      }
+      this._sprite.setScale(200 / 164);
+      this._sprite.setOrigin(0.5, 1.0);
+      this._sprite.setPosition(this.x, this.y + 54).setVisible(true);
+      this._sprite.setFlipX(dir === 'left');
+      this._sprite.setAlpha(1);
+      this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
+    } else if (this.skin === 'kickboard' && this.scene.textures.exists('kickboard')) {
       // ─── キックボード（3方向PNG + バウンス + 土埃） ────────
       const footY   = this.y + 54;
       const nowT    = this.scene.scaledTime ?? this._animTime;

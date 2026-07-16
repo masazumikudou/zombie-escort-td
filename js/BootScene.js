@@ -160,6 +160,15 @@ class BootScene extends Phaser.Scene {
       });
     }
 
+    if (this.textures.exists('burger')) {
+      this.anims.create({
+        key: 'burger_walk_right',
+        frames: this.anims.generateFrameNumbers('burger', { start: 0, end: 24 }),
+        frameRate: 20,
+        repeat: -1,
+      });
+    }
+
     this.scene.start('GameScene', { stageData, sessionTowerText: this.sessionTowerText });
   }
 
@@ -233,6 +242,11 @@ class BootScene extends Phaser.Scene {
     });
     this.load.spritesheet('dad_up', 'assets/sprites/zombie/DAD/dad_up.png', {
       frameWidth: 256, frameHeight: 256,
+    });
+
+    // バーガーゾンビ（25フレームスプライトシート・左はright反転）
+    this.load.spritesheet('burger', 'assets/sprites/zombie/Burger Zombie-walk.png', {
+      frameWidth: 151, frameHeight: 164,
     });
 
     // キックボードゾンビ（3方向PNG・左はright反転）

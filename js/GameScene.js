@@ -1289,7 +1289,7 @@ class GameScene extends Phaser.Scene {
     const base = ZOMBIE_BASE[enemyDef.type] ?? ZOMBIE_BASE.salaryman;
     this._spawnSkinIdx = (this._spawnSkinIdx ?? 0) + 1;
     const skins = ['salaryman', 'worker', 'police'];
-    const _skinByType = { kickboard: 'kickboard' };
+    const _skinByType = { kickboard: 'kickboard', burger: 'burger' };
     const skin = _skinByType[enemyDef.type] ?? enemyDef.skin ?? skins[this._spawnSkinIdx % skins.length];
     const def  = {
       type:   enemyDef.type,
