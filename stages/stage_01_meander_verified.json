@@ -239,7 +239,17 @@
         }
       ],
       "hp": 100,
-      "speed": 40
+      "speed": 40,
+      "spawnEvents": [
+        { "time": 15.3, "spawn": "A", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 2, "interval": 1000, "leashTo": { "col": 14, "row": 3 } },
+        { "time": 30.3, "spawn": "B", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 1, "interval": 0, "leashTo": { "col": 14, "row": 9 } },
+        { "time": 64.5, "spawn": "C", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 1, "interval": 0, "leashTo": { "col": 3, "row": 9 } },
+        { "time": 79.5, "spawn": "D", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 1, "interval": 0, "leashTo": { "col": 3, "row": 15 } },
+        { "time": 98.2, "spawn": "E", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 1, "interval": 0, "leashTo": { "col": 7, "row": 15 } },
+        { "time": 105,  "spawn": "F1", "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }, "count": 1, "interval": 0 },
+        { "time": 108,  "spawn": "F2", "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }, "count": 1, "interval": 0 },
+        { "time": 111,  "spawn": "F3", "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }, "count": 1, "interval": 0 }
+      ]
     },
     {
       "variant": "mom",
@@ -471,7 +481,17 @@
         }
       ],
       "hp": 100,
-      "speed": 40
+      "speed": 40,
+      "spawnEvents": [
+        { "time": 15.3, "spawn": "A", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 2, "interval": 1000, "leashTo": { "col": 14, "row": 3 } },
+        { "time": 30.3, "spawn": "B", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 1, "interval": 0, "leashTo": { "col": 14, "row": 9 } },
+        { "time": 64.5, "spawn": "C", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 1, "interval": 0, "leashTo": { "col": 3, "row": 9 } },
+        { "time": 79.5, "spawn": "D", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 1, "interval": 0, "leashTo": { "col": 3, "row": 15 } },
+        { "time": 98.2, "spawn": "E", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }, "count": 1, "interval": 0, "leashTo": { "col": 7, "row": 15 } },
+        { "time": 105,  "spawn": "F1", "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }, "count": 1, "interval": 0 },
+        { "time": 108,  "spawn": "F2", "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }, "count": 1, "interval": 0 },
+        { "time": 111,  "spawn": "F3", "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }, "count": 1, "interval": 0 }
+      ]
     }
   ],
   "obstacles": [],
@@ -509,132 +529,6 @@
       "row": 19
     }
   },
-  "spawnEvents": [
-    {
-      "time": 15.3,
-      "spawn": "A",
-      "enemy": {
-        "type": "salaryman",
-        "hp": 200,
-        "speed": 30,
-        "damage": 10,
-        "reward": 20
-      },
-      "count": 2,
-      "interval": 1000,
-      "leashTo": {
-        "col": 14,
-        "row": 3
-      }
-    },
-    {
-      "time": 30.3,
-      "spawn": "B",
-      "enemy": {
-        "type": "salaryman",
-        "hp": 200,
-        "speed": 30,
-        "damage": 10,
-        "reward": 20
-      },
-      "count": 1,
-      "interval": 0,
-      "leashTo": {
-        "col": 14,
-        "row": 9
-      }
-    },
-    {
-      "time": 64.5,
-      "spawn": "C",
-      "enemy": {
-        "type": "salaryman",
-        "hp": 200,
-        "speed": 30,
-        "damage": 10,
-        "reward": 20
-      },
-      "count": 1,
-      "interval": 0,
-      "leashTo": {
-        "col": 3,
-        "row": 9
-      }
-    },
-    {
-      "time": 79.5,
-      "spawn": "D",
-      "enemy": {
-        "type": "salaryman",
-        "hp": 200,
-        "speed": 30,
-        "damage": 10,
-        "reward": 20
-      },
-      "count": 1,
-      "interval": 0,
-      "leashTo": {
-        "col": 3,
-        "row": 15
-      }
-    },
-    {
-      "time": 98.2,
-      "spawn": "E",
-      "enemy": {
-        "type": "salaryman",
-        "hp": 200,
-        "speed": 30,
-        "damage": 10,
-        "reward": 20
-      },
-      "count": 1,
-      "interval": 0,
-      "leashTo": {
-        "col": 7,
-        "row": 15
-      }
-    },
-    {
-      "time": 105,
-      "spawn": "F1",
-      "enemy": {
-        "type": "salaryman",
-        "hp": 200,
-        "speed": 45,
-        "damage": 10,
-        "reward": 20
-      },
-      "count": 1,
-      "interval": 0
-    },
-    {
-      "time": 108,
-      "spawn": "F2",
-      "enemy": {
-        "type": "salaryman",
-        "hp": 200,
-        "speed": 45,
-        "damage": 10,
-        "reward": 20
-      },
-      "count": 1,
-      "interval": 0
-    },
-    {
-      "time": 111,
-      "spawn": "F3",
-      "enemy": {
-        "type": "salaryman",
-        "hp": 200,
-        "speed": 45,
-        "damage": 10,
-        "reward": 20
-      },
-      "count": 1,
-      "interval": 0
-    }
-  ],
   "buildSpots": [
     {
       "col": 12,

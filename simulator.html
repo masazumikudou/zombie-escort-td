@@ -185,7 +185,7 @@ class StageSimulator {
     const escort    = new Escort(mockScene, pixelPath, escDef);
 
     // SpawnEventManager
-    const sem = new SpawnEventManager(stage.spawns ?? {}, stage.spawnEvents ?? []);
+    const sem = new SpawnEventManager(stage.spawns ?? {}, escDef.spawnEvents ?? stage.spawnEvents ?? []);
     sem.start(0);
 
     // 初期配置タワー（JSON指定・コスト無消費・チェックバイパス）

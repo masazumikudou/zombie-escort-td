@@ -21,6 +21,23 @@
     background:#2a6; color:#fff; cursor:pointer;
   }
   #confirmBtn:disabled { background:#333; color:#666; cursor:default; }
+  #effects {
+    display:flex; align-items:center; gap:18px;
+    background:#1a1a1a; border:1px solid #444; border-radius:8px; padding:7px 16px;
+    font-size:12px;
+  }
+  #effects .fx-label { color:#94a3b8; }
+  #effects label { display:flex; align-items:center; gap:6px; cursor:pointer; color:#e2e8f0; }
+  #effects input[type=checkbox] { accent-color:#f59e0b; width:14px; height:14px; cursor:pointer; }
+  #shadow-controls {
+    display:none; align-items:center; gap:14px;
+    background:#1a1a1a; border:1px solid #555; border-radius:8px; padding:8px 16px;
+    font-size:12px;
+  }
+  #shadow-controls.visible { display:flex; }
+  #shadow-controls .sc-label { color:#94a3b8; min-width:80px; }
+  #shadow-controls input[type=range] { width:140px; accent-color:#a78bfa; }
+  #shadow-controls .sc-val { color:#a78bfa; font-weight:bold; min-width:44px; }
   #confirmedList { font-size:11px; color:#666; max-width:900px; text-align:center; }
   .confirmed-val { color:#88ffcc; }
   .pending-val   { color:#ff8866; }
@@ -36,31 +53,70 @@
   <span id="pxVal">--</span>
   <button id="confirmBtn" disabled>✓ 確定</button>
 </div>
+
+<div id="shadow-controls">
+  <span class="sc-label">影 X位置</span>
+  <input type="range" id="shadowX" min="-60" max="60" value="0">
+  <span class="sc-val" id="shadowXVal">0px</span>
+  <span class="sc-label" style="margin-left:8px">影 Y位置</span>
+  <input type="range" id="shadowY" min="-60" max="60" value="0">
+  <span class="sc-val" id="shadowYVal">0px</span>
+  <span class="sc-label" style="margin-left:8px">影 サイズ</span>
+  <input type="range" id="shadowSize" min="5" max="120" value="50">
+  <span class="sc-val" id="shadowSizeVal">50px</span>
+</div>
+
+<div id="effects">
+  <span class="fx-label">KICK エフェクト:</span>
+  <label><input type="checkbox" id="chkDust"  checked> 土煙</label>
+  <label><input type="checkbox" id="chkLines" checked> 速度線</label>
+</div>
+
 <div id="confirmedList">確定値を読み込み中...</div>
 
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 // ════════════════════════════════════════════════
+//  エフェクト調整変数（ここで微調整）
+// ════════════════════════════════════════════════
+const BOUNCE_AMP     = 0.5;  // バウンス振幅 px
+const BOUNCE_FREQ    = 0.005; // バウンス周波数 rad/ms（大きいほど速い）
+const LINE_SPEED     = 160;  // 速度線の流れ速さ px/s
+const LINE_SPAWN_MS  = 90;   // 速度線スポーン間隔 ms
+const LINE_FADE_RATE = 1.6;  // 速度線フェードアウト速度 alpha/s
+
+// ════════════════════════════════════════════════
+//  エフェクト表示フラグ（チェックボックスと連動）
+// ════════════════════════════════════════════════
+let dustOn  = true;
+let linesOn = true;
+
+// kick バウンスのベースY（スライダー変更時に更新）
+let kickBaseY = 0;
+
+// ════════════════════════════════════════════════
 //  キャラ定義（新キャラ追加はここに追記するだけ）
 // ════════════════════════════════════════════════
 const CHARS = [
-  { id:'mom_r', label:'MOM 右',   key:'mom_right', frameW:410, frameH:689, ox:0.478, oy:0.958, flipX:false, anim:'mom_walk_right', confirmedH:105 },
-  { id:'mom_l', label:'MOM 左',   key:'mom_right', frameW:410, frameH:689, ox:0.478, oy:0.958, flipX:true,  anim:'mom_walk_right', confirmedH:105 },
-  { id:'mom_d', label:'MOM 正面', key:'mom_down',  frameW:368, frameH:780, ox:0.5,   oy:1.0,   flipX:false, anim:'mom_walk_down',  confirmedH:115 },
-  { id:'mom_u', label:'MOM 背面', key:'mom_up',    frameW:340, frameH:600, ox:0.574, oy:1.0,   flipX:false, anim:'mom_walk_up',    confirmedH:105 },
-  { id:'dad_r', label:'DAD 横',   key:'dad_right', frameW:256, frameH:256, ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_r',     confirmedH:100 },
-  { id:'dad_d', label:'DAD 正面', key:'dad_down',  frameW:256, frameH:256, ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_d',     confirmedH:100 },
-  { id:'dad_u', label:'DAD 背面', key:'dad_up',    frameW:256, frameH:256, ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_u',     confirmedH:100 },
+  { id:'mom_r',  label:'MOM 右',   key:'mom_right', frameW:410, frameH:689,  ox:0.478, oy:0.958, flipX:false, anim:'mom_walk_right', confirmedH:105 },
+  { id:'mom_l',  label:'MOM 左',   key:'mom_right', frameW:410, frameH:689,  ox:0.478, oy:0.958, flipX:true,  anim:'mom_walk_right', confirmedH:105 },
+  { id:'mom_d',  label:'MOM 正面', key:'mom_down',  frameW:368, frameH:780,  ox:0.5,   oy:1.0,   flipX:false, anim:'mom_walk_down',  confirmedH:115 },
+  { id:'mom_u',  label:'MOM 背面', key:'mom_up',    frameW:340, frameH:600,  ox:0.574, oy:1.0,   flipX:false, anim:'mom_walk_up',    confirmedH:105 },
+  { id:'dad_r',  label:'DAD 横',   key:'dad_right', frameW:256, frameH:256,  ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_r',     confirmedH:100, shadowOffsetX: 0,  shadowOffsetY:14, shadowWidth:55 },
+  { id:'dad_d',  label:'DAD 正面', key:'dad_down',  frameW:256, frameH:256,  ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_d',     confirmedH:100, shadowOffsetX:-6, shadowOffsetY:14, shadowWidth:65 },
+  { id:'dad_u',  label:'DAD 背面', key:'dad_up',    frameW:256, frameH:256,  ox:0.5,   oy:0.75,  flipX:false, anim:'dad_walk_u',     confirmedH:100, shadowOffsetX: 0, shadowOffsetY:14, shadowWidth:55 },
+  { id:'kick_r', label:'KICK 右',  key:'kickboard', frameW:740, frameH:1220, ox:0.5,   oy:1.0,   flipX:false, anim:null, bounce:true, confirmedH:100 },
 ];
 
 // スプライト読み込み定義
 const SHEETS = [
-  { key:'mom_right', path:'assets/sprites/zombie/MAM/walk_right.png', fw:410, fh:689 },
-  { key:'mom_down',  path:'assets/sprites/zombie/MAM/walk_down.png',  fw:368, fh:780 },
-  { key:'mom_up',    path:'assets/sprites/zombie/MAM/walk_up.png',    fw:340, fh:600 },
-  { key:'dad_right', path:'assets/sprites/zombie/DAD/dad_142_sheet.png', fw:256, fh:256 },
-  { key:'dad_down',  path:'assets/sprites/zombie/DAD/dad_down.png',      fw:256, fh:256 },
-  { key:'dad_up',    path:'assets/sprites/zombie/DAD/dad_up.png',        fw:256, fh:256 },
+  { key:'mom_right', path:'assets/sprites/zombie/MAM/walk_right.png',           fw:410, fh:689  },
+  { key:'mom_down',  path:'assets/sprites/zombie/MAM/walk_down.png',            fw:368, fh:780  },
+  { key:'mom_up',    path:'assets/sprites/zombie/MAM/walk_up.png',              fw:340, fh:600  },
+  { key:'dad_right', path:'assets/sprites/zombie/DAD/dad_142_sheet.png',        fw:256, fh:256  },
+  { key:'dad_down',  path:'assets/sprites/zombie/DAD/dad_down.png',             fw:256, fh:256  },
+  { key:'dad_up',    path:'assets/sprites/zombie/DAD/dad_up.png',               fw:256, fh:256  },
+  { key:'kickboard', path:'assets/sprites/zombie/Kickboard/キックボード.png',   fw:740, fh:1220 },
 ];
 
 // アニメ定義
@@ -76,13 +132,13 @@ const ANIMS = [
 // ════════════════════════════════════════════════
 //  状態管理
 // ════════════════════════════════════════════════
-let footY = 0;
+let footY        = 0;
 let selectedId   = null;
 let selectedChar = null;
 let selectedSp   = null;
-const spriteMap    = {};   // id → {sprite, char}
-const currentH     = {};   // id → 現在の表示px
-const confirmedH   = {};   // id → 確定px
+const spriteMap  = {};
+const currentH   = {};
+const confirmedH = {};
 
 CHARS.forEach(c => {
   if (c.confirmedH) confirmedH[c.id] = c.confirmedH;
@@ -106,9 +162,9 @@ class PreviewScene extends Phaser.Scene {
     footY = H * 0.70;
 
     // 背景
-    this.add.rectangle(0, 0,        W, H * 0.60, 0x3d6e35).setOrigin(0,0);
-    this.add.rectangle(0, H * 0.60, W, H * 0.28, 0x555555).setOrigin(0,0);
-    this.add.rectangle(0, H * 0.88, W, H * 0.12, 0x3d6e35).setOrigin(0,0);
+    this.add.rectangle(0, 0,        W, H * 0.60, 0x3d6e35).setOrigin(0, 0);
+    this.add.rectangle(0, H * 0.60, W, H * 0.28, 0x555555).setOrigin(0, 0);
+    this.add.rectangle(0, H * 0.88, W, H * 0.12, 0x3d6e35).setOrigin(0, 0);
 
     // グリッド
     const g = this.add.graphics().lineStyle(1, 0xffffff, 0.06);
@@ -126,14 +182,20 @@ class PreviewScene extends Phaser.Scene {
       }
     });
 
+    // 土煙パーティクル用テクスチャ生成（8x8の薄い円）
+    const pg = this.add.graphics();
+    pg.fillStyle(0xffffff, 1).fillCircle(4, 4, 4);
+    pg.generateTexture('dust_tex', 8, 8);
+    pg.destroy();
+
     // キャラ配置
     const N = CHARS.length;
     CHARS.forEach((c, i) => {
       if (!this.textures.exists(c.key)) return;
-      const x = W * (i + 0.5) / N;
-      const h = currentH[c.id];
+      const x     = W * (i + 0.5) / N;
+      const h     = currentH[c.id];
       const scale = h / c.frameH;
-      const posY = footY - (1 - c.oy) * c.frameH * scale;
+      const posY  = footY - (1 - c.oy) * c.frameH * scale;
 
       const sp = this.add.sprite(x, posY, c.key)
         .setScale(scale).setOrigin(c.ox, c.oy)
@@ -141,32 +203,120 @@ class PreviewScene extends Phaser.Scene {
         .setInteractive();
 
       if (this.anims.exists(c.anim)) sp.play(c.anim);
-      spriteMap[c.id] = { sprite: sp, char: c };
 
+      // 楕円影（CHARS に初期値があればそれを使用、なければ自動計算）
+      const initOffsetX = c.shadowOffsetX ?? 0;
+      const initOffsetY = c.shadowOffsetY ?? 0;
+      const initShadowW = c.shadowWidth   ?? Math.round(h * 0.55);
+      const shadow = this.add.ellipse(
+        x + initOffsetX, posY + initOffsetY,
+        initShadowW, initShadowW * 0.22, 0x000000, 0.32
+      ).setDepth(1);
+
+      spriteMap[c.id] = {
+        sprite: sp, char: c, shadow,
+        shadowOffsetX: initOffsetX,
+        shadowOffsetY: initOffsetY,
+        shadowWidth:   initShadowW,
+        basePosY:      posY,
+      };
       sp.on('pointerdown', () => this.selectChar(c.id));
 
       // ラベル
       const labelColor = confirmedH[c.id] ? '#88ffcc' : '#ff8866';
       this.add.text(x, footY + 6, c.label, { fontSize:'10px', color: labelColor })
         .setOrigin(0.5, 0).setDepth(4);
+
+      // ─── キックボード専用エフェクト ─────────────────────────────
+      if (c.bounce) {
+        kickBaseY = posY;
+
+        // 土煙エミッター（タイヤ接地点：スプライト下端・左寄り）
+        const tireOffX = -(c.frameW * scale * 0.22);
+        this._dustEmitter = this.add.particles(x + tireOffX, footY, 'dust_tex', {
+          speedX:  { min: -85, max: -18 },
+          speedY:  { min: -22, max: 12  },
+          scale:   { start: 0.55, end: 0 },
+          alpha:   { start: 0.52, end: 0 },
+          lifespan: 360,
+          frequency: 110,
+          tint: [0xddccaa, 0xccbb88, 0xbbaa77],
+          gravityY: 45,
+          quantity: 1,
+        }).setDepth(2);
+
+        // 速度線用グラフィクス
+        this._lineGfx   = this.add.graphics().setDepth(2);
+        this._lines     = [];   // [{ x, y, w, alpha }]
+        this._lineTimer = 0;
+      }
     });
 
     // 足元基準線
     this.add.graphics().lineStyle(1, 0xff4444, 0.7).lineBetween(0, footY, W, footY);
   }
 
-  selectChar(id) {
-    // 全スプライトのtintをリセット
-    Object.values(spriteMap).forEach(({sprite}) => sprite.clearTint());
+  update(time, delta) {
+    const entry = spriteMap['kick_r'];
+    if (!entry) return;
 
+    const sp  = entry.sprite;
+    const chr = entry.char;
+    const dt  = delta / 1000;
+
+    // ─── 微バウンス（正弦波でY方向に小刻みに揺らす） ──────────────
+    sp.y = kickBaseY + Math.sin(time * BOUNCE_FREQ) * BOUNCE_AMP;
+
+    // ─── 土煙（エミッター位置をスプライトに追従） ─────────────────
+    if (this._dustEmitter) {
+      const tireOffX = -(chr.frameW * sp.scaleX * 0.22);
+      this._dustEmitter.setPosition(sp.x + tireOffX, footY);
+      // ON/OFF は checkbox イベントで直接 start()/stop() を呼ぶ
+    }
+
+    // ─── 速度線 ────────────────────────────────────────────────────
+    if (this._lineGfx) {
+      if (linesOn) {
+        // スポーン
+        this._lineTimer -= delta;
+        if (this._lineTimer <= 0) {
+          this._lineTimer = LINE_SPAWN_MS;
+          const halfW = chr.frameW * sp.scaleX * 0.38;
+          this._lines.push({
+            x:    sp.x - halfW * 0.4,
+            y:    sp.y - Phaser.Math.Between(14, 72),
+            w:    Phaser.Math.Between(12, 30),
+            alpha: Phaser.Math.FloatBetween(0.30, 0.50),
+          });
+        }
+        // 更新（左へ流してフェードアウト）
+        for (const l of this._lines) {
+          l.x    -= LINE_SPEED * dt;
+          l.alpha -= LINE_FADE_RATE * dt;
+        }
+        this._lines = this._lines.filter(l => l.alpha > 0);
+
+        // 描画
+        this._lineGfx.clear();
+        for (const l of this._lines) {
+          this._lineGfx.lineStyle(1.5, 0xffffff, l.alpha);
+          this._lineGfx.lineBetween(l.x, l.y, l.x - l.w, l.y);
+        }
+      } else {
+        this._lineGfx.clear();
+        this._lines = [];
+      }
+    }
+  }
+
+  selectChar(id) {
+    Object.values(spriteMap).forEach(({ sprite }) => sprite.clearTint());
     const entry = spriteMap[id];
     if (!entry) return;
     entry.sprite.setTint(0x88ffff);
-
     selectedId   = id;
     selectedChar = entry.char;
     selectedSp   = entry.sprite;
-
     const h = currentH[id];
     document.getElementById('charName').textContent = entry.char.label;
     const slider = document.getElementById('slider');
@@ -174,13 +324,23 @@ class PreviewScene extends Phaser.Scene {
     slider.disabled = false;
     document.getElementById('pxVal').textContent = h + 'px';
     document.getElementById('confirmBtn').disabled = false;
+
+    // 影スライダーをこのキャラの現在値に同期して表示
+    const sc = document.getElementById('shadow-controls');
+    sc.classList.add('visible');
+    document.getElementById('shadowX').value    = entry.shadowOffsetX;
+    document.getElementById('shadowY').value    = entry.shadowOffsetY;
+    document.getElementById('shadowSize').value = entry.shadowWidth;
+    document.getElementById('shadowXVal').textContent    = entry.shadowOffsetX + 'px';
+    document.getElementById('shadowYVal').textContent    = entry.shadowOffsetY + 'px';
+    document.getElementById('shadowSizeVal').textContent = entry.shadowWidth   + 'px';
   }
 }
 
 // ════════════════════════════════════════════════
 //  Phaser 起動
 // ════════════════════════════════════════════════
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO, width: 900, height: 360,
   backgroundColor: '#222', parent: 'game',
   scene: PreviewScene,
@@ -197,16 +357,23 @@ const confirmedEl = document.getElementById('confirmedList');
 
 slider.addEventListener('input', function() {
   if (!selectedChar || !selectedSp) return;
-  const newH = parseInt(this.value);
+  const newH    = parseInt(this.value);
   currentH[selectedId] = newH;
-
   const newScale = newH / selectedChar.frameH;
   selectedSp.setScale(newScale);
-  // 足元を footY に固定したまま posY を更新
-  const newPosY = footY - (1 - selectedChar.oy) * selectedChar.frameH * newScale;
+  const newPosY  = footY - (1 - selectedChar.oy) * selectedChar.frameH * newScale;
   selectedSp.setPosition(selectedSp.x, newPosY);
-
   pxVal.textContent = newH + 'px';
+  // kick_r のバウンス基準Yを更新
+  if (selectedId === 'kick_r') kickBaseY = newPosY;
+  // 影サイズ・位置を追従（手動調整値は保持）
+  const selEntry = spriteMap[selectedId];
+  if (selEntry?.shadow) {
+    selEntry.basePosY = newPosY;
+    const sw = selEntry.shadowWidth;
+    selEntry.shadow.setSize(sw, sw * 0.22);
+    selEntry.shadow.setPosition(selEntry.shadow.x, newPosY + selEntry.shadowOffsetY);
+  }
 });
 
 confirmBtn.addEventListener('click', function() {
@@ -215,11 +382,55 @@ confirmBtn.addEventListener('click', function() {
   updateConfirmedDisplay();
 });
 
+// エフェクトトグル（Phaser シーン経由でエミッターを直接操作）
+// 影 X位置スライダー
+document.getElementById('shadowX').addEventListener('input', function() {
+  if (!selectedId) return;
+  const entry = spriteMap[selectedId];
+  if (!entry?.shadow) return;
+  entry.shadowOffsetX = parseInt(this.value);
+  document.getElementById('shadowXVal').textContent = entry.shadowOffsetX + 'px';
+  entry.shadow.setPosition(entry.sprite.x + entry.shadowOffsetX, entry.basePosY + entry.shadowOffsetY);
+});
+
+// 影 Y位置スライダー
+document.getElementById('shadowY').addEventListener('input', function() {
+  if (!selectedId) return;
+  const entry = spriteMap[selectedId];
+  if (!entry?.shadow) return;
+  entry.shadowOffsetY = parseInt(this.value);
+  document.getElementById('shadowYVal').textContent = entry.shadowOffsetY + 'px';
+  entry.shadow.setPosition(entry.sprite.x + entry.shadowOffsetX, entry.basePosY + entry.shadowOffsetY);
+});
+
+// 影サイズスライダー
+document.getElementById('shadowSize').addEventListener('input', function() {
+  if (!selectedId) return;
+  const entry = spriteMap[selectedId];
+  if (!entry?.shadow) return;
+  entry.shadowWidth = parseInt(this.value);
+  document.getElementById('shadowSizeVal').textContent = entry.shadowWidth + 'px';
+  entry.shadow.setSize(entry.shadowWidth, entry.shadowWidth * 0.22);
+});
+
+document.getElementById('chkDust').addEventListener('change', e => {
+  dustOn = e.target.checked;
+  const scene = game.scene.getScene('Preview');
+  if (!scene?._dustEmitter) return;
+  if (dustOn) scene._dustEmitter.start();
+  else        scene._dustEmitter.stop();
+});
+
+document.getElementById('chkLines').addEventListener('change', e => {
+  linesOn = e.target.checked;
+  // 速度線は update() 内で linesOn フラグを見て自動クリア
+});
+
 function updateConfirmedDisplay() {
   const parts = CHARS.map(c => {
-    const h = confirmedH[c.id];
+    const h   = confirmedH[c.id];
     const cls = h ? 'confirmed-val' : 'pending-val';
-    return `<span class="${cls}">${c.label}: ${h ? h+'px ✓' : '未確定'}</span>`;
+    return `<span class="${cls}">${c.label}: ${h ? h + 'px ✓' : '未確定'}</span>`;
   });
   confirmedEl.innerHTML = '確定値 → ' + parts.join('　');
 }

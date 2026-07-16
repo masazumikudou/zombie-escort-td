@@ -33,6 +33,12 @@ function _escortSprCfg(variant, sprDir) {
   return v[sprDir] ?? v.base ?? ESCORT_SPR.dad.base;
 }
 
+// 楕円影の設定（プレビューで確定した値を表示高さに対する比率で保持）
+// xFrac/yFrac: sprite origin からのオフセット ÷ 表示高さ、wFrac: 影幅 ÷ 表示高さ
+const ESCORT_SHADOW_DEF = {
+  dad: { xFrac: 0, yFrac: 0.14, wFrac: 0.55 },
+};
+
 function _escortFlipX(variant, sprDir, dir) {
   if (sprDir !== 'right') return false;
   const flipRight = (ESCORT_SPR[variant] ?? ESCORT_SPR.dad).flipRight ?? true;
@@ -63,6 +69,7 @@ class Escort {
     this._animTime  = 0;
     this._animFrame = 1;
     this._sprite    = null;
+    this._shadow    = null;
 
     // 寄り道(Y)システム
     this.state            = 'walking';  // 'walking'|'detouring'|'waiting'|'returning'|'exiting'
@@ -270,11 +277,13 @@ class Escort {
   draw(g) {
     if (!this.alive) {
       if (this._sprite) this._sprite.setVisible(false);
+      if (this._shadow) this._shadow.setVisible(false);
       return;
     }
 
     if (this.defeated) {
       if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
+      if (this._shadow) this._shadow.setVisible(false);
       const blink = Math.floor(this._defeatTimer / 200) % 2 === 0;
       if (blink) {
         g.fillStyle(0x555555, 0.7);
@@ -287,6 +296,7 @@ class Escort {
 
     if (this.reached) {
       if (this._sprite) this._sprite.setVisible(false);
+      if (this._shadow) this._shadow.setVisible(false);
       return;
     }
 
@@ -361,6 +371,19 @@ class Escort {
       this._sprite.setPosition(this.x, posY).setVisible(true);
       this._sprite.setFlipX(_escortFlipX(this.variant, sprDir, dir));
       this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
+
+      // 楕円影
+      const shCfg = ESCORT_SHADOW_DEF[this.variant];
+      if (shCfg) {
+        const dispH   = cfg.frameH * cfg.scale;
+        const sw      = dispH * shCfg.wFrac;
+        const shadowX = this.x + dispH * shCfg.xFrac;
+        const shadowY = posY   + dispH * shCfg.yFrac;
+        if (!this._shadow) {
+          this._shadow = this.scene.add.ellipse(shadowX, shadowY, sw, sw * 0.22, 0x000000, 0.32).setDepth(2);
+        }
+        this._shadow.setPosition(shadowX, shadowY).setSize(sw, sw * 0.22).setVisible(true);
+      }
     } else {
       // ─── グレーボックス（単色円） ─────────────────────
       if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
@@ -392,5 +415,6 @@ class Escort {
   cleanup() {
     if (this._sprite)   { this._sprite.destroy();   this._sprite   = null; }
     if (this._waitText) { this._waitText.destroy();  this._waitText = null; }
+    if (this._shadow)   { this._shadow.destroy();   this._shadow   = null; }
   }
 }

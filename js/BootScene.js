@@ -235,6 +235,11 @@ class BootScene extends Phaser.Scene {
       frameWidth: 256, frameHeight: 256,
     });
 
+    // キックボードゾンビ（3方向PNG・左はright反転）
+    this.load.image('kickboard',      'assets/sprites/zombie/Kickboard/キックボード.png');
+    this.load.image('kickboard_up',   'assets/sprites/zombie/Kickboard/キックボード下.png');
+    this.load.image('kickboard_down', 'assets/sprites/zombie/Kickboard/キックボード上.png');
+
     // MOM 護衛キャラ
     this.load.spritesheet('mom_right', 'assets/sprites/zombie/MAM/walk_right.png', {
       frameWidth: 410, frameHeight: 689,  // 横歩き、足=(196,660)、setOrigin(0.478,0.958)

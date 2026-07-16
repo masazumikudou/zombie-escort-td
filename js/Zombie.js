@@ -32,6 +32,10 @@ class Zombie {
     this._animFrame    = 1;
     this.onDeath       = null;
     this._sprite       = null;
+    this._dustEmitter  = null;
+    this._speedLines   = [];
+    this._lineTimer    = 0;
+    this._lastDrawT    = 0;
     this._spawnTimer   = 2000;  // スポーン後2秒は移動・攻撃しない（タワー被弾は有効）
     // トレイル（リーダーのみ記録、フォロワーはリーダーのcellTrailを参照）
     this.cellTrail     = (leader === null) ? [cellCenter(spawnCol, spawnRow)] : null;
@@ -253,7 +257,69 @@ class Zombie {
       : (this.skin === 'worker' && this.scene.textures.exists('worker_right')) ? 'worker'
       : 'salaryman';
 
-    if (this.scene.textures.exists('salaryman_right')) {
+    if (this.skin === 'kickboard' && this.scene.textures.exists('kickboard')) {
+      // ─── キックボード（3方向PNG + バウンス + 土埃） ────────
+      const footY   = this.y + 54;
+      const nowT    = this.scene.scaledTime ?? this._animTime;
+      const bounceY = Math.sin(nowT * 0.005) * 1.0;
+      const moveDir = this.lastDx >= 0 ? 1 : -1;
+
+      // 方向別スプライト選択
+      let kbKey, kbNatH, kbFlipX = false;
+      if (dir === 'up') {
+        kbKey = 'kickboard_up';   kbNatH = 1240;
+      } else if (dir === 'down') {
+        kbKey = 'kickboard_down'; kbNatH = 1180;
+      } else {
+        kbKey = 'kickboard';      kbNatH = 1220; kbFlipX = (moveDir < 0);
+      }
+      const scale = 156 / kbNatH;
+
+      // スプライト生成（方向変化時に再生成）
+      if (!this._sprite || this._spriteKey !== kbKey) {
+        if (this._sprite) this._sprite.destroy();
+        this._sprite    = this.scene.add.image(this.x, footY, kbKey).setDepth(3);
+        this._spriteKey = kbKey;
+      }
+      this._sprite.setScale(scale);
+      this._sprite.setOrigin(0.5, 1.0);
+      this._sprite.setPosition(this.x, footY + bounceY).setVisible(true);
+      this._sprite.setFlipX(kbFlipX);
+      this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
+
+      // 土埃エミッター（左右移動時のみ / 方向転換時に再生成）
+      if (dir !== 'up' && dir !== 'down') {
+        if (!this.scene.textures.exists('_kb_dust')) {
+          const dg = this.scene.add.graphics();
+          dg.fillStyle(0xccbbaa, 1);
+          dg.fillCircle(4, 4, 4);
+          dg.generateTexture('_kb_dust', 8, 8);
+          dg.destroy();
+        }
+        if (this._dustEmitter && this._dustDir !== moveDir) {
+          this._dustEmitter.destroy();
+          this._dustEmitter = null;
+        }
+        this._dustDir = moveDir;
+        const tireX = this.x - moveDir * (this._sprite.displayWidth * 0.42);
+        if (!this._dustEmitter) {
+          this._dustEmitter = this.scene.add.particles(tireX, footY, '_kb_dust', {
+            speed:    { min: 15, max: 45 },
+            angle:    moveDir > 0 ? { min: 150, max: 210 } : { min: -30, max: 30 },
+            scale:    { start: 1.58, end: 0 },
+            alpha:    { start: 0.55, end: 0 },
+            lifespan: 420,
+            frequency: 80,
+            quantity:  1,
+          }).setDepth(2);
+        }
+        this._dustEmitter.setPosition(tireX, footY);
+      } else if (this._dustEmitter) {
+        this._dustEmitter.destroy();
+        this._dustEmitter = null;
+      }
+
+    } else if (this.scene.textures.exists('salaryman_right')) {
       // ─── スプライトシートモード ───────────────────────────
       let sheetKey, animKey;
       if (dir === 'down' && this.scene.textures.exists(`${skinKey}_down`)) {
@@ -306,6 +372,7 @@ class Zombie {
   }
 
   cleanup() {
-    if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
+    if (this._sprite)       { this._sprite.destroy();       this._sprite       = null; }
+    if (this._dustEmitter)  { this._dustEmitter.destroy();  this._dustEmitter  = null; }
   }
 }

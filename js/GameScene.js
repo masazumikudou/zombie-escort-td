@@ -233,10 +233,12 @@ class GameScene extends Phaser.Scene {
     cam.pan(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2, 600, 'Power2');
 
     // スポーンマネージャー（spawnEvents方式 or 旧waves方式を自動判別）
-    if (this.stageData.spawnEvents) {
+    // escortDef.spawnEvents が優先、なければ top-level にフォールバック
+    const _evts = def.spawnEvents ?? this.stageData.spawnEvents;
+    if (_evts) {
       this.waveManager = new SpawnEventManager(
         this.stageData.spawns ?? {},
-        this.stageData.spawnEvents
+        _evts
       );
       this.waveManager.start(timeOffset);
       this.waveLabel = '';
@@ -553,9 +555,11 @@ class GameScene extends Phaser.Scene {
     if (this.stageData.zombieSpawns?.length) {
       _gravSpawns = this.stageData.zombieSpawns;
     } else if (this.stageData.spawns) {
-      const leashKeys = this.stageData.spawnEvents
-        ? new Set(this.stageData.spawnEvents.map(e => e.spawn))
-        : null;
+      const _allEvts  = [
+        ...(this.stageData.spawnEvents ?? []),
+        ...this.escortDefs.flatMap(d => d.spawnEvents ?? []),
+      ];
+      const leashKeys = _allEvts.length ? new Set(_allEvts.map(e => e.spawn)) : null;
       _gravSpawns = Object.entries(this.stageData.spawns)
         .filter(([k]) => !leashKeys || leashKeys.has(k))
         .map(([, v]) => v);
@@ -1282,10 +1286,11 @@ class GameScene extends Phaser.Scene {
   // 数値は ZOMBIE_BASE の基準値に倍率を掛けて確定する
   _spawnZombie(col, row, enemyDef, waveNum, leader = null) {
     if (this.zombies.length >= MAX_ZOMBIES) return null;
-    const base = ZOMBIE_BASE[enemyDef.type] ?? ZOMBIE_BASE.normal;
+    const base = ZOMBIE_BASE[enemyDef.type] ?? ZOMBIE_BASE.salaryman;
     this._spawnSkinIdx = (this._spawnSkinIdx ?? 0) + 1;
     const skins = ['salaryman', 'worker', 'police'];
-    const skin  = skins[this._spawnSkinIdx % skins.length];
+    const _skinByType = { kickboard: 'kickboard' };
+    const skin = _skinByType[enemyDef.type] ?? enemyDef.skin ?? skins[this._spawnSkinIdx % skins.length];
     const def  = {
       type:   enemyDef.type,
       skin,

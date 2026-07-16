@@ -113,6 +113,7 @@ const ZOMBIE_BASE = {
   salaryman: { hp: 75,  speed: 50, damage: 10, reward: 20, skin: 'salaryman' },
   worker:    { hp: 100, speed: 50, damage: 12, reward: 25, skin: 'worker'    },
   police:    { hp: 150, speed: 50, damage: 15, reward: 35, skin: 'police'    },
+  kickboard: { hp: 60,  speed: 90, damage: 15, reward: 30, skin: 'kickboard' },
 };
 
 // balance.json の数値を TOWER_DEFS と ZOMBIE_BASE に反映する（BootScene から呼ぶ）
