@@ -236,27 +236,18 @@ class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.pan(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2, 600, 'Power2');
 
-    // スポーンマネージャー（segments方式 > spawnEvents方式 > 旧waves方式）
+    // スポーンマネージャー（segments方式 > spawnEvents方式。旧waves方式(WaveManager)はjs/_legacy/へ退避済み）
     if (def.segments) {
       // 区間制・位置トリガー方式（新文法）
       this.waveManager = new SegmentManager(this.stageData.spawns ?? {}, def.segments);
       this.waveLabel = '';
     } else {
-      const _evts = def.spawnEvents ?? this.stageData.spawnEvents;
-      if (_evts) {
-        this.waveManager = new SpawnEventManager(
-          this.stageData.spawns ?? {},
-          _evts
-        );
-        this.waveManager.start(timeOffset);
-        this.waveLabel = '';
-      } else {
-        this.waveManager = new WaveManager(def.waves, this.stageData.zombieSpawns, this.escort);
-        this.waveManager.setFlowField(this.flowField);
-        this.waveManager.onWaveStart((n, t) => this._setWaveLabel(n, t));
-        this.waveManager.start(timeOffset);
-        this._setWaveLabel(1, def.waves.length);
-      }
+      this.waveManager = new SpawnEventManager(
+        this.stageData.spawns ?? {},
+        def.spawnEvents ?? this.stageData.spawnEvents
+      );
+      this.waveManager.start(timeOffset);
+      this.waveLabel = '';
     }
     this._updateRelayHUD();
     this.relayPhase = 'active';
