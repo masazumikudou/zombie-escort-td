@@ -3,7 +3,7 @@
 // 全ゾンビが共有し、自分のセルをO(1)ルックアップするだけで次ウェイポイントを得る。
 // 護衛のセルが変わったときだけ再計算（ゾンビ数に関係なく1回のみ）。
 
-class FlowField {
+var FlowField = class FlowField {
   constructor(pf) {
     this.pf      = pf;
     this.version = 0;     // 更新のたびにインクリメント（ゾンビが変化検知に使う）

@@ -2,7 +2,7 @@
 // スプライット配置: assets/sprites/zombie/{type}/walk_{dir}_{frame:02d}.png
 // ファイルがなければ緑の円（グレーボックス）で自動フォールバック
 // type は stage JSON の waves[].enemy.type と一致させること
-class Zombie {
+var Zombie = class Zombie {
   constructor(scene, spawnCol, spawnRow, def, waveNum, leader = null) {
     const { x, y } = cellCenter(spawnCol, spawnRow);
     this.scene         = scene;
@@ -37,6 +37,18 @@ class Zombie {
     this._speedLines   = [];
     this._lineTimer    = 0;
     this._lastDrawT    = 0;
+    this._retreating   = false;
+    this._retDx        = 0;
+    this._retDy        = 0;
+    this._engageGate    = false;  // true = 護衛範囲円に入るまで静止（initial配置ゾンビ用）
+    // 画面外スポーン: グリッド外col/rowで生成された場合、最寄りの盤内セルまで直進してから通常AIに接続
+    this._entering = (spawnCol < 0 || spawnCol >= COLS || spawnRow < 0 || spawnRow >= ROWS);
+    if (this._entering) {
+      const et = cellCenter(clamp(spawnCol, 0, COLS - 1), clamp(spawnRow, 0, ROWS - 1));
+      this._entryTargetX = et.x;
+      this._entryTargetY = et.y;
+      this._entryMoveStart = null;
+    }
     this._spawnTimer   = 2000;  // スポーン後2秒は移動・攻撃しない（タワー被弾は有効）
     // トレイル（リーダーのみ記録、フォロワーはリーダーのcellTrailを参照）
     this.cellTrail     = (leader === null) ? [cellCenter(spawnCol, spawnRow)] : null;
@@ -62,8 +74,52 @@ class Zombie {
     else console.log(msg);
   }
 
+  retreat() {
+    if (this._retreating || !this.alive) return;
+    this._retreating = true;
+    const dL = this.x, dR = MAP_W - this.x, dU = this.y, dD = MAP_H - this.y;
+    const min = Math.min(dL, dR, dU, dD);
+    if      (min === dL) { this._retDx = -1; this._retDy =  0; }
+    else if (min === dR) { this._retDx =  1; this._retDy =  0; }
+    else if (min === dU) { this._retDx =  0; this._retDy = -1; }
+    else                 { this._retDx =  0; this._retDy =  1; }
+  }
+
   update(scaledTime, dt, escort) {
     if (!this.alive) return;
+    if (this._retreating) {
+      this.x += this._retDx * this.speed * dt / 1000;
+      this.y += this._retDy * this.speed * dt / 1000;
+      this.lastDx = this._retDx;
+      this.lastDy = this._retDy;
+      if (this.x < -CELL || this.x > MAP_W + CELL || this.y < -CELL || this.y > MAP_H + CELL) {
+        this.alive = false;
+      }
+      return;
+    }
+    if (this._entering) {
+      // 画面外スポーン: 待機扱いにせず即座に歩行状態（見た目が本体のため spawnTimer もスキップ）
+      if (this._entryMoveStart === null) this._entryMoveStart = scaledTime;
+      const edx = this._entryTargetX - this._spawnX, edy = this._entryTargetY - this._spawnY;
+      const eLen = Math.sqrt(edx * edx + edy * edy);
+      if (eLen > 0) {
+        const traveled = Math.min(this.speed * (scaledTime - this._entryMoveStart) / 1000, eLen);
+        this.x = this._spawnX + (edx / eLen) * traveled;
+        this.y = this._spawnY + (edy / eLen) * traveled;
+        this.lastDx = edx; this.lastDy = edy;
+        this._animTime  += dt;
+        this._animFrame  = Math.floor(this._animTime / (1000 / zombieFps(this.type))) % zombieFrameCount(this.type) + 1;
+        if (traveled >= eLen) {
+          this._entering   = false;
+          this._spawnTimer = 0;  // 侵入の歩行自体が telegraph 済みのためスポーン硬直はスキップ
+          this._log(`[MAP_ENTER] t=${Math.round(scaledTime)}ms id=${this._logId} at=(${this.col},${this.row})`);
+        }
+      } else {
+        this._entering   = false;
+        this._spawnTimer = 0;
+      }
+      return;
+    }
     if (this._spawnTimer > 0) { this._spawnTimer -= dt; return; }
     if (this.hitFlash > 0) this.hitFlash -= dt;
 
@@ -76,6 +132,17 @@ class Zombie {
     const dx = escort.x - this.x, dy = escort.y - this.y;
     const distToEscort = Math.sqrt(dx * dx + dy * dy);
     if (distToEscort < this._closestToEscort) this._closestToEscort = distToEscort;
+
+    // 護衛範囲円ゲート（initial配置ゾンビ）: 円に入るまで静止・無攻撃。タワー対象外はTower側で担保
+    if (this._engageGate) {
+      if (distToEscort <= ESCORT_ENGAGE_RADIUS) {
+        this._engageGate = false;
+        this._log(`[ENGAGE] t=${Math.round(scaledTime)}ms id=${this._logId} at=(${this.col},${this.row}) dist=${Math.round(distToEscort)}`);
+      } else {
+        this._animTime = 0; this._animFrame = 1;
+        return;
+      }
+    }
 
     if (distToEscort < CELL * 0.9) {
       // 攻撃中 - アニメ静止（フレーム1）

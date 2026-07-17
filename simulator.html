@@ -62,6 +62,7 @@ details.gh-panel summary:hover { color: #38bdf8; }
 <script src="js/SpawnEventManager.js"></script>
 <script src="js/Escort.js"></script>
 <script src="js/Zombie.js"></script>
+<script src="js/simStub.js"></script>
 
 <script>
 /* ============================================================
@@ -133,6 +134,8 @@ class SimTower {
       const ref = escort ?? { x: this.x, y: this.y };
       const edx = z.x - ref.x, edy = z.y - ref.y;
       const d   = Math.sqrt(edx*edx + edy*edy);
+      // 護衛範囲円（交戦ゲート）: 円の外のゾンビはタワーの射程内でも対象外
+      if (escort && d > ESCORT_ENGAGE_RADIUS) continue;
       if (d < bestDist) { bestDist = d; best = z; }
     }
     if (!best) return;
@@ -163,6 +166,7 @@ function parseTowerPattern(text) {
 //          FlowFieldのBFS精度差・フレームレート差により実機と完全一致しない）
 class StageSimulator {
   run(stage, towerPlacements, opts = {}) {
+    Zombie._seq = 0;  // 連続run()でのIDリセット（run_sim.jsと同様）
     const log = [];
     let scaledTime = 0;
 
@@ -175,8 +179,9 @@ class StageSimulator {
     const pf = new Pathfinder(COLS, ROWS, stage.obstacles ?? []);
     const ff = new FlowField(pf);
 
-    // モックScene（draw() 呼び出しなし前提）
-    const mockScene = { flowField: ff, _playLog: log, scaledTime: 0 };
+    // モックScene（draw() 呼び出しなし前提。add/textures/animsはjs/simStub.jsでrun_sim.jsと共通化）
+    const mockScene = { flowField: ff, _playLog: log, scaledTime: 0,
+                         add: createMockSceneAdd(), textures: MOCK_TEXTURES, anims: MOCK_ANIMS };
 
     // 護衛
     const escDef = { ...stage.escorts[0] };
@@ -184,9 +189,14 @@ class StageSimulator {
     const pixelPath = escDef.path.map(p => cellCenter(p.col, p.row));
     const escort    = new Escort(mockScene, pixelPath, escDef);
 
-    // SpawnEventManager
-    const sem = new SpawnEventManager(stage.spawns ?? {}, escDef.spawnEvents ?? stage.spawnEvents ?? []);
-    sem.start(0);
+    // SegmentManager（新文法）/ SpawnEventManager（旧文法）自動判別
+    let sem;
+    if (escDef.segments) {
+      sem = new SegmentManager(stage.spawns ?? {}, escDef.segments);
+    } else {
+      sem = new SpawnEventManager(stage.spawns ?? {}, escDef.spawnEvents ?? stage.spawnEvents ?? []);
+      sem.start(0);
+    }
 
     // 初期配置タワー（JSON指定・コスト無消費・チェックバイパス）
     const simTowers = [];
@@ -220,6 +230,7 @@ class StageSimulator {
     let zombies    = [];
     let allSpawned = [];
     let spawnTotal = 0, killCount = 0, idSeq = 0;
+    let closecallCount = 0, closestEver = Infinity;
 
     const spawnFn = (col, row, def, waveNum, leader) => {
       const finalDef = opts.enemySpeed ? { ...def, speed: +opts.enemySpeed } : def;
@@ -300,7 +311,16 @@ class StageSimulator {
         break;
       }
 
-      if (zombies.length > 400) zombies = zombies.filter(z => z.alive);
+      // CLOSE_CALL集計（退場ゾンビは除外）
+      for (const z of zombies) {
+        if (!z.alive && !z._retreating && z._closestToEscort < CELL * 1.5) {
+          closecallCount++;
+          if (z._closestToEscort < closestEver) closestEver = z._closestToEscort;
+          log.push(`[CLOSE_CALL] t=${Math.round(scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
+        }
+      }
+
+      zombies = zombies.filter(z => z.alive);
       scaledTime += DT;
     }
     if (scaledTime > MAX_TIME) log.push(`[TIMEOUT] 最大時間(10分)超過`);
@@ -310,7 +330,8 @@ class StageSimulator {
     const passThrough = spawnTotal - killCount;
     const judgment    = survived >= (stage.minSurvivors ?? 1) ? 'CLEAR' : 'GAMEOVER';
     const hpPct       = Math.round(escort.hp / escort.maxHp * 100);
-    log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survived}/1 HP残=${hpPct}% 判定=${judgment}`);
+    const closestPx   = closestEver === Infinity ? '-' : Math.round(closestEver);
+    log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survived}/1 HP残=${hpPct}% CLOSE_CALL=${closecallCount}回 最接近=${closestPx}px 判定=${judgment}`);
 
     // 交戦地分析（encounterHints）
     if (stage.encounterHints?.length > 0) {
@@ -337,7 +358,7 @@ class StageSimulator {
       log.push('──────────────────────────────────────────────────────');
     }
 
-    return { log: log.join('\n'), judgment, hpPct };
+    return { log: log.join('\n'), judgment, hpPct, closecallCount };
   }
 }
 
@@ -513,7 +534,7 @@ async function runAll() {
     const towers    = parseTowerPattern(towerText);
     const res       = sim.run(stage, towers, opts);
 
-    allLogs.push(`=== ${name} [${res.judgment} HP残${res.hpPct}%] ===\n${res.log}`);
+    allLogs.push(`=== ${name} [${res.judgment} HP残${res.hpPct}% CLOSE_CALL=${res.closecallCount}回] ===\n${res.log}`);
 
     const cls = res.judgment === 'CLEAR' ? 'clear' : 'gameover';
     const div = document.createElement('div');

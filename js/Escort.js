@@ -48,7 +48,7 @@ function _escortFlipX(variant, sprDir, dir) {
 // 護衛対象
 // スプライット配置: assets/sprites/escort/{variant}/walk_{dir}_{frame:02d}.png
 // ファイルがなければ青い円（グレーボックス）で自動フォールバック
-class Escort {
+var Escort = class Escort {
   constructor(scene, pixelPath, def) {
     this.scene   = scene;
     this.path    = pixelPath;
@@ -71,6 +71,7 @@ class Escort {
     this._sprite    = null;
     this._shadow    = null;
     this._hpGfx     = scene.add.graphics().setDepth(5);
+    this._engageGfx = scene.add.graphics().setDepth(1);  // 護衛範囲円（交戦ゲート）を足元に薄く描画
 
     // 寄り道(Y)システム
     this.state            = 'walking';  // 'walking'|'detouring'|'waiting'|'returning'|'exiting'
@@ -277,16 +278,18 @@ class Escort {
 
   draw(g) {
     if (!this.alive) {
-      if (this._sprite) this._sprite.setVisible(false);
-      if (this._shadow) this._shadow.setVisible(false);
-      if (this._hpGfx)  this._hpGfx.clear();
+      if (this._sprite)    this._sprite.setVisible(false);
+      if (this._shadow)    this._shadow.setVisible(false);
+      if (this._hpGfx)     this._hpGfx.clear();
+      if (this._engageGfx) this._engageGfx.clear();
       return;
     }
 
     if (this.defeated) {
       if (this._sprite) { this._sprite.destroy(); this._sprite = null; }
-      if (this._shadow) this._shadow.setVisible(false);
-      if (this._hpGfx)  this._hpGfx.clear();
+      if (this._shadow)    this._shadow.setVisible(false);
+      if (this._hpGfx)     this._hpGfx.clear();
+      if (this._engageGfx) this._engageGfx.clear();
       const blink = Math.floor(this._defeatTimer / 200) % 2 === 0;
       if (blink) {
         g.fillStyle(0x555555, 0.7);
@@ -298,10 +301,20 @@ class Escort {
     }
 
     if (this.reached) {
-      if (this._sprite) this._sprite.setVisible(false);
-      if (this._shadow) this._shadow.setVisible(false);
-      if (this._hpGfx)  this._hpGfx.clear();
+      if (this._sprite)    this._sprite.setVisible(false);
+      if (this._shadow)    this._shadow.setVisible(false);
+      if (this._hpGfx)     this._hpGfx.clear();
+      if (this._engageGfx) this._engageGfx.clear();
       return;
+    }
+
+    // 護衛範囲円（交戦ゲート）: 足元に薄く描画。詳細な見た目は後で詰める仮実装
+    if (this._engageGfx) {
+      this._engageGfx.clear();
+      this._engageGfx.fillStyle(0x66ccff, 0.05);
+      this._engageGfx.fillCircle(this.x, this.y, ESCORT_ENGAGE_RADIUS);
+      this._engageGfx.lineStyle(1.5, 0x66ccff, 0.3);
+      this._engageGfx.strokeCircle(this.x, this.y, ESCORT_ENGAGE_RADIUS);
     }
 
     const dir = dirFromVec(this.lastDx, this.lastDy);
@@ -424,9 +437,10 @@ class Escort {
   }
 
   cleanup() {
-    if (this._sprite)   { this._sprite.destroy();   this._sprite   = null; }
-    if (this._waitText) { this._waitText.destroy();  this._waitText = null; }
-    if (this._shadow)   { this._shadow.destroy();   this._shadow   = null; }
-    if (this._hpGfx)    { this._hpGfx.destroy();    this._hpGfx    = null; }
+    if (this._sprite)    { this._sprite.destroy();    this._sprite    = null; }
+    if (this._waitText)  { this._waitText.destroy();  this._waitText  = null; }
+    if (this._shadow)    { this._shadow.destroy();    this._shadow    = null; }
+    if (this._hpGfx)     { this._hpGfx.destroy();     this._hpGfx     = null; }
+    if (this._engageGfx) { this._engageGfx.destroy(); this._engageGfx = null; }
   }
 }

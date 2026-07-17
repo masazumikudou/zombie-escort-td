@@ -3,6 +3,8 @@
 
   "sellRate": 0.70,
 
+  "escortEngageRadius": 450,
+
   "towers": {
     "normal": { "cost": 100, "range": 2.5, "fireRate": 800,  "damage": 50,  "durability": null },
     "sniper": { "cost": 300, "range": 3.5, "fireRate": 450,  "damage": 34,  "durability": null },

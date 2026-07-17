@@ -1,0 +1,349 @@
+{
+  "_comment": "1-4.5 新文法実証実験。stage_01_meander_verified.jsonのsegments版。spawnEventsをsegmentsに置換。元ファイルは変更しない。",
+  "id": "stage_custom",
+  "name": "確定中級ステージ（segments実験版）",
+  "grid": { "cols": 20, "rows": 20 },
+  "ground_base": "grass",
+  "startMoney": 900,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "startTrigger": "afterPrevious",
+      "start": { "col": 0, "row": 3 },
+      "goal":  { "col": 19, "row": 15 },
+      "path": [
+        {"col":0,"row":3},{"col":1,"row":3},{"col":2,"row":3},{"col":3,"row":3},
+        {"col":4,"row":3},{"col":5,"row":3},{"col":6,"row":3},{"col":7,"row":3},
+        {"col":8,"row":3},{"col":9,"row":3},{"col":10,"row":3},{"col":11,"row":3},
+        {"col":12,"row":3},{"col":13,"row":3},{"col":14,"row":3},
+        {"col":14,"row":4},{"col":14,"row":5},{"col":14,"row":6},{"col":14,"row":7},
+        {"col":14,"row":8},{"col":14,"row":9},
+        {"col":13,"row":9},{"col":12,"row":9},{"col":11,"row":9},{"col":10,"row":9},
+        {"col":9,"row":9},{"col":8,"row":9},{"col":7,"row":9},{"col":6,"row":9},
+        {"col":5,"row":9},{"col":4,"row":9},{"col":3,"row":9},
+        {"col":3,"row":10},{"col":3,"row":11},{"col":3,"row":12},{"col":3,"row":13},
+        {"col":3,"row":14},{"col":3,"row":15},
+        {"col":4,"row":15},{"col":5,"row":15},{"col":6,"row":15},{"col":7,"row":15},
+        {"col":8,"row":15},{"col":9,"row":15},{"col":10,"row":15},{"col":11,"row":15},
+        {"col":12,"row":15},{"col":13,"row":15},{"col":14,"row":15},{"col":15,"row":15},
+        {"col":16,"row":15},{"col":17,"row":15},{"col":18,"row":15},{"col":19,"row":15}
+      ],
+      "hp": 100,
+      "speed": 40,
+      "segments": [
+        {
+          "segmentId": "seg1_row3_to_cornerB",
+          "_comment": "上直線〜交戦地A(14,3)〜縦下降〜交戦地B(14,9)。Bのゾンビはこの区間で解決する。wp0-20",
+          "range": { "fromWp": 0, "toWp": 20 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress",
+              "atWpIdx": 6,
+              "_comment": "護衛が(6,3)通過時→スポーンA(19,3)から2体 leashTo(14,3)",
+              "spawn": "A",
+              "count": 2,
+              "interval": 1000,
+              "enemy": {
+                "type": "salaryman",
+                "hp": 200, "speed": 30, "damage": 10, "reward": 20,
+                "leashTo": { "col": 14, "row": 3 }
+              }
+            },
+            {
+              "type": "progress",
+              "atWpIdx": 12,
+              "_comment": "護衛が(12,3)通過時→スポーンB(14,15)から1体 leashTo(14,9)",
+              "spawn": "B",
+              "count": 1,
+              "interval": 0,
+              "enemy": {
+                "type": "salaryman",
+                "hp": 200, "speed": 30, "damage": 10, "reward": 20,
+                "leashTo": { "col": 14, "row": 9 }
+              }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg2_row9_left_to_cornerC",
+          "_comment": "row9左行き〜交戦地C(3,9)。wp21-31",
+          "range": { "fromWp": 21, "toWp": 31 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress",
+              "atWpIdx": 25,
+              "_comment": "護衛が(9,9)通過時→スポーンC(0,8)から1体 leashTo(3,9)",
+              "spawn": "C",
+              "count": 1,
+              "interval": 0,
+              "enemy": {
+                "type": "salaryman",
+                "hp": 200, "speed": 30, "damage": 10, "reward": 20,
+                "leashTo": { "col": 3, "row": 9 }
+              }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg3_descent_to_cornerD",
+          "_comment": "縦下降〜交戦地D(3,15)。wp32-37",
+          "range": { "fromWp": 32, "toWp": 37 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress",
+              "atWpIdx": 32,
+              "_comment": "区間開始直後（護衛が(3,10)到達時）→スポーンD(0,15)から1体 leashTo(3,15)",
+              "spawn": "D",
+              "count": 1,
+              "interval": 0,
+              "enemy": {
+                "type": "salaryman",
+                "hp": 200, "speed": 30, "damage": 10, "reward": 20,
+                "leashTo": { "col": 3, "row": 15 }
+              }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg4_row15_to_goal",
+          "_comment": "row15最終直線〜ゴール。wp38-53",
+          "range": { "fromWp": 38, "toWp": 53 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress",
+              "atWpIdx": 39,
+              "_comment": "護衛が(5,15)通過時→スポーンE(8,17)から1体 leashTo(7,15)",
+              "spawn": "E",
+              "count": 1,
+              "interval": 0,
+              "enemy": {
+                "type": "salaryman",
+                "hp": 200, "speed": 30, "damage": 10, "reward": 20,
+                "leashTo": { "col": 7, "row": 15 }
+              }
+            },
+            {
+              "type": "progress",
+              "atWpIdx": 42,
+              "_comment": "護衛が(8,15)通過時→スポーンF1(3,19)速足サラリーマン",
+              "spawn": "F1",
+              "count": 1,
+              "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }
+            },
+            {
+              "type": "progress",
+              "atWpIdx": 43,
+              "_comment": "護衛が(9,15)通過時→スポーンF2(8,19)",
+              "spawn": "F2",
+              "count": 1,
+              "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }
+            },
+            {
+              "type": "progress",
+              "atWpIdx": 44,
+              "_comment": "護衛が(10,15)通過時→スポーンF3(13,19)",
+              "spawn": "F3",
+              "count": 1,
+              "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }
+            }
+          ],
+          "onExit": "retreat"
+        }
+      ]
+    },
+    {
+      "variant": "mom",
+      "startTrigger": "afterPrevious",
+      "start": { "col": 0, "row": 3 },
+      "goal":  { "col": 19, "row": 15 },
+      "path": [
+        {"col":0,"row":3},{"col":1,"row":3},{"col":2,"row":3},{"col":3,"row":3},
+        {"col":4,"row":3},{"col":5,"row":3},{"col":6,"row":3},{"col":7,"row":3},
+        {"col":8,"row":3},{"col":9,"row":3},{"col":10,"row":3},{"col":11,"row":3},
+        {"col":12,"row":3},{"col":13,"row":3},{"col":14,"row":3},
+        {"col":14,"row":4},{"col":14,"row":5},{"col":14,"row":6},{"col":14,"row":7},
+        {"col":14,"row":8},{"col":14,"row":9},
+        {"col":13,"row":9},{"col":12,"row":9},{"col":11,"row":9},{"col":10,"row":9},
+        {"col":9,"row":9},{"col":8,"row":9},{"col":7,"row":9},{"col":6,"row":9},
+        {"col":5,"row":9},{"col":4,"row":9},{"col":3,"row":9},
+        {"col":3,"row":10},{"col":3,"row":11},{"col":3,"row":12},{"col":3,"row":13},
+        {"col":3,"row":14},{"col":3,"row":15},
+        {"col":4,"row":15},{"col":5,"row":15},{"col":6,"row":15},{"col":7,"row":15},
+        {"col":8,"row":15},{"col":9,"row":15},{"col":10,"row":15},{"col":11,"row":15},
+        {"col":12,"row":15},{"col":13,"row":15},{"col":14,"row":15},{"col":15,"row":15},
+        {"col":16,"row":15},{"col":17,"row":15},{"col":18,"row":15},{"col":19,"row":15}
+      ],
+      "hp": 100,
+      "speed": 40,
+      "segments": [
+        {
+          "segmentId": "seg1_row3_to_cornerB",
+          "range": { "fromWp": 0, "toWp": 20 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress", "atWpIdx": 6, "spawn": "A", "count": 2, "interval": 1000,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 14, "row": 3 } }
+            },
+            {
+              "type": "progress", "atWpIdx": 12, "spawn": "B", "count": 1, "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 14, "row": 9 } }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg2_row9_left_to_cornerC",
+          "range": { "fromWp": 21, "toWp": 31 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress", "atWpIdx": 25, "spawn": "C", "count": 1, "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 3, "row": 9 } }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg3_descent_to_cornerD",
+          "range": { "fromWp": 32, "toWp": 37 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress", "atWpIdx": 32, "spawn": "D", "count": 1, "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 3, "row": 15 } }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg4_row15_to_goal",
+          "range": { "fromWp": 38, "toWp": 53 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress", "atWpIdx": 39, "spawn": "E", "count": 1, "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 7, "row": 15 } }
+            },
+            {
+              "type": "progress", "atWpIdx": 42, "spawn": "F1", "count": 1, "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }
+            },
+            {
+              "type": "progress", "atWpIdx": 43, "spawn": "F2", "count": 1, "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }
+            },
+            {
+              "type": "progress", "atWpIdx": 44, "spawn": "F3", "count": 1, "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 45, "damage": 10, "reward": 20 }
+            }
+          ],
+          "onExit": "retreat"
+        }
+      ]
+    }
+  ],
+  "obstacles": [],
+  "spawns": {
+    "A":  { "col": 19, "row": 3  },
+    "B":  { "col": 14, "row": 15 },
+    "C":  { "col": 0,  "row": 8  },
+    "D":  { "col": 0,  "row": 15 },
+    "E":  { "col": 8,  "row": 17 },
+    "F1": { "col": 3,  "row": 19 },
+    "F2": { "col": 8,  "row": 19 },
+    "F3": { "col": 13, "row": 19 }
+  },
+  "buildSpots": [
+    {"col":12,"row":4},{"col":15,"row":4},{"col":4,"row":8},{"col":16,"row":8},
+    {"col":15,"row":9},{"col":4,"row":10},{"col":4,"row":14},{"col":1,"row":16},
+    {"col":13,"row":2},{"col":16,"row":4},{"col":16,"row":9},{"col":5,"row":8},
+    {"col":2,"row":16},{"col":6,"row":16}
+  ],
+  "encounterHints": [
+    {"col":14,"row":3,"note":"交戦地A（角）"},
+    {"col":14,"row":9,"note":"交戦地B（角）"},
+    {"col":3, "row":9,"note":"交戦地C（角）"},
+    {"col":3, "row":15,"note":"交戦地D（角）"},
+    {"col":7, "row":15,"note":"交戦地E（角）"}
+  ],
+  "ground_cells": [
+    {"col":3,"row":0,"type":"道縦ノーマル (2)"},{"col":8,"row":0,"type":"道縦ノーマル (2)"},{"col":13,"row":0,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":1,"type":"道縦ノーマル (2)"},{"col":8,"row":1,"type":"道縦ノーマル (2)"},{"col":13,"row":1,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":2,"type":"道縦ノーマル (2)"},{"col":8,"row":2,"type":"道縦ノーマル (2)"},{"col":13,"row":2,"type":"道縦ノーマル (2)"},
+    {"col":0,"row":3,"type":"道横"},{"col":1,"row":3,"type":"道横"},{"col":2,"row":3,"type":"道横"},
+    {"col":3,"row":3,"type":"道縦ノーマル (2)"},{"col":4,"row":3,"type":"道横"},{"col":5,"row":3,"type":"道横"},
+    {"col":6,"row":3,"type":"道横"},{"col":7,"row":3,"type":"道横"},{"col":8,"row":3,"type":"道横"},
+    {"col":9,"row":3,"type":"道横"},{"col":10,"row":3,"type":"道横"},{"col":11,"row":3,"type":"道横"},
+    {"col":12,"row":3,"type":"道横"},{"col":13,"row":3,"type":"道横"},{"col":14,"row":3,"type":"道横"},
+    {"col":15,"row":3,"type":"道横"},{"col":16,"row":3,"type":"道横"},{"col":17,"row":3,"type":"道横"},
+    {"col":18,"row":3,"type":"道横"},{"col":19,"row":3,"type":"道横"},
+    {"col":3,"row":4,"type":"道縦ノーマル (2)"},{"col":3,"row":5,"type":"道縦ノーマル (2)"},
+    {"col":8,"row":5,"type":"道縦ノーマル (2)"},{"col":13,"row":5,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":6,"type":"道縦ノーマル (2)"},{"col":8,"row":6,"type":"道縦ノーマル (2)"},{"col":13,"row":6,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":7,"type":"道縦ノーマル (2)"},{"col":8,"row":7,"type":"道縦ノーマル (2)"},{"col":13,"row":7,"type":"道縦ノーマル (2)"},
+    {"col":0,"row":8,"type":"道横"},{"col":1,"row":8,"type":"道横"},{"col":2,"row":8,"type":"道横"},
+    {"col":3,"row":8,"type":"道縦ノーマル (2)"},{"col":5,"row":8,"type":"道横"},{"col":6,"row":8,"type":"道横"},
+    {"col":7,"row":8,"type":"道横"},{"col":8,"row":8,"type":"道縦ノーマル (2)"},{"col":10,"row":8,"type":"道横"},
+    {"col":11,"row":8,"type":"道横"},{"col":12,"row":8,"type":"道横"},{"col":13,"row":8,"type":"道縦ノーマル (2)"},
+    {"col":15,"row":8,"type":"道横"},{"col":16,"row":8,"type":"道横"},{"col":17,"row":8,"type":"道横"},
+    {"col":18,"row":8,"type":"道横"},{"col":19,"row":8,"type":"道横"},
+    {"col":3,"row":9,"type":"道縦ノーマル (2)"},{"col":4,"row":9,"type":"道横"},{"col":5,"row":9,"type":"道横"},
+    {"col":6,"row":9,"type":"道横"},{"col":7,"row":9,"type":"道横"},{"col":8,"row":9,"type":"道縦ノーマル (2)"},
+    {"col":9,"row":9,"type":"道横"},{"col":10,"row":9,"type":"道横"},{"col":11,"row":9,"type":"道横"},
+    {"col":12,"row":9,"type":"道横"},{"col":13,"row":9,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":10,"type":"道縦ノーマル (2)"},{"col":8,"row":10,"type":"道縦ノーマル (2)"},{"col":13,"row":10,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":11,"type":"道縦ノーマル (2)"},{"col":8,"row":11,"type":"道縦ノーマル (2)"},{"col":13,"row":11,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":12,"type":"道縦ノーマル (2)"},{"col":8,"row":12,"type":"道縦ノーマル (2)"},{"col":13,"row":12,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":13,"type":"道縦ノーマル (2)"},{"col":8,"row":13,"type":"道縦ノーマル (2)"},{"col":13,"row":13,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":14,"type":"道縦ノーマル (2)"},{"col":8,"row":14,"type":"道縦ノーマル (2)"},{"col":13,"row":14,"type":"道縦ノーマル (2)"},
+    {"col":0,"row":15,"type":"道横"},{"col":1,"row":15,"type":"道横"},{"col":2,"row":15,"type":"道横"},
+    {"col":3,"row":15,"type":"道横"},{"col":4,"row":15,"type":"道横"},{"col":5,"row":15,"type":"道横"},
+    {"col":6,"row":15,"type":"道横"},{"col":7,"row":15,"type":"道横"},{"col":8,"row":15,"type":"道横"},
+    {"col":9,"row":15,"type":"道横"},{"col":10,"row":15,"type":"道横"},{"col":11,"row":15,"type":"道横"},
+    {"col":12,"row":15,"type":"道横"},{"col":13,"row":15,"type":"道横"},{"col":14,"row":15,"type":"道横"},
+    {"col":15,"row":15,"type":"道横"},{"col":16,"row":15,"type":"道横"},{"col":17,"row":15,"type":"道横"},
+    {"col":18,"row":15,"type":"道横"},{"col":19,"row":15,"type":"道横"},
+    {"col":3,"row":16,"type":"道縦ノーマル (2)"},{"col":8,"row":16,"type":"道縦ノーマル (2)"},{"col":13,"row":16,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":17,"type":"道縦ノーマル (2)"},{"col":8,"row":17,"type":"道縦ノーマル (2)"},{"col":13,"row":17,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":18,"type":"道縦ノーマル (2)"},{"col":8,"row":18,"type":"道縦ノーマル (2)"},{"col":13,"row":18,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":19,"type":"道縦ノーマル (2)"},{"col":8,"row":19,"type":"道縦ノーマル (2)"},{"col":13,"row":19,"type":"道縦ノーマル (2)"},
+    {"col":14,"row":4,"type":"道縦ノーマル (2)"},{"col":14,"row":5,"type":"道縦ノーマル (2)"},
+    {"col":14,"row":6,"type":"道縦ノーマル (2)"},{"col":14,"row":7,"type":"道縦ノーマル (2)"},
+    {"col":14,"row":8,"type":"道縦ノーマル (2)"},{"col":14,"row":9,"type":"道縦ノーマル (2)"}
+  ],
+  "props": [
+    {"type":"家青","col":0,"row":5},{"type":"家青","col":10,"row":5},
+    {"type":"家緑","col":5,"row":5},{"type":"家緑","col":15,"row":5},
+    {"type":"家緑","col":0,"row":0},{"type":"家緑","col":10,"row":0},
+    {"type":"家青","col":5,"row":0},{"type":"家青","col":15,"row":0},
+    {"type":"アイスクリーム","col":0,"row":10},{"type":"アイスクリーム","col":10,"row":17},
+    {"type":"ハンバーガー","col":5,"row":10},{"type":"ハンバーガー","col":0,"row":17},
+    {"type":"shop_front","col":10,"row":10},{"type":"shop_front","col":5,"row":17},
+    {"type":"駐車場","col":15,"row":17},{"type":"駐車場車有り","col":15,"row":10},
+    {"type":"木2","col":0,"row":13},{"type":"木2","col":1,"row":13},{"type":"木2","col":2,"row":13},
+    {"type":"木2","col":2,"row":14},{"type":"木2","col":1,"row":14},{"type":"木2","col":0,"row":14},
+    {"type":"木2","col":6,"row":13},{"type":"木2","col":5,"row":13},{"type":"木2","col":7,"row":13},
+    {"type":"木2","col":7,"row":14},{"type":"木2","col":6,"row":14},{"type":"木2","col":5,"row":14},
+    {"type":"木2","col":10,"row":13},{"type":"木2","col":10,"row":14},{"type":"木2","col":11,"row":14},
+    {"type":"木2","col":12,"row":14},{"type":"木2","col":12,"row":13},{"type":"木2","col":11,"row":13},
+    {"type":"木2","col":15,"row":12},{"type":"木2","col":15,"row":13},{"type":"木2","col":15,"row":14},
+    {"type":"木2","col":16,"row":14},{"type":"木2","col":16,"row":13},{"type":"木2","col":16,"row":12},
+    {"type":"木2","col":15,"row":19},{"type":"木2","col":16,"row":19},{"type":"木2","col":17,"row":19},
+    {"type":"木2","col":18,"row":19},{"type":"木2","col":19,"row":19},
+    {"type":"木2","col":19,"row":17},{"type":"木2","col":19,"row":18},
+    {"type":"木2","col":18,"row":5},{"type":"木2","col":18,"row":6},{"type":"木2","col":18,"row":7},
+    {"type":"木2","col":18,"row":0},{"type":"木2","col":18,"row":1},{"type":"木2","col":18,"row":2}
+  ]
+}

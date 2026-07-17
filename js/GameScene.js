@@ -236,22 +236,27 @@ class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.pan(escPath[0]?.x ?? MAP_W / 2, escPath[0]?.y ?? MAP_H / 2, 600, 'Power2');
 
-    // スポーンマネージャー（spawnEvents方式 or 旧waves方式を自動判別）
-    // escortDef.spawnEvents が優先、なければ top-level にフォールバック
-    const _evts = def.spawnEvents ?? this.stageData.spawnEvents;
-    if (_evts) {
-      this.waveManager = new SpawnEventManager(
-        this.stageData.spawns ?? {},
-        _evts
-      );
-      this.waveManager.start(timeOffset);
+    // スポーンマネージャー（segments方式 > spawnEvents方式 > 旧waves方式）
+    if (def.segments) {
+      // 区間制・位置トリガー方式（新文法）
+      this.waveManager = new SegmentManager(this.stageData.spawns ?? {}, def.segments);
       this.waveLabel = '';
     } else {
-      this.waveManager = new WaveManager(def.waves, this.stageData.zombieSpawns, this.escort);
-      this.waveManager.setFlowField(this.flowField);
-      this.waveManager.onWaveStart((n, t) => this._setWaveLabel(n, t));
-      this.waveManager.start(timeOffset);
-      this._setWaveLabel(1, def.waves.length);
+      const _evts = def.spawnEvents ?? this.stageData.spawnEvents;
+      if (_evts) {
+        this.waveManager = new SpawnEventManager(
+          this.stageData.spawns ?? {},
+          _evts
+        );
+        this.waveManager.start(timeOffset);
+        this.waveLabel = '';
+      } else {
+        this.waveManager = new WaveManager(def.waves, this.stageData.zombieSpawns, this.escort);
+        this.waveManager.setFlowField(this.flowField);
+        this.waveManager.onWaveStart((n, t) => this._setWaveLabel(n, t));
+        this.waveManager.start(timeOffset);
+        this._setWaveLabel(1, def.waves.length);
+      }
     }
     this._updateRelayHUD();
     this.relayPhase = 'active';
@@ -367,7 +372,7 @@ class GameScene extends Phaser.Scene {
 
         this.zombies.forEach(z => {
           if (!z.alive) {
-            if (z._closestToEscort < CELL * 1.5 && this.relayPhase === 'active') {
+            if (!z._retreating && z._closestToEscort < CELL * 1.5 && this.relayPhase === 'active') {
               this._closecallCount++;
               if (z._closestToEscort < this._closestEver) this._closestEver = z._closestToEscort;
               this._playLog?.push(`[CLOSE_CALL] t=${Math.round(this.scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
@@ -380,20 +385,6 @@ class GameScene extends Phaser.Scene {
         this.escort.update(step);  // escort は最後に更新（シムと同じ順序）
 
         if (this.relayPhase === 'active') this._checkWinLose();
-      }
-
-      // スポーンカウントダウン更新（フレームに1回）
-      if (this._spawnCountdownTexts?.length) {
-        const warning = this.waveManager.getWarning(this.scaledTime);
-        const spawns  = this._graveSpawnList ?? [];
-        this._spawnCountdownTexts.forEach((txt, i) => {
-          const sp = spawns[i];
-          if (warning && sp.col === warning.spawn.col && sp.row === warning.spawn.row) {
-            txt.setText(String(Math.ceil(warning.remaining / 1000)));
-          } else {
-            txt.setText('');
-          }
-        });
       }
 
       // インターバルカウントダウン（ゲーム速度に連動）
@@ -560,40 +551,8 @@ class GameScene extends Phaser.Scene {
 
   // ─── デカールレイヤー（depth 0、当たり判定なし） ──────────────
   _drawDecalLayer() {
-    // スポーン地点にお墓＋カウントダウンテキストを表示
-    const GRAVE_KEYS  = ['decal_grave_rip', 'decal_grave_z'];
-    const GRAVE_SIZES = { 'decal_grave_rip': [CELL, CELL], 'decal_grave_z': [CELL, Math.round(CELL * 74 / 64)] };
-    this._spawnCountdownTexts = [];
-    let _gravSpawns;
-    if (this.stageData.zombieSpawns?.length) {
-      _gravSpawns = this.stageData.zombieSpawns;
-    } else if (this.stageData.spawns) {
-      const _allEvts  = [
-        ...(this.stageData.spawnEvents ?? []),
-        ...this.escortDefs.flatMap(d => d.spawnEvents ?? []),
-      ];
-      const leashKeys = _allEvts.length ? new Set(_allEvts.map(e => e.spawn)) : null;
-      _gravSpawns = Object.entries(this.stageData.spawns)
-        .filter(([k]) => !leashKeys || leashKeys.has(k))
-        .map(([, v]) => v);
-    } else {
-      _gravSpawns = [];
-    }
-    this._graveSpawnList = _gravSpawns;
-    for (const [i, sp] of _gravSpawns.entries()) {
-      const cx  = sp.col * CELL + CELL / 2;
-      const cy  = sp.row * CELL + CELL / 2;
-      const key = GRAVE_KEYS[i % GRAVE_KEYS.length];
-      const [gw, gh] = GRAVE_SIZES[key];
-      const gy = cy - (gh - CELL) / 2 - CELL * 0.05 - 10;
-      this.add.image(cx, gy, key).setDisplaySize(gw, gh).setDepth(1);
-      const txt = this.add.text(cx + 26, cy - 26, '', {
-        fontSize: '16px', fontStyle: 'bold',
-        color: '#ffffff', stroke: '#000000', strokeThickness: 3,
-      }).setOrigin(0.5).setDepth(2);
-      this._spawnCountdownTexts.push(txt);
-    }
-
+    // 墓デカールはスポーン予告の意味を持たせない（装飾のみ）。
+    // 置きたい場合はステージJSONのdecals/propsに直接配置する。スポーン座標との自動連動は廃止済み。
     const decals = this.stageData.decals || [];
     if (!decals.length) return;
 

@@ -18,7 +18,7 @@
 //   FormationGroup.USE_FLOW_FIELD = true
 // true にすると後続の移動がFlowField追従に切り替わる。
 // 現状(false)は直線移動。切替コスト = このフラグ1行のみ。
-class FormationGroup {
+var FormationGroup = class FormationGroup {
   constructor(leashTo, pitch) {
     this.leashTo  = leashTo;   // {col,row}
     this.pitch    = pitch;     // px: 前の個体との維持距離
@@ -118,7 +118,7 @@ class FormationGroup {
 FormationGroup.USE_FLOW_FIELD = false;
 
 // ─── SpawnEventManager ────────────────────────────────────────────────────────
-class SpawnEventManager {
+var SpawnEventManager = class SpawnEventManager {
   constructor(spawns, spawnEvents) {
     this.spawnDefs   = spawns;
     this.events      = [...spawnEvents].sort((a, b) => a.time - b.time);
@@ -255,4 +255,109 @@ class SpawnEventManager {
     if (ev.leashTo !== undefined) def.leashTo = ev.leashTo;
     return def;
   }
+}
+
+// ─── SegmentManager ───────────────────────────────────────────────────────────
+// 区間制・位置トリガー方式のスポーン管理（SegmentManagerとSpawnEventManagerは並存）
+// JSON形式: escortDef.segments = [ { segmentId, range:{fromWp,toWp}, initial:[], triggers:[], onExit } ]
+// trigger: { type:"progress", atWpIdx, spawn, count?, interval?, enemy:{type,hp,speed,...,leashTo?} }
+var SegmentManager = class SegmentManager {
+  constructor(spawns, segments) {
+    this.spawns      = spawns;     // {"A":{col,row}, ...} spawnDefsと同形式
+    this.segments    = segments;
+    this._segIdx     = 0;
+    this._initDone   = false;
+    this._pending    = [];         // {fireAtMs, col, row, enemyDef} interval対応キュー
+    this._segZombies = [];         // 現区間にスポーンしたゾンビ参照（区間退場時にretreat呼び出し）
+    this.allDone     = false;
+    // トリガー発火状態は`${segIdx}:${triggerIdx}`キーでインスタンス側が持つ。
+    // ステージJSON（trig._fired）に書き込むとrunAll()の複数run間で同一stageオブジェクトを
+    // 使い回した際に発火済み状態が持ち越されてしまうため。
+    this._fired      = new Set();
+  }
+
+  update(scaledTime, spawnFn, escort) {
+    if (this.allDone) return;
+
+    // intervalペンディング処理（区間に関係なく消化）
+    const nextPending = [];
+    for (const p of this._pending) {
+      if (scaledTime >= p.fireAtMs) {
+        const z = spawnFn(p.col, p.row, p.enemyDef, this._segIdx, null);
+        if (z) this._segZombies.push(z);
+      } else {
+        nextPending.push(p);
+      }
+    }
+    this._pending = nextPending;
+
+    if (!escort) return;
+
+    const seg = this.segments[this._segIdx];
+    if (!seg) { this.allDone = true; return; }
+
+    // initial配置（区間開始時に1回だけ）
+    if (!this._initDone) {
+      this._initDone = true;
+      for (const def of (seg.initial ?? [])) {
+        const coord = this.spawns[def.spawn];
+        if (!coord) continue;
+        const z = spawnFn(coord.col, coord.row, this._buildEnemyDef(def.enemy ?? def), this._segIdx, null);
+        // initial配置は護衛範囲円ゲートで静止させる（progress/intervalスポーンは即行動）
+        if (z) { z._engageGate = true; this._segZombies.push(z); }
+      }
+    }
+
+    // progressトリガー判定（escort.wpIdxが閾値以上になったら発火）
+    const triggers = seg.triggers ?? [];
+    for (let ti = 0; ti < triggers.length; ti++) {
+      const trig = triggers[ti];
+      const key  = `${this._segIdx}:${ti}`;
+      if (this._fired.has(key)) continue;
+      if (trig.type === 'progress' && escort.wpIdx >= trig.atWpIdx) {
+        const coord = this.spawns[trig.spawn];
+        if (!coord) { this._fired.add(key); continue; }
+        const count    = trig.count ?? 1;
+        const interval = trig.interval ?? 0;
+        const enemyDef = this._buildEnemyDef(trig.enemy ?? trig);
+        for (let i = 0; i < count; i++) {
+          this._pending.push({ fireAtMs: scaledTime + i * interval, col: coord.col, row: coord.row, enemyDef });
+        }
+        this._fired.add(key);
+      }
+    }
+
+    // 区間遷移判定（護衛wpIdxがtoWpを超えたら次区間へ）
+    if (escort.wpIdx > seg.range.toWp) {
+      this._exitCurrentSegment();
+    }
+  }
+
+  _exitCurrentSegment() {
+    // 生存中の区間ゾンビを全員退場させる
+    for (const z of this._segZombies) {
+      if (z.alive && !z._retreating) z.retreat();
+    }
+    // 未発火のペンディングもキャンセル
+    this._pending    = [];
+    this._segZombies = [];
+    this._segIdx++;
+    this._initDone = false;
+    if (this._segIdx >= this.segments.length) this.allDone = true;
+  }
+
+  _buildEnemyDef(def) {
+    const type   = def.type ?? 'salaryman';
+    const base   = (typeof ZOMBIE_BASE !== 'undefined' ? ZOMBIE_BASE[type] : null) ?? {};
+    const result = { ...base, type };
+    if (def.hp      !== undefined) result.hp      = def.hp;
+    if (def.speed   !== undefined) result.speed   = def.speed;
+    if (def.damage  !== undefined) result.damage  = def.damage;
+    if (def.reward  !== undefined) result.reward  = def.reward;
+    if (def.leashTo !== undefined) result.leashTo = def.leashTo;
+    return result;
+  }
+
+  // GameSceneがwaveManager.getWarning()を呼ぶためスタブ実装
+  getWarning(scaledTime) { return null; }
 }

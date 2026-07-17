@@ -154,15 +154,18 @@ class Tower {
   }
 
   _findNearest(zombies, escort = null) {
-    const range2 = this.range * this.range;
-    const ref    = escort ?? this;  // 護衛基準、なければタワー基準
+    const range2  = this.range * this.range;
+    const engage2 = ESCORT_ENGAGE_RADIUS * ESCORT_ENGAGE_RADIUS;
+    const ref     = escort ?? this;  // 護衛基準、なければタワー基準
     let nearest = null, minDist = Infinity;
     for (const z of zombies) {
       if (!z.alive || z._spawnTimer > 0) continue;
       const dx = z.x - this.x, dy = z.y - this.y;
       if (dx * dx + dy * dy > range2) continue;
       const ex = z.x - ref.x, ey = z.y - ref.y;
-      const d  = Math.sqrt(ex * ex + ey * ey);
+      // 護衛範囲円（交戦ゲート）: 円の外のゾンビはタワーの射程内でも対象外
+      if (escort && ex * ex + ey * ey > engage2) continue;
+      const d = Math.sqrt(ex * ex + ey * ey);
       if (d < minDist) { minDist = d; nearest = z; }
     }
     return nearest;

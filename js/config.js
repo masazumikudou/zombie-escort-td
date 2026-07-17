@@ -33,6 +33,11 @@ const AUTO_RETURN_DELAY  = 3000;    // ms（無操作後に護衛へ自動復帰
 const TIME_SCALES = [0, 0.25, 1.0, 2.0, 3.0]; // 0=停止, 1=スロー, 2=通常, 3=2倍, 4=3倍
 const TIME_LABELS = ['⏸ 停止', '🐢 スロー', '▶ 通常', '⏩ 2倍', '⏩⏩ 3倍'];
 
+// ─── 護衛範囲円（交戦ゲート） ──────────────────────────────────
+// タワーは護衛からこの半径(px)以内のゾンビしか狙わない（タワー自身の射程とのAND）。
+// balance.json の escortEngageRadius で上書き可能。
+let ESCORT_ENGAGE_RADIUS = 450;
+
 // ─── タワー定義 ──────────────────────────────────────────────
 // range はセル単位（ピクセル = range * CELL）
 // 数値（cost/range/fireRate/damage/durability）は balance.json で上書き。
@@ -130,6 +135,10 @@ const ZOMBIE_BASE = {
 function applyBalance(b) {
   if (!b) return;
   const sellRate = b.sellRate ?? 0.5;
+  if (b.escortEngageRadius !== undefined) {
+    ESCORT_ENGAGE_RADIUS = b.escortEngageRadius;
+    globalThis.ESCORT_ENGAGE_RADIUS = ESCORT_ENGAGE_RADIUS;  // vm ctx経由アクセス用（letは再代入がglobalThisに反映されないため）
+  }
   Object.entries(b.towers ?? {}).forEach(([type, stats]) => {
     if (!TOWER_DEFS[type]) return;
     Object.assign(TOWER_DEFS[type], stats);
@@ -215,3 +224,10 @@ function dirFromVec(dx, dy) {
 function clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
 }
+
+// Node.js 24+ vm コンテキストでは const/let は ctx プロパティにならない。
+// globalThis 経由で明示的に公開する（ブラウザでは window.X = X と同義で無害）。
+globalThis.CELL         = CELL;
+globalThis.TOWER_DEFS   = TOWER_DEFS;
+globalThis.UPGRADE_DEFS = UPGRADE_DEFS;
+globalThis.ESCORT_ENGAGE_RADIUS = ESCORT_ENGAGE_RADIUS;

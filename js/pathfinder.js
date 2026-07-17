@@ -1,6 +1,6 @@
 // A* 経路探索（4方向のみ・game-v2から移植）
 // obstacles: [{col, row}, ...] のみブロック。タワーは通過可能。
-class Pathfinder {
+var Pathfinder = class Pathfinder {
   constructor(cols, rows, obstacles) {
     this.cols = cols;
     this.rows = rows;

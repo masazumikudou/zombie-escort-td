@@ -34,6 +34,9 @@ for (const f of files) {
   vm.runInContext(code, ctx);
 }
 
+// mockScene 用 add/textures/anims スタブ（simulator.html と共通・js/simStub.js）
+vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/simStub.js'), 'utf8'), ctx);
+
 // balance.json を適用
 const balance = JSON.parse(fs.readFileSync(path.join(ROOT, 'balance.json'), 'utf8'));
 vm.runInContext(`applyBalance(${JSON.stringify(balance)})`, ctx);
@@ -44,6 +47,7 @@ function makeSimTower(col, row, type, log) {
   const UPGRADE_DEFS = ctx.UPGRADE_DEFS;
   const CELL        = ctx.CELL;
   const cellCenter  = ctx.cellCenter;
+  const ESCORT_ENGAGE_RADIUS = ctx.ESCORT_ENGAGE_RADIUS;
 
   const cc = cellCenter(col, row);
   const d  = TOWER_DEFS[type] ?? TOWER_DEFS.normal;
@@ -91,6 +95,8 @@ function makeSimTower(col, row, type, log) {
         const ref = escort ?? { x: this.x, y: this.y };
         const edx = z.x - ref.x, edy = z.y - ref.y;
         const dist = Math.sqrt(edx*edx + edy*edy);
+        // 護衛範囲円（交戦ゲート）: 円の外のゾンビはタワーの射程内でも対象外
+        if (escort && dist > ESCORT_ENGAGE_RADIUS) continue;
         if (dist < bestDist) { bestDist = dist; best = z; }
       }
       if (!best) return;
@@ -127,13 +133,18 @@ function run(stageFile, towerPattern = '', opts = {}) {
   ctx.ROWS  = stage.grid.rows;
   ctx.MAP_W = ctx.CELL * ctx.COLS;
   ctx.MAP_H = ctx.CELL * ctx.ROWS;
+  // COLS/ROWS/MAP_W/MAP_H は config.js で let 宣言のため、ctx.X=... という外部からの代入では
+  // vmコンテキスト内スクリプト（Zombie.js等）が bare 参照する束縛までは更新されない。
+  // 内部からも明示的に再代入して同期する（さもないとROWS等がconfig.jsのデフォルト値のまま固定される）。
+  vm.runInContext(`COLS=${ctx.COLS}; ROWS=${ctx.ROWS}; MAP_W=${ctx.MAP_W}; MAP_H=${ctx.MAP_H};`, ctx);
 
   const CELL       = ctx.CELL;
   const cellCenter = ctx.cellCenter;
 
   const pf         = new ctx.Pathfinder(ctx.COLS, ctx.ROWS, stage.obstacles ?? []);
   const ff         = new ctx.FlowField(pf);
-  const mockScene  = { flowField: ff, _playLog: log, scaledTime: 0 };
+  const mockScene  = { flowField: ff, _playLog: log, scaledTime: 0,
+                       add: ctx.createMockSceneAdd(), textures: ctx.MOCK_TEXTURES, anims: ctx.MOCK_ANIMS };
 
   // 護衛（first escort のみ）
   const escDef    = { ...stage.escorts[0] };
@@ -141,10 +152,15 @@ function run(stageFile, towerPattern = '', opts = {}) {
   const pixelPath = escDef.path.map(p => cellCenter(p.col, p.row));
   const escort    = new ctx.Escort(mockScene, pixelPath, escDef);
 
-  // SpawnEventManager: escortDef.spawnEvents → 上位 spawnEvents にフォールバック
-  const spawnEvts = escDef.spawnEvents ?? stage.spawnEvents ?? [];
-  const sem       = new ctx.SpawnEventManager(stage.spawns ?? {}, spawnEvts);
-  sem.start(0);
+  // SegmentManager（新文法）/ SpawnEventManager（旧文法）自動判別
+  let sem;
+  if (escDef.segments) {
+    sem = new ctx.SegmentManager(stage.spawns ?? {}, escDef.segments);
+  } else {
+    const spawnEvts = escDef.spawnEvents ?? stage.spawnEvents ?? [];
+    sem = new ctx.SpawnEventManager(stage.spawns ?? {}, spawnEvts);
+    sem.start(0);
+  }
 
   // タワー
   const towerPlacements = parseTowerPattern(towerPattern);
@@ -241,13 +257,13 @@ function run(stageFile, towerPattern = '', opts = {}) {
       break;
     }
     for (const z of zombies) {
-      if (!z.alive && z._closestToEscort < CELL * 1.5) {
+      if (!z.alive && !z._retreating && z._closestToEscort < CELL * 1.5) {
         closecallCount++;
         if (z._closestToEscort < closestEver) closestEver = z._closestToEscort;
         log.push(`[CLOSE_CALL] t=${Math.round(scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
       }
     }
-    if (zombies.length > 400) zombies = zombies.filter(z => z.alive);
+    zombies = zombies.filter(z => z.alive);
     scaledTime += DT;
   }
   if (scaledTime > MAX_TIME) log.push('[TIMEOUT] 最大時間(10分)超過');
