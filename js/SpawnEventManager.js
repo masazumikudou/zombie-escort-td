@@ -266,9 +266,11 @@ var SegmentManager = class SegmentManager {
     this.spawns      = spawns;     // {"A":{col,row}, ...} spawnDefsと同形式
     this.segments    = segments;
     this._segIdx     = 0;
-    this._initDone   = false;
     this._pending    = [];         // {fireAtMs, col, row, enemyDef} interval対応キュー
-    this._segZombies = [];         // 現区間にスポーンしたゾンビ参照（区間退場時にretreat呼び出し）
+    // 区間ごとのゾンビ参照（retreat対象のグループ分け用）。全区間分のinitialを開始時に
+    // 一括スポーンするため、所属区間ごとに配列を分けて持つ（現区間だけの単一配列ではない）。
+    this._segZombieGroups  = segments.map(() => []);
+    this._allInitialSpawned = false;
     this.allDone     = false;
     // トリガー発火状態は`${segIdx}:${triggerIdx}`キーでインスタンス側が持つ。
     // ステージJSON（trig._fired）に書き込むとrunAll()の複数run間で同一stageオブジェクトを
@@ -279,12 +281,28 @@ var SegmentManager = class SegmentManager {
   update(scaledTime, spawnFn, escort) {
     if (this.allDone) return;
 
+    // 全区間のinitialを開始時（このマネージャーが初めてupdateされた瞬間＝t=0 or リレー開始時点）に
+    // 一括スポーン。「開幕に盤面の全待機ゾンビが見えている＝読みの材料」が新文法の第一原則のため、
+    // 区間ごとに遅延スポーンしない（区間所属・retreatタイミングは_segZombieGroupsで従来通り維持）。
+    if (!this._allInitialSpawned) {
+      this._allInitialSpawned = true;
+      this.segments.forEach((seg, segIdx) => {
+        for (const def of (seg.initial ?? [])) {
+          const coord = this.spawns[def.spawn];
+          if (!coord) continue;
+          const z = spawnFn(coord.col, coord.row, this._buildEnemyDef(def.enemy ?? def), segIdx, null);
+          // initial配置は護衛範囲円ゲートで静止させる（progress/intervalスポーンは即行動）
+          if (z) { z._engageGate = true; this._segZombieGroups[segIdx].push(z); }
+        }
+      });
+    }
+
     // intervalペンディング処理（区間に関係なく消化）
     const nextPending = [];
     for (const p of this._pending) {
       if (scaledTime >= p.fireAtMs) {
         const z = spawnFn(p.col, p.row, p.enemyDef, this._segIdx, null);
-        if (z) this._segZombies.push(z);
+        if (z) this._segZombieGroups[this._segIdx].push(z);
       } else {
         nextPending.push(p);
       }
@@ -295,18 +313,6 @@ var SegmentManager = class SegmentManager {
 
     const seg = this.segments[this._segIdx];
     if (!seg) { this.allDone = true; return; }
-
-    // initial配置（区間開始時に1回だけ）
-    if (!this._initDone) {
-      this._initDone = true;
-      for (const def of (seg.initial ?? [])) {
-        const coord = this.spawns[def.spawn];
-        if (!coord) continue;
-        const z = spawnFn(coord.col, coord.row, this._buildEnemyDef(def.enemy ?? def), this._segIdx, null);
-        // initial配置は護衛範囲円ゲートで静止させる（progress/intervalスポーンは即行動）
-        if (z) { z._engageGate = true; this._segZombies.push(z); }
-      }
-    }
 
     // progressトリガー判定（escort.wpIdxが閾値以上になったら発火）
     const triggers = seg.triggers ?? [];
@@ -334,15 +340,14 @@ var SegmentManager = class SegmentManager {
   }
 
   _exitCurrentSegment() {
-    // 生存中の区間ゾンビを全員退場させる
-    for (const z of this._segZombies) {
+    // その区間のゾンビ（initial＋トリガー産）を全員退場させる
+    for (const z of this._segZombieGroups[this._segIdx]) {
       if (z.alive && !z._retreating) z.retreat();
     }
+    this._segZombieGroups[this._segIdx] = [];
     // 未発火のペンディングもキャンセル
-    this._pending    = [];
-    this._segZombies = [];
+    this._pending = [];
     this._segIdx++;
-    this._initDone = false;
     if (this._segIdx >= this.segments.length) this.allDone = true;
   }
 
