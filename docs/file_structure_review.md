@@ -15,6 +15,7 @@
 | 1-4.5 GO判定後・1-7前 | R-1: GameScene分割 | GameScene.js | 未着手 |
 | 1-4.5クローズ後 | R-3: シム共通コア統合 | simulator.html / run_sim.js | 未着手 |
 | P4着手時（発注文に都度記載） | R-4: 新規ファイル配置ルール適用 | 新規実装全般 | 未着手 |
+| **1-4.5クローズ後に着手可・P3開始前必須** | **R-6: ステージJSON検証スクリプト新設** | `validate_stage.js`（新規） | 未着手・**量産の門番** |
 
 ---
 
@@ -73,6 +74,22 @@
 - ~~preview_mom.html（379行）・Sprite Lab (standalone) (3).html（163行）→ tools/ へ移動~~ ✅ 完了（2026-07-17）
 - ~~Sprite Lab (standalone) (3).html はファイル名に(3)が付いておりコピー残骸の疑い~~ → 調査済み: リポジトリ内に(1)/(2)や無番号版は存在せず単独ファイルだった（統合対象なし）
 - `stages/stage_y_tutorial.json`（149行）→ 旧Y実装（setSpawnMultiplier方式）前提のため、Y再設計（1-4）着手時に `stages/_archive/` へ **【保留中・未実施】**
+
+## R-6: ステージJSON検証スクリプト新設【1-4.5クローズ後着手可・P3開始前必須】
+
+**発端（2026-07-18）**: 本番segment_test再設計（stage_behavior_test.json）で、buildSpots 42箇所中11箇所（26%）がpropフットプリントと衝突しているのを機械チェックで発見。ステージ本体の`_comment_buildspots`には「prop占有セルは除外」と明記されていたにもかかわらず素通りしていた。さらに調査の過程で、**シム（run_sim.js/simulator.html）・実機（GameScene.js）のどちらにもタワー配置時の`pf.isWalkable()`衝突チェックが実装されていない**ことが判明（buildSpots定義ステージでは`_canPlace`がbuildSpotsの記載を最優先し、walkable判定自体をスキップする設計のため）。`spec05_stage_design.md`の「シムが衝突の最終ゲートキーパー」という記述は現状のコードと食い違っている。
+
+**問題の性質**: この日踏んだ地雷（buildSpots×propフットプリント衝突・initial書式の黙殺・leash間に合わない問題・spawn座標の歩行不能セル）はどれも同じパターン——**JSONの書き損じがエラーなく素通りし、実行結果から逆算しないと発覚しない**。P3で20本量産する際、この検証をシム実行前に機械化する価値は極めて高い。
+
+**方針**: `node validate_stage.js <stageFile>` の単体スクリプト（新規・実装規模100行前後）として、以下をシム実行前に静的チェックする:
+
+1. buildSpots vs propフットプリント衝突（今回発見した件）
+2. buildSpots vs 道路セル(ground_cells)衝突（旧`(5,8)`の件と同種。**本ステージにも未修正の`(13,2)`・`(16,8)`が残存確認済み**）
+3. initial/triggersの`spawn`キーが`spawns`に未定義の場合、黙殺せず即エラー
+4. スポーン座標・leashTo座標の歩行可能性（`ground_cells`定義時のroad-only判定と整合）
+5. トリガーの時間整合性——発火時点の護衛位置から敵の到達時刻を逆算し、護衛がすでに通過済み（間に合わない）なら警告。計算式は小松から提供予定
+
+**優先度**: P3量産の門番（量産開始前に必須）。着手タイミングは1-4.5クローズ後でよい（今は検証の手を止めない）。
 
 ---
 
