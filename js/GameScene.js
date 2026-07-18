@@ -711,15 +711,17 @@ class GameScene extends Phaser.Scene {
                     && this.popupState.row === row;
       if (isActive) {
         const pulse = 0.5 + 0.5 * Math.sin(t * 0.005);
-        g.fillStyle(0xffee44, 0.18 + 0.14 * pulse);
+        g.fillStyle(0xff3333, 0.18 + 0.14 * pulse);
         g.fillRect(col * CELL + 2, row * CELL + 2, CELL - 4, CELL - 4);
-        g.lineStyle(2, 0xffee44, 0.65 + 0.35 * pulse);
+        g.lineStyle(2, 0xff3333, 0.65 + 0.35 * pulse);
         g.strokeRect(col * CELL + 5, row * CELL + 5, CELL - 10, CELL - 10);
-        g.fillStyle(0xffee44, 0.9);
-        g.fillCircle(cx, cy, 6);
+        g.fillStyle(0xff3333, 0.95);
+        g.fillCircle(cx, cy, 7);
       } else {
-        g.fillStyle(0xffee44, 0.55);
-        g.fillCircle(cx, cy, 4);
+        g.fillStyle(0xff3333, 0.85);
+        g.fillCircle(cx, cy, 6);
+        g.lineStyle(1, 0xffffff, 0.5);
+        g.strokeCircle(cx, cy, 6);
       }
     }
   }
