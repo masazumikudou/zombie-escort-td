@@ -1,0 +1,308 @@
+{
+  "_comment": "1-4.5 本番実証版。設計コンセプト『読める盤面、4つの山場』。区間ごとに別の面白さ仮説を積む: seg1=読み→増援 / seg2=緩の対照群 / seg3=不気味な静寂 / seg4=挟撃クライマックス / mom=キャスト入れ替え。initial7体+侵入9体=16体。CLOSE_CALL予測(良): seg1で2-3回・seg2で0-1回・seg3で1-2回・seg4で2-3回、合計4-7回狙い。",
+  "id": "stage_custom",
+  "name": "本番テスト（読める盤面）",
+  "grid": { "cols": 20, "rows": 20 },
+  "ground_base": "grass",
+  "startMoney": 900,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "startTrigger": "afterPrevious",
+      "start": { "col": 0, "row": 3 },
+      "goal": { "col": 19, "row": 15 },
+      "hp": 120,
+      "speed": 50,
+      "path": [
+        {"col":0,"row":3},{"col":1,"row":3},{"col":2,"row":3},{"col":3,"row":3},{"col":4,"row":3},
+        {"col":5,"row":3},{"col":6,"row":3},{"col":7,"row":3},{"col":8,"row":3},{"col":9,"row":3},
+        {"col":10,"row":3},{"col":11,"row":3},{"col":12,"row":3},{"col":13,"row":3},{"col":14,"row":3},
+        {"col":14,"row":4},{"col":14,"row":5},{"col":14,"row":6},{"col":14,"row":7},{"col":14,"row":8},
+        {"col":14,"row":9},{"col":13,"row":9},{"col":12,"row":9},{"col":11,"row":9},{"col":10,"row":9},
+        {"col":9,"row":9},{"col":8,"row":9},{"col":7,"row":9},{"col":6,"row":9},{"col":5,"row":9},
+        {"col":4,"row":9},{"col":3,"row":9},{"col":3,"row":10},{"col":3,"row":11},{"col":3,"row":12},
+        {"col":3,"row":13},{"col":3,"row":14},{"col":3,"row":15},{"col":4,"row":15},{"col":5,"row":15},
+        {"col":6,"row":15},{"col":7,"row":15},{"col":8,"row":15},{"col":9,"row":15},{"col":10,"row":15},
+        {"col":11,"row":15},{"col":12,"row":15},{"col":13,"row":15},{"col":14,"row":15},{"col":15,"row":15},
+        {"col":16,"row":15},{"col":17,"row":15},{"col":18,"row":15},{"col":19,"row":15}
+      ],
+      "segments": [
+        {
+          "segmentId": "seg1_yomi_to_zouen",
+          "_comment": "仮説『読み→増援』。開幕にA角の3体が見える(迎撃準備の読み所)。処理中に右盤外から増援2体が同じ道を歩いて見えてくる。縦下降で第二波が右からrow8経由でBへ。wp0-20",
+          "range": { "fromWp": 0, "toWp": 20 },
+          "initial": [
+            { "spawn": "I1A", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+            { "spawn": "I1B", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } }
+          ],
+          "triggers": [
+            {
+              "type": "progress",
+              "atWpIdx": 0,
+              "_comment": "護衛(8,3)通過→右盤外から2体、同じ道を歩いてA(14,3)へ。『背後から来る』絵",
+              "spawn": "R3",
+              "count": 2,
+              "interval": 1200,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 14, "row": 3 } }
+            },
+            {
+              "type": "progress",
+              "atWpIdx": 6,
+              "_comment": "縦下降開始→右盤外からrow8経由で2体、B(14,9)で待ち受け",
+              "spawn": "R8",
+              "count": 2,
+              "interval": 1200,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 14, "row": 9 } }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg2_kan_taishougun",
+          "_comment": "仮説『緩の対照群』。意図的に軽い区間。C角の待ち伏せ2体(見える)+左盤外から1体のみ。ここが『退屈』か『心地よい息継ぎ』かが緩急設計の判定材料。wp21-31",
+          "range": { "fromWp": 21, "toWp": 31 },
+          "initial": [
+            { "spawn": "I2A", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+            { "spawn": "I2B", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } }
+          ],
+          "triggers": [
+            {
+              "type": "progress",
+              "atWpIdx": 21,
+              "_comment": "護衛(9,9)通過→左盤外から1体",
+              "spawn": "L8",
+              "count": 1,
+              "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 3, "row": 9 } }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg3_seijaku",
+          "_comment": "仮説『不気味な静寂』。initial=0の実験枠。盤面に何も見えない区間→左盤外から2体が横合いから現れDで正面衝突。静寂が緊張か退屈かの判定材料。wp32-37",
+          "range": { "fromWp": 32, "toWp": 37 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress",
+              "atWpIdx": 32,
+              "spawn": "S3",
+              "count": 2,
+              "interval": 1500,
+              "_comment": "seg3内で発火(区間またぎ回避)。(3,18)からleashなし直接追跡で北上、下降中の護衛とseg3内で正面衝突",
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg4_climax",
+          "_comment": "仮説『挟撃クライマックス』。col8の路地に伏兵2体(見える)+ゴール方向の右盤外から逆走2体。伏兵起動と逆走接近を同時帯に重ねて最高潮を作る。最接近距離はここで出る狙い。wp38-53。【2026-07-19変更】R15 interval 1200→4500ms: normal@(15,16)単独でid15/16を直列処理する際、旧intervalだと2体目接近が処理完了前に間に合い護衛被弾(10dmg)が発生していたため間隔を広げて解消を狙う。侵入方向・trigger位置・leashには一切変更なし。",
+          "range": { "fromWp": 38, "toWp": 53 },
+          "initial": [
+            { "spawn": "I4A", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+            { "spawn": "I4B", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+            { "spawn": "I4C", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } }
+          ],
+          "triggers": [
+            {
+              "type": "progress",
+              "atWpIdx": 39,
+              "_comment": "護衛(10,15)通過→右盤外(ゴール方向)から2体が逆走してくる。leashなしの直接追跡",
+              "spawn": "R15",
+              "count": 2,
+              "interval": 4500,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }
+            }
+          ],
+          "onExit": "retreat"
+        }
+      ]
+    },
+    {
+      "variant": "mom",
+      "startTrigger": "afterPrevious",
+      "start": { "col": 0, "row": 3 },
+      "goal": { "col": 19, "row": 15 },
+      "hp": 90,
+      "speed": 65,
+      "_comment": "仮説『キャスト入れ替え』。dadと同一segments構成(R15 intervalはdad区間の変更を未反映。mom区間は現行シム未対応のため据え置き)。mom開始時に各区間initialが新規配置=『ママ用ゾンビ配置入りまーす』の絵。speed65でリズムが変わる",
+      "path": [
+        {"col":0,"row":3},{"col":1,"row":3},{"col":2,"row":3},{"col":3,"row":3},{"col":4,"row":3},
+        {"col":5,"row":3},{"col":6,"row":3},{"col":7,"row":3},{"col":8,"row":3},{"col":9,"row":3},
+        {"col":10,"row":3},{"col":11,"row":3},{"col":12,"row":3},{"col":13,"row":3},{"col":14,"row":3},
+        {"col":14,"row":4},{"col":14,"row":5},{"col":14,"row":6},{"col":14,"row":7},{"col":14,"row":8},
+        {"col":14,"row":9},{"col":13,"row":9},{"col":12,"row":9},{"col":11,"row":9},{"col":10,"row":9},
+        {"col":9,"row":9},{"col":8,"row":9},{"col":7,"row":9},{"col":6,"row":9},{"col":5,"row":9},
+        {"col":4,"row":9},{"col":3,"row":9},{"col":3,"row":10},{"col":3,"row":11},{"col":3,"row":12},
+        {"col":3,"row":13},{"col":3,"row":14},{"col":3,"row":15},{"col":4,"row":15},{"col":5,"row":15},
+        {"col":6,"row":15},{"col":7,"row":15},{"col":8,"row":15},{"col":9,"row":15},{"col":10,"row":15},
+        {"col":11,"row":15},{"col":12,"row":15},{"col":13,"row":15},{"col":14,"row":15},{"col":15,"row":15},
+        {"col":16,"row":15},{"col":17,"row":15},{"col":18,"row":15},{"col":19,"row":15}
+      ],
+      "segments": [
+        {
+          "segmentId": "seg1_yomi_to_zouen_mom",
+          "range": { "fromWp": 0, "toWp": 20 },
+          "initial": [
+            { "spawn": "I1A", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+            { "spawn": "I1B", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } }
+          ],
+          "triggers": [
+            {
+              "type": "progress", "atWpIdx": 0, "spawn": "R3", "count": 2, "interval": 1200,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 14, "row": 3 } }
+            },
+            {
+              "type": "progress", "atWpIdx": 6, "spawn": "R8", "count": 2, "interval": 1200,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 14, "row": 9 } }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg2_kan_taishougun_mom",
+          "range": { "fromWp": 21, "toWp": 31 },
+          "initial": [
+            { "spawn": "I2A", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+            { "spawn": "I2B", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } }
+          ],
+          "triggers": [
+            {
+              "type": "progress", "atWpIdx": 21, "spawn": "L8", "count": 1, "interval": 0,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20, "leashTo": { "col": 3, "row": 9 } }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg3_seijaku_mom",
+          "range": { "fromWp": 32, "toWp": 37 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress", "atWpIdx": 32, "spawn": "S3", "count": 2, "interval": 1500,
+              "_comment": "seg3内で発火(区間またぎ回避)。(3,18)からleashなし直接追跡で北上、下降中の護衛とseg3内で正面衝突",
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }
+            }
+          ],
+          "onExit": "retreat"
+        },
+        {
+          "segmentId": "seg4_climax_mom",
+          "range": { "fromWp": 38, "toWp": 53 },
+          "initial": [
+            { "spawn": "I4A", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+            { "spawn": "I4B", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+            { "spawn": "I4C", "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } }
+          ],
+          "triggers": [
+            {
+              "type": "progress", "atWpIdx": 39, "spawn": "R15", "count": 2, "interval": 1200,
+              "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 }
+            }
+          ],
+          "onExit": "retreat"
+        }
+      ]
+    }
+  ],
+  "obstacles": [],
+  "spawns": {
+    "R3": { "col": 21, "row": 3 },
+    "R8": { "col": 21, "row": 8 },
+    "L8": { "col": -2, "row": 8 },
+    "L15": { "col": -2, "row": 15 },
+    "R15": { "col": 21, "row": 15 },
+    "I1A": { "col": 13, "row": 3 },
+    "I1B": { "col": 15, "row": 3 },
+    "I1C": { "col": 16, "row": 3 },
+    "I2A": { "col": 4, "row": 9 },
+    "I2B": { "col": 2, "row": 8 },
+    "I4A": { "col": 8, "row": 16 },
+    "I4B": { "col": 8, "row": 17 },
+    "S3": { "col": 3, "row": 18 },
+    "I4C": { "col": 11, "row": 16 }
+  },
+  "buildSpots": [
+    {"col":1,"row":2},{"col":4,"row":2},{"col":6,"row":2},{"col":9,"row":2},{"col":11,"row":2},
+    {"col":13,"row":2},{"col":14,"row":2},{"col":16,"row":2},
+    {"col":1,"row":4},{"col":4,"row":4},{"col":6,"row":4},{"col":9,"row":4},{"col":11,"row":4},
+    {"col":12,"row":4},{"col":15,"row":4},{"col":16,"row":4},
+    {"col":1,"row":7},{"col":6,"row":7},{"col":11,"row":7},{"col":16,"row":7},
+    {"col":4,"row":8},{"col":9,"row":8},{"col":16,"row":8},
+    {"col":15,"row":9},{"col":16,"row":9},
+    {"col":14,"row":10},{"col":4,"row":10},{"col":6,"row":10},{"col":9,"row":10},{"col":11,"row":10},
+    {"col":2,"row":12},{"col":4,"row":12},
+    {"col":4,"row":14},
+    {"col":1,"row":16},{"col":2,"row":16},{"col":4,"row":16},{"col":6,"row":16},{"col":9,"row":16},
+    {"col":11,"row":16},{"col":15,"row":16},{"col":17,"row":16},
+    {"col":17,"row":14}
+  ],
+  "_comment_buildspots": "42箇所・方針転換版『道路沿いの空き地は原則ぜんぶspot』。選択肢の多さ=迷い=読みゲーの本体、下手な配置(雑)が実在できる盤面にする。設計ルール: prop占有セルは除外・過度な隣接連鎖は間引き(タッチ精度リスク対応は2-5で正式化)。旧リストの(5,8)は道路セルだったため除外(元データの矛盾)",
+  "encounterHints": [
+    { "col": 14, "row": 3, "note": "交戦地A（読みの初戦）" },
+    { "col": 14, "row": 9, "note": "交戦地B（増援受け）" },
+    { "col": 3, "row": 9, "note": "交戦地C（緩）" },
+    { "col": 3, "row": 15, "note": "交戦地D（静寂後の衝突）" },
+    { "col": 14, "row": 15, "note": "交戦地E'（挟撃・正面衝突・最接近狙い）" }
+  ],
+  "ground_cells": [
+    {"col":3,"row":0,"type":"道縦ノーマル (2)"},{"col":8,"row":0,"type":"道縦ノーマル (2)"},{"col":13,"row":0,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":1,"type":"道縦ノーマル (2)"},{"col":8,"row":1,"type":"道縦ノーマル (2)"},{"col":13,"row":1,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":2,"type":"道縦ノーマル (2)"},{"col":8,"row":2,"type":"道縦ノーマル (2)"},{"col":13,"row":2,"type":"道縦ノーマル (2)"},
+    {"col":0,"row":3,"type":"道横"},{"col":1,"row":3,"type":"道横"},{"col":2,"row":3,"type":"道横"},{"col":3,"row":3,"type":"道縦ノーマル (2)"},
+    {"col":4,"row":3,"type":"道横"},{"col":5,"row":3,"type":"道横"},{"col":6,"row":3,"type":"道横"},{"col":7,"row":3,"type":"道横"},
+    {"col":8,"row":3,"type":"道横"},{"col":9,"row":3,"type":"道横"},{"col":10,"row":3,"type":"道横"},{"col":11,"row":3,"type":"道横"},
+    {"col":12,"row":3,"type":"道横"},{"col":13,"row":3,"type":"道横"},{"col":14,"row":3,"type":"道横"},{"col":15,"row":3,"type":"道横"},
+    {"col":16,"row":3,"type":"道横"},{"col":17,"row":3,"type":"道横"},{"col":18,"row":3,"type":"道横"},{"col":19,"row":3,"type":"道横"},
+    {"col":3,"row":4,"type":"道縦ノーマル (2)"},{"col":3,"row":5,"type":"道縦ノーマル (2)"},{"col":8,"row":5,"type":"道縦ノーマル (2)"},{"col":13,"row":5,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":6,"type":"道縦ノーマル (2)"},{"col":8,"row":6,"type":"道縦ノーマル (2)"},{"col":13,"row":6,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":7,"type":"道縦ノーマル (2)"},{"col":8,"row":7,"type":"道縦ノーマル (2)"},{"col":13,"row":7,"type":"道縦ノーマル (2)"},
+    {"col":0,"row":8,"type":"道横"},{"col":1,"row":8,"type":"道横"},{"col":2,"row":8,"type":"道横"},{"col":3,"row":8,"type":"道縦ノーマル (2)"},
+    {"col":5,"row":8,"type":"道横"},{"col":6,"row":8,"type":"道横"},{"col":7,"row":8,"type":"道横"},{"col":8,"row":8,"type":"道縦ノーマル (2)"},
+    {"col":10,"row":8,"type":"道横"},{"col":11,"row":8,"type":"道横"},{"col":12,"row":8,"type":"道横"},{"col":13,"row":8,"type":"道縦ノーマル (2)"},
+    {"col":15,"row":8,"type":"道横"},{"col":16,"row":8,"type":"道横"},{"col":17,"row":8,"type":"道横"},{"col":18,"row":8,"type":"道横"},{"col":19,"row":8,"type":"道横"},
+    {"col":3,"row":9,"type":"道縦ノーマル (2)"},{"col":4,"row":9,"type":"道横"},{"col":5,"row":9,"type":"道横"},{"col":6,"row":9,"type":"道横"},
+    {"col":7,"row":9,"type":"道横"},{"col":8,"row":9,"type":"道縦ノーマル (2)"},{"col":9,"row":9,"type":"道横"},{"col":10,"row":9,"type":"道横"},
+    {"col":11,"row":9,"type":"道横"},{"col":12,"row":9,"type":"道横"},{"col":13,"row":9,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":10,"type":"道縦ノーマル (2)"},{"col":8,"row":10,"type":"道縦ノーマル (2)"},{"col":13,"row":10,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":11,"type":"道縦ノーマル (2)"},{"col":8,"row":11,"type":"道縦ノーマル (2)"},{"col":13,"row":11,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":12,"type":"道縦ノーマル (2)"},{"col":8,"row":12,"type":"道縦ノーマル (2)"},{"col":13,"row":12,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":13,"type":"道縦ノーマル (2)"},{"col":8,"row":13,"type":"道縦ノーマル (2)"},{"col":13,"row":13,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":14,"type":"道縦ノーマル (2)"},{"col":8,"row":14,"type":"道縦ノーマル (2)"},{"col":13,"row":14,"type":"道縦ノーマル (2)"},
+    {"col":0,"row":15,"type":"道横"},{"col":1,"row":15,"type":"道横"},{"col":2,"row":15,"type":"道横"},{"col":3,"row":15,"type":"道横"},
+    {"col":4,"row":15,"type":"道横"},{"col":5,"row":15,"type":"道横"},{"col":6,"row":15,"type":"道横"},{"col":7,"row":15,"type":"道横"},
+    {"col":8,"row":15,"type":"道横"},{"col":9,"row":15,"type":"道横"},{"col":10,"row":15,"type":"道横"},{"col":11,"row":15,"type":"道横"},
+    {"col":12,"row":15,"type":"道横"},{"col":13,"row":15,"type":"道横"},{"col":14,"row":15,"type":"道横"},{"col":15,"row":15,"type":"道横"},
+    {"col":16,"row":15,"type":"道横"},{"col":17,"row":15,"type":"道横"},{"col":18,"row":15,"type":"道横"},{"col":19,"row":15,"type":"道横"},
+    {"col":3,"row":16,"type":"道縦ノーマル (2)"},{"col":8,"row":16,"type":"道縦ノーマル (2)"},{"col":13,"row":16,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":17,"type":"道縦ノーマル (2)"},{"col":8,"row":17,"type":"道縦ノーマル (2)"},{"col":13,"row":17,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":18,"type":"道縦ノーマル (2)"},{"col":8,"row":18,"type":"道縦ノーマル (2)"},{"col":13,"row":18,"type":"道縦ノーマル (2)"},
+    {"col":3,"row":19,"type":"道縦ノーマル (2)"},{"col":8,"row":19,"type":"道縦ノーマル (2)"},{"col":13,"row":19,"type":"道縦ノーマル (2)"},
+    {"col":14,"row":4,"type":"道縦ノーマル (2)"},{"col":14,"row":5,"type":"道縦ノーマル (2)"},{"col":14,"row":6,"type":"道縦ノーマル (2)"},
+    {"col":14,"row":7,"type":"道縦ノーマル (2)"},{"col":14,"row":8,"type":"道縦ノーマル (2)"},{"col":14,"row":9,"type":"道縦ノーマル (2)"}
+  ],
+  "props": [
+    {"type":"家青","col":0,"row":5},{"type":"家青","col":10,"row":5},{"type":"家緑","col":5,"row":5},{"type":"家緑","col":15,"row":5},
+    {"type":"家緑","col":0,"row":0},{"type":"家緑","col":10,"row":0},{"type":"家青","col":5,"row":0},{"type":"家青","col":15,"row":0},
+    {"type":"アイスクリーム","col":0,"row":10},{"type":"アイスクリーム","col":10,"row":17},
+    {"type":"ハンバーガー","col":5,"row":10},{"type":"ハンバーガー","col":0,"row":17},
+    {"type":"shop_front","col":10,"row":10},{"type":"shop_front","col":5,"row":17},
+    {"type":"駐車場","col":15,"row":17},{"type":"駐車場車有り","col":15,"row":10},
+    {"type":"木2","col":0,"row":13},{"type":"木2","col":1,"row":13},{"type":"木2","col":2,"row":13},
+    {"type":"木2","col":2,"row":14},{"type":"木2","col":1,"row":14},{"type":"木2","col":0,"row":14},
+    {"type":"木2","col":6,"row":13},{"type":"木2","col":5,"row":13},{"type":"木2","col":7,"row":13},
+    {"type":"木2","col":7,"row":14},{"type":"木2","col":6,"row":14},{"type":"木2","col":5,"row":14},
+    {"type":"木2","col":10,"row":13},{"type":"木2","col":10,"row":14},{"type":"木2","col":11,"row":14},
+    {"type":"木2","col":12,"row":14},{"type":"木2","col":12,"row":13},{"type":"木2","col":11,"row":13},
+    {"type":"木2","col":15,"row":12},{"type":"木2","col":15,"row":13},{"type":"木2","col":15,"row":14},
+    {"type":"木2","col":16,"row":14},{"type":"木2","col":16,"row":13},{"type":"木2","col":16,"row":12},
+    {"type":"木2","col":15,"row":19},{"type":"木2","col":16,"row":19},{"type":"木2","col":17,"row":19},
+    {"type":"木2","col":18,"row":19},{"type":"木2","col":19,"row":19},{"type":"木2","col":19,"row":17},
+    {"type":"木2","col":19,"row":18},{"type":"木2","col":18,"row":5},{"type":"木2","col":18,"row":6},
+    {"type":"木2","col":18,"row":7},{"type":"木2","col":18,"row":0},{"type":"木2","col":18,"row":1},{"type":"木2","col":18,"row":2}
+  ]
+}
