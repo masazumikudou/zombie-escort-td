@@ -142,7 +142,7 @@
     <button class="mode-btn"        id="btn-goal"       onclick="setMode('goal')">🏁 護衛ゴール</button>
     <button class="mode-btn"        id="btn-path"       onclick="setMode('path')">🔵 護衛導線（ドラッグ）</button>
     <button class="mode-btn"        id="btn-detour"     onclick="setMode('detour')">🟡 Y寄り道設定</button>
-    <button class="mode-btn"        id="btn-spawn"      onclick="setMode('spawn')">🔴 ゾンビスポーン（最大4）</button>
+    <button class="mode-btn"        id="btn-spawn"      onclick="setMode('spawn')">🔴 スポーン地点（名前付き・クリックで改名）</button>
     <button class="mode-btn"        id="btn-prop"       onclick="setMode('prop')">🏠 プロップ配置</button>
     <button class="mode-btn"        id="btn-road"       onclick="setMode('road')">🛣 道路配置</button>
     <button class="mode-btn"        id="btn-paint"      onclick="setMode('paint')">🎨 地面ペイント</button>
@@ -158,10 +158,20 @@
     <div style="font-size:10px;color:#557;margin-top:4px">① メイン導線上をクリック→分岐点(C)設定<br>② CからドラッグでY地点まで引く<br>③ 待機時間を設定</div>
     <div class="field-row" style="margin-top:6px">
       <label>Y待機(秒)</label>
-      <input type="number" id="detour-wait" value="30" min="5" max="300" style="width:52px;background:#111;border:1px solid #446;color:#ccc;padding:2px 4px;border-radius:2px;font-size:12px">
+      <input type="number" id="detour-wait" value="30" min="5" max="300" onchange="syncActiveToEscortDefs()" style="width:52px;background:#111;border:1px solid #446;color:#ccc;padding:2px 4px;border-radius:2px;font-size:12px">
+    </div>
+    <div class="field-row" style="margin-top:4px">
+      <label>お財布(着席時取得)</label>
+      <input type="number" id="detour-wallet" value="0" min="0" max="99999" step="100" onchange="syncActiveToEscortDefs()" style="width:64px;background:#111;border:1px solid #446;color:#ccc;padding:2px 4px;border-radius:2px;font-size:12px">
     </div>
     <button onclick="clearDetour()" style="margin-top:6px;width:100%;padding:5px 8px;border:1px solid #633;background:#3a1a1a;color:#f99;cursor:pointer;border-radius:3px;font-size:11px">🗑 Y設定クリア</button>
     <div id="detour-info" style="font-size:11px;margin-top:4px;min-height:32px;line-height:1.6"></div>
+
+    <div class="sep"></div>
+    <h2 style="font-size:12px">Y中の波（yInflow）</h2>
+    <div style="font-size:10px;color:#557;margin-top:2px">Y開始からの経過msで発火。spawn名は「スポーン地点」モードで置いた名前を入力</div>
+    <div id="yinflow-list" style="margin-top:6px;display:flex;flex-direction:column;gap:6px"></div>
+    <button onclick="addYInflowWave()" style="margin-top:6px;width:100%;padding:5px;border:1px dashed #446;background:transparent;color:#667;cursor:pointer;border-radius:3px;font-size:11px">＋ 波追加</button>
   </div>
 
   <!-- 護衛導線モード時のみ表示 -->
@@ -337,11 +347,10 @@ let COLS = 20, ROWS = 15;
 let obstacles      = new Set();  // "col,row"
 let buildSpots     = new Set();  // "col,row"
 let encounterHints = [];         // [{col, row}, ...] 交戦希望地（導線上のみ・ゲームに影響なし）
-let _passthruSpawns      = null; // 新フォーマット: spawns辞書をそのまま保持して書き出す
-let _passthruSpawnEvents = null; // 新フォーマット: spawnEventsをそのまま保持して書き出す
+let _passthruSpawnEvents = null; // 旧フォーマット: spawnEventsをそのまま保持して書き出す（GUI未対応のため素通し）
 let startCell  = null;
 let goalCell   = null;
-let spawns     = [];
+let spawns     = [];   // [{col, row, name}, ...] 名前付きスポーン地点（新フォーマットのspawns辞書に対応）
 let escortPath      = [];   // [{col, row}, ...]  現在編集中の護衛導線
 let detourBranchIdx = -1;  // escortPath上の分岐点インデックス
 let detourPath      = [];   // [{col, row}, ...]  C5→Y の支線
@@ -349,7 +358,19 @@ let detourPath      = [];   // [{col, row}, ...]  C5→Y の支線
 // ─── マルチWAVE管理 ──────────────────────────────────────────
 const WAVE_COLORS = ['#4488ff', '#ff88cc', '#44ff88', '#ffaa44', '#cc88ff'];
 const VARIANT_LABELS = { dad:'お父さん', mom:'お母さん', grandma:'おばあちゃん', son:'息子', cat:'猫' };
-let escortDefs = [{ variant:'dad', path:[], detourBranchIdx:-1, detourPath:[], hp:100, speed:80 }];
+
+// escortDefs[i]のデフォルト形。detourWaitTime等はY新文法（ms駆動）、_segmentsPassthruは
+// segments構造をGUI未対応のまま保持して書き戻すためのフィールド単位の素通し（escort丸ごとではない）
+function _newEscortDef(overrides = {}) {
+  return {
+    variant: 'dad', path: [], detourBranchIdx: -1, detourPath: [],
+    detourWaitTime: 30000, detourWalletAmount: 0, detourYInflow: [],
+    hp: 100, speed: 80,
+    _segmentsPassthru: null,
+    ...overrides,
+  };
+}
+let escortDefs = [_newEscortDef()];
 let activeEscortIdx = 0;
 let mode = 'obstacle';
 let isDragging = false;
@@ -708,6 +729,13 @@ function setMode(m) {
 
 function cellKey(c, r) { return `${c},${r}`; }
 
+// spawns（新フォーマット: 名前付き辞書）用の未使用名を採番
+function _nextSpawnName() {
+  let n = 1;
+  while (spawns.some(s => s.name === `S${n}`)) n++;
+  return `S${n}`;
+}
+
 function findPropAt(col, row) {
   return props.findIndex(p => {
     const def = PROP_DEFS[p.type];
@@ -770,12 +798,18 @@ function handleCell(col, row, isDown) {
     goalCell = { col, row };
 
   } else if (mode === 'spawn') {
-    const k   = cellKey(col, row);
     const idx = spawns.findIndex(s => s.col === col && s.row === row);
     if (idx >= 0) {
-      spawns.splice(idx, 1);
+      // 既存：クリックで名前編集、Cancelで削除（encounterHintsのnote編集と同じUX）
+      const cur  = spawns[idx].name ?? `S${idx + 1}`;
+      const name = prompt(`スポーン地点名を編集（Cancelで削除）:`, cur);
+      if (name === null) {
+        spawns.splice(idx, 1);
+      } else if (name.trim()) {
+        spawns[idx].name = name.trim();
+      }
     } else {
-      spawns.push({ col, row });
+      spawns.push({ col, row, name: _nextSpawnName() });
     }
 
   } else if (mode === 'encounter' && isDown) {
@@ -1550,8 +1584,10 @@ function redraw() {
     ctx.fillText('G', (goalCell.col + 1) * CELL + CELL/2, (goalCell.row + 1) * CELL + CELL/2 + 4);
   }
   ctx.fillStyle = '#ff6633';
+  ctx.font = 'bold 10px sans-serif';
   for (let i = 0; i < spawns.length; i++) {
-    ctx.fillText(i + 1, (spawns[i].col + 1) * CELL + CELL/2, (spawns[i].row + 1) * CELL + CELL/2 + 4);
+    const label = spawns[i].name ?? `S${i + 1}`;
+    ctx.fillText(label, (spawns[i].col + 1) * CELL + CELL/2, (spawns[i].row + 1) * CELL + CELL/2 + 4);
   }
   if (detourPath.length > 1) {
     const yp = detourPath[detourPath.length - 1];
@@ -1709,7 +1745,6 @@ function buildJSON() {
     minSurvivors: 1,
     escorts: (() => {
       syncActiveToEscortDefs();
-      const waitTime = (parseInt(document.getElementById('detour-wait').value) || 30) * 1000;
       return escortDefs.map(esc => {
         const pathComplete = esc.path.length >= 2 && startCell && goalCell
           && esc.path[0].col === startCell.col && esc.path[0].row === startCell.row
@@ -1721,18 +1756,25 @@ function buildJSON() {
           goal:  { ...goalCell },
           ...(pathComplete ? { path: esc.path.map(p => ({ col: p.col, row: p.row })) } : {}),
           ...(esc.detourBranchIdx >= 0 && esc.detourPath.length > 1 ? {
-            detour: { branchIdx: esc.detourBranchIdx, path: esc.detourPath.map(p => ({ col: p.col, row: p.row })), waitTime }
+            detour: {
+              branchIdx: esc.detourBranchIdx,
+              path: esc.detourPath.map(p => ({ col: p.col, row: p.row })),
+              waitTime: esc.detourWaitTime ?? 30000,
+              ...(esc.detourWalletAmount > 0 ? { walletAmount: esc.detourWalletAmount } : {}),
+              ...((esc.detourYInflow?.length > 0) ? { yInflow: esc.detourYInflow.map(w => ({ ...w, enemy: { ...w.enemy } })) } : {}),
+            }
           } : {}),
           hp:    esc.hp    ?? 100,
           speed: esc.speed ?? 80,
-          ...(_passthruSpawnEvents ? {} : { waves }),
+          // segmentsはGUI未対応のため素通し（フィールド単位。detourは上のGUI編集値を使う）
+          ...(esc._segmentsPassthru ? { segments: esc._segmentsPassthru } : {}),
+          ...((_passthruSpawnEvents || esc._segmentsPassthru) ? {} : { waves }),
         };
       });
     })(),
     obstacles:    obsArr,
-    ...(_passthruSpawnEvents
-      ? { spawns: _passthruSpawns, spawnEvents: _passthruSpawnEvents }
-      : { zombieSpawns: spawns.map(s => ({ ...s })) }),
+    ...(spawns.length > 0 ? { spawns: Object.fromEntries(spawns.map((s, i) => [s.name || `S${i + 1}`, { col: s.col, row: s.row }])) } : {}),
+    ...(_passthruSpawnEvents ? { spawnEvents: _passthruSpawnEvents } : {}),
     buildSpots:   bsArr,
     ...(encounterHints.length > 0 ? { encounterHints: encounterHints.map(e => ({ col: e.col, row: e.row, ...(e.note ? { note: e.note } : {}) })) } : {}),
   };
@@ -1825,18 +1867,15 @@ function applyJSON(obj) {
   }
 
   spawns = [];
-  for (const s of (obj.zombieSpawns ?? [])) spawns.push({ ...s });
-  // 新フォーマット: spawnsディクショナリ {"S1":{col,row},...} からも読む
   if (obj.spawns && typeof obj.spawns === 'object' && !Array.isArray(obj.spawns)) {
-    _passthruSpawns      = obj.spawns;
-    _passthruSpawnEvents = obj.spawnEvents ?? null;
-    if (spawns.length === 0) {
-      for (const pos of Object.values(obj.spawns)) {
-        if (pos.col != null) spawns.push({ col: pos.col, row: pos.row });
-      }
+    // 新フォーマット: 名前付きspawns辞書 {"S1":{col,row},...}。名前をそのままeditorの内部状態に持つ
+    for (const [name, pos] of Object.entries(obj.spawns)) {
+      if (pos.col != null) spawns.push({ col: pos.col, row: pos.row, name });
     }
+    _passthruSpawnEvents = obj.spawnEvents ?? null;
   } else {
-    _passthruSpawns      = null;
+    // 旧フォーマット: 無名のzombieSpawns配列
+    for (const s of (obj.zombieSpawns ?? [])) spawns.push({ ...s });
     _passthruSpawnEvents = null;
   }
 
@@ -1849,15 +1888,19 @@ function applyJSON(obj) {
   startCell = (s && s.col != null) ? { col: s.col, row: s.row } : null;
   goalCell  = (g && g.col != null) ? { col: g.col, row: g.row } : null;
 
-  // マルチWAVE読み込み
-  escortDefs = escs.length > 0 ? escs.map(esc => ({
-    variant:         esc.variant ?? 'dad',
-    path:            (esc.path ?? []).map(p => ({ col: p.col, row: p.row })),
-    detourBranchIdx: esc.detour?.branchIdx ?? -1,
-    detourPath:      (esc.detour?.path ?? []).map(p => ({ col: p.col, row: p.row })),
-    hp:              esc.hp    ?? 100,
-    speed:           esc.speed ?? 80,
-  })) : [{ variant:'dad', path:[], detourBranchIdx:-1, detourPath:[], hp:100, speed:80 }];
+  // マルチWAVE読み込み（segmentsはGUI未対応のためescortごとに_segmentsPassthruへ素通し保存）
+  escortDefs = escs.length > 0 ? escs.map(esc => _newEscortDef({
+    variant:            esc.variant ?? 'dad',
+    path:               (esc.path ?? []).map(p => ({ col: p.col, row: p.row })),
+    detourBranchIdx:    esc.detour?.branchIdx ?? -1,
+    detourPath:         (esc.detour?.path ?? []).map(p => ({ col: p.col, row: p.row })),
+    detourWaitTime:     esc.detour?.waitTime ?? 30000,
+    detourWalletAmount: esc.detour?.walletAmount ?? 0,
+    detourYInflow:      (esc.detour?.yInflow ?? []).map(w => ({ ...w, enemy: { ...w.enemy } })),
+    hp:                 esc.hp    ?? 100,
+    speed:              esc.speed ?? 80,
+    _segmentsPassthru:  esc.segments ?? null,
+  })) : [_newEscortDef()];
   activeEscortIdx = 0;
 
   // WAVE1を編集状態に反映
@@ -1865,12 +1908,11 @@ function applyJSON(obj) {
   detourBranchIdx = escortDefs[0].detourBranchIdx;
   detourPath      = [...escortDefs[0].detourPath];
 
-  // detour wait time（WAVE1のもの）
-  const det = escs[0]?.detour;
-  if (det) {
-    const waitEl = document.getElementById('detour-wait');
-    if (waitEl && det.waitTime != null) waitEl.value = Math.round(det.waitTime / 1000);
-  }
+  // detour wait time / お財布（WAVE1のもの。他WAVEはswitchEscortWaveで都度反映）
+  const waitEl = document.getElementById('detour-wait');
+  if (waitEl) waitEl.value = Math.round((escortDefs[0].detourWaitTime ?? 30000) / 1000);
+  const walletEl = document.getElementById('detour-wallet');
+  if (walletEl) walletEl.value = escortDefs[0].detourWalletAmount ?? 0;
 
   // UI更新
   const vEl = document.getElementById('esc-variant');
@@ -1906,6 +1948,7 @@ function applyJSON(obj) {
   }
 
   buildWaveTabs();
+  buildYInflowUI();
   redraw();
 }
 
@@ -2012,7 +2055,6 @@ function copyStageJSON() {
 
 function clearAll() {
   if (!confirm('全消去しますか？')) return;
-  _passthruSpawns      = null;
   _passthruSpawnEvents = null;
   obstacles.clear();
   buildSpots.clear();
@@ -2028,7 +2070,7 @@ function clearAll() {
   escortPath      = [];
   detourBranchIdx = -1;
   detourPath      = [];
-  escortDefs      = [{ variant:'dad', path:[], detourBranchIdx:-1, detourPath:[], hp:100, speed:80 }];
+  escortDefs      = [_newEscortDef()];
   activeEscortIdx = 0;
   startCell       = null;
   goalCell        = null;
@@ -2036,6 +2078,7 @@ function clearAll() {
   if (vEl) vEl.value = 'dad';
   selectGroundBase('grass');
   buildWaveTabs();
+  buildYInflowUI();
   redraw();
 }
 
@@ -2217,6 +2260,9 @@ function syncActiveToEscortDefs() {
     escortDefs[activeEscortIdx].hp     = parseInt(document.getElementById('esc-hp')?.value)    || 100;
     escortDefs[activeEscortIdx].speed  = parseInt(document.getElementById('esc-speed')?.value) || 80;
     escortDefs[activeEscortIdx].variant = document.getElementById('esc-variant')?.value ?? 'dad';
+    escortDefs[activeEscortIdx].detourWaitTime     = (parseInt(document.getElementById('detour-wait')?.value) || 30) * 1000;
+    escortDefs[activeEscortIdx].detourWalletAmount = parseInt(document.getElementById('detour-wallet')?.value) || 0;
+    // detourYInflowはyInflow編集UIがescortDefs[activeEscortIdx].detourYInflowを直接書き換えるため同期不要
   }
 }
 
@@ -2233,15 +2279,20 @@ function switchEscortWave(idx) {
   const spEl = document.getElementById('esc-speed');
   if (hpEl) hpEl.value = esc.hp    ?? 100;
   if (spEl) spEl.value = esc.speed ?? 80;
+  const waitEl = document.getElementById('detour-wait');
+  if (waitEl) waitEl.value = Math.round((esc.detourWaitTime ?? 30000) / 1000);
+  const walletEl = document.getElementById('detour-wallet');
+  if (walletEl) walletEl.value = esc.detourWalletAmount ?? 0;
   buildWaveTabs();
   updateDetourInfo();
   updatePathInfo();
+  buildYInflowUI();
   redraw();
 }
 
 function addEscortWave() {
   syncActiveToEscortDefs();
-  escortDefs.push({ variant:'dad', path:[], detourBranchIdx:-1, detourPath:[], hp:100, speed:80 });
+  escortDefs.push(_newEscortDef());
   switchEscortWave(escortDefs.length - 1);
 }
 
@@ -2277,6 +2328,77 @@ function buildWaveTabs() {
     tab.addEventListener('click', () => switchEscortWave(i));
     container.appendChild(tab);
   });
+}
+
+// ─── Y中の波（yInflow）編集UI ────────────────────────────────
+// escortDefs[activeEscortIdx].detourYInflow を直接書き換える（pathやhp/speedと違い
+// クリック操作ではなくフォーム入力なので、live専用ミラーを介さず直接ミューテートする）
+function buildYInflowUI() {
+  const container = document.getElementById('yinflow-list');
+  if (!container) return;
+  const esc   = escortDefs[activeEscortIdx];
+  const waves = esc?.detourYInflow ?? [];
+  container.innerHTML = '';
+  waves.forEach((w, i) => {
+    if (!w.enemy) w.enemy = {};
+    const row = document.createElement('div');
+    row.style.cssText = 'border:1px solid #446;border-radius:4px;padding:6px;font-size:11px';
+    row.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <b style="color:#9cf">波${i + 1}</b>
+        <span onclick="removeYInflowWave(${i})" style="color:#f99;cursor:pointer">✕削除</span>
+      </div>
+      <div class="field-row">
+        <label>atMs</label><input type="number" value="${w.atMs ?? 0}" min="0" step="500" style="width:56px" onchange="updateYInflowField(${i},'atMs',this.value,true)">
+        <label>spawn名</label><input type="text" value="${w.spawn ?? ''}" style="width:44px" onchange="updateYInflowField(${i},'spawn',this.value)">
+      </div>
+      <div class="field-row">
+        <label>count</label><input type="number" value="${w.count ?? 1}" min="1" step="1" style="width:36px" onchange="updateYInflowField(${i},'count',this.value,true)">
+        <label>interval</label><input type="number" value="${w.interval ?? 0}" min="0" step="100" style="width:48px" onchange="updateYInflowField(${i},'interval',this.value,true)">
+      </div>
+      <div class="field-row">
+        <label>type</label>
+        <select onchange="updateYInflowEnemyField(${i},'type',this.value)" style="width:82px">
+          ${['salaryman','worker','police','kickboard','burger'].map(t =>
+            `<option value="${t}" ${w.enemy.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-row">
+        <label>hp</label><input type="number" value="${w.enemy.hp ?? 200}" style="width:40px" onchange="updateYInflowEnemyField(${i},'hp',this.value,true)">
+        <label>spd</label><input type="number" value="${w.enemy.speed ?? 30}" style="width:36px" onchange="updateYInflowEnemyField(${i},'speed',this.value,true)">
+        <label>dmg</label><input type="number" value="${w.enemy.damage ?? 10}" style="width:36px" onchange="updateYInflowEnemyField(${i},'damage',this.value,true)">
+        <label>rwd</label><input type="number" value="${w.enemy.reward ?? 20}" style="width:36px" onchange="updateYInflowEnemyField(${i},'reward',this.value,true)">
+      </div>`;
+    container.appendChild(row);
+  });
+}
+
+function addYInflowWave() {
+  const esc = escortDefs[activeEscortIdx];
+  if (!esc) return;
+  if (!esc.detourYInflow) esc.detourYInflow = [];
+  esc.detourYInflow.push({ atMs: 0, spawn: '', count: 1, interval: 0, enemy: { type: 'salaryman', hp: 200, speed: 30, damage: 10, reward: 20 } });
+  buildYInflowUI();
+}
+
+function removeYInflowWave(i) {
+  const esc = escortDefs[activeEscortIdx];
+  if (!esc?.detourYInflow) return;
+  esc.detourYInflow.splice(i, 1);
+  buildYInflowUI();
+}
+
+function updateYInflowField(i, key, value, isNum) {
+  const w = escortDefs[activeEscortIdx]?.detourYInflow?.[i];
+  if (!w) return;
+  w[key] = isNum ? (parseInt(value, 10) || 0) : value;
+}
+
+function updateYInflowEnemyField(i, key, value, isNum) {
+  const w = escortDefs[activeEscortIdx]?.detourYInflow?.[i];
+  if (!w) return;
+  if (!w.enemy) w.enemy = {};
+  w.enemy[key] = isNum ? (parseInt(value, 10) || 0) : value;
 }
 
 // 初期化
