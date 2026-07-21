@@ -146,20 +146,81 @@ function run(stageFile, towerPattern = '', opts = {}) {
   const mockScene  = { flowField: ff, _playLog: log, scaledTime: 0,
                        add: ctx.createMockSceneAdd(), textures: ctx.MOCK_TEXTURES, anims: ctx.MOCK_ANIMS };
 
-  // 護衛（first escort のみ）
-  const escDef    = { ...stage.escorts[0] };
-  if (opts.escortSpeed) escDef.speed = +opts.escortSpeed;
-  const pixelPath = escDef.path.map(p => cellCenter(p.col, p.row));
-  const escort    = new ctx.Escort(mockScene, pixelPath, escDef);
+  // ─── リレー状態（GameScene.jsの escortIdx/relayPhase/intervalTimer/survivors と同一設計） ───
+  const RELAY_INTERVAL = 4000;  // GameScene.js の RELAY_INTERVAL と一致させること（1×基準・4000ms固定）
+  const escortDefs = stage.escorts;
+  const minSurvivors = stage.minSurvivors ?? 1;
+  let escortIdx    = 0;
+  let relayPhase   = 'active';  // 'active' | 'interval' | 'done'
+  let intervalTimer = 0;
+  let survivors    = 0;
+  let escort, sem;
 
-  // SegmentManager（新文法）/ SpawnEventManager（旧文法）自動判別
-  let sem;
-  if (escDef.segments) {
-    sem = new ctx.SegmentManager(stage.spawns ?? {}, escDef.segments);
-  } else {
-    const spawnEvts = escDef.spawnEvents ?? stage.spawnEvents ?? [];
-    sem = new ctx.SpawnEventManager(stage.spawns ?? {}, spawnEvts);
-    sem.start(0);
+  // Y（寄り道防衛）状態。moneyは後段で宣言されるが、参照はコールバック実行時（クロージャ）なので順序問題なし
+  let buildLocked = false;
+  let yInflow     = null;
+
+  // GameScene.js の _startEscort 相当: escortごとにEscort/SegmentManager(or SpawnEventManager)を作り直す
+  function startEscort(idx, timeOffset) {
+    const escDef = { ...escortDefs[idx] };
+    if (opts.escortSpeed) escDef.speed = +opts.escortSpeed;
+    const pixelPath = escDef.path.map(p => cellCenter(p.col, p.row));
+    escort = new ctx.Escort(mockScene, pixelPath, escDef);
+    if (escDef.segments) {
+      sem = new ctx.SegmentManager(stage.spawns ?? {}, escDef.segments);
+    } else {
+      const spawnEvts = escDef.spawnEvents ?? stage.spawnEvents ?? [];
+      sem = new ctx.SpawnEventManager(stage.spawns ?? {}, spawnEvts);
+      sem.start(timeOffset);
+    }
+
+    // Y（寄り道防衛）コールバック配線（GameScene.jsのonDetour*と同一設計）
+    escort.onDetourStart = () => {
+      log.push(`[DETOUR_START]    t=${Math.round(mockScene.scaledTime)}ms → announcing`);
+    };
+    escort.onDetourActivate = () => {
+      buildLocked = true;
+      const walletAmount = escDef.detour?.walletAmount ?? 0;
+      if (walletAmount > 0) {
+        money += walletAmount;
+        log.push(`[WALLET] t=${Math.round(mockScene.scaledTime)}ms 着席取得 +${walletAmount}  money=${money}`);
+      }
+      yInflow = new ctx.YInflowManager(stage.spawns ?? {}, escDef.detour?.yInflow ?? []);
+      yInflow.start(mockScene.scaledTime);
+      log.push(`[DETOUR_ACTIVATE] t=${Math.round(mockScene.scaledTime)}ms waitTime=${escDef.detour?.waitTime ?? 30000}ms buildLocked=true`);
+    };
+    escort.onDetourEnd = () => {
+      buildLocked = false;
+      yInflow?.retreatAll();
+      yInflow = null;
+      log.push(`[DETOUR_END]      t=${Math.round(mockScene.scaledTime)}ms buildLocked=false`);
+    };
+  }
+  startEscort(0, 0);
+
+  // GameScene.js の _onEscortDone 相当
+  function onEscortDone(reached, scaledTime) {
+    if (reached) {
+      survivors++;
+      log.push(`[REACH]  t=${Math.round(scaledTime)}ms  護衛ゴール到達  生存護衛=${survivors}`);
+    }
+    const nextIdx   = escortIdx + 1;
+    const remaining = escortDefs.length - nextIdx;
+    if (survivors + remaining < minSurvivors || nextIdx >= escortDefs.length) {
+      relayPhase = 'done';
+      return;
+    }
+    relayPhase    = 'interval';
+    intervalTimer = RELAY_INTERVAL;
+    log.push(`[RELAY_INTERVAL]  t=${Math.round(scaledTime)}ms  次の護衛=escortIdx${nextIdx}  interval=${RELAY_INTERVAL}ms`);
+  }
+
+  // GameScene.js の _activateNextEscort 相当
+  function activateNextEscort(scaledTime) {
+    escortIdx++;
+    log.push(`[RELAY_START]  t=${Math.round(scaledTime)}ms  escortIdx=${escortIdx}  timeOffset=${Math.round(scaledTime)}ms`);
+    startEscort(escortIdx, scaledTime);
+    relayPhase = 'active';
   }
 
   // タワー
@@ -217,6 +278,7 @@ function run(stageFile, towerPattern = '', opts = {}) {
     // 時間指定タワー
     while (delayedQueue.length > 0 && delayedQueue[0].buildAt <= scaledTime) {
       const tp = delayedQueue.shift();
+      if (buildLocked) { log.push(`[WARN]   t=${Math.round(scaledTime)}ms Y中のためスキップ: ${tp.type}@(${tp.col},${tp.row})`); continue; }
       if (tp.type === 'upgrade') {
         const t = simTowers.find(t => t._col === tp.col && t._row === tp.row);
         if (t) { t.upgrade(); log.push(`[UPGRADE] t=${Math.round(scaledTime)}ms  upgrade@(${tp.col},${tp.row}) Lv${t.upgradeLevel}`); }
@@ -232,50 +294,65 @@ function run(stageFile, towerPattern = '', opts = {}) {
       log.push(`[BUILD]  t=${Math.round(scaledTime)}ms  ${tp.type}@(${tp.col},${tp.row})  cost=${def.cost}  残=${money}`);
     }
 
-    if (!escort.defeated && !escort.reached) ff.update(escort.col, escort.row);
-    sem.update(scaledTime, spawnFn, escort.defeated ? null : escort);
+    // GameScene.jsの更新順(ff→sem→zombie→tower→escort)をそのまま踏襲。
+    // escortTarget: relayPhase==='active'の時だけ現escortを渡す（GameScene.jsのescortTargetと同一）
+    if (escort.alive && !escort.reached) ff.update(escort.col, escort.row);
+    const escortTarget = relayPhase === 'active' ? escort : null;
+    sem.update(scaledTime, spawnFn, escortTarget);
+    yInflow?.update(scaledTime, spawnFn);
 
     const alive = zombies.filter(z => z.alive);
     for (const z of alive) {
-      z.update(scaledTime, DT, escort.defeated ? null : escort);
-      if (!z._firstContact && !escort.defeated) {
-        const dx = escort.x - z.x, dy = escort.y - z.y;
+      z.update(scaledTime, DT, escortTarget);
+      if (!z._firstContact && escortTarget) {
+        const dx = escortTarget.x - z.x, dy = escortTarget.y - z.y;
         if (Math.sqrt(dx*dx + dy*dy) < CELL * 0.95) {
           z._firstContact = { col: z.col, row: z.row, t: scaledTime };
         }
       }
     }
-    for (const t of simTowers) t.update(scaledTime, alive, escort.defeated ? null : escort);
-    escort.update(DT);
+    for (const t of simTowers) t.update(scaledTime, alive, escortTarget);
+    escort.update(DT);  // escort は最後に更新（GameScene.jsと同じ順序）
 
-    if (escort.defeated) {
-      log.push(`[GAMEOVER] t=${Math.round(scaledTime)}ms  護衛HP=0`);
-      break;
+    // GameScene.jsの_checkWinLose相当（relayPhase==='active'の時だけ判定）
+    if (relayPhase === 'active') {
+      if (escort.reached || escort.state === 'exiting') {
+        onEscortDone(true, scaledTime);
+      } else if (escort.defeated) {
+        log.push(`[GAMEOVER] t=${Math.round(scaledTime)}ms  護衛HP=0  escortIdx=${escortIdx}`);
+        onEscortDone(false, scaledTime);
+      }
     }
-    if (escort.state === 'exiting' || escort.reached) {
-      log.push(`[REACH]  t=${Math.round(scaledTime)}ms  護衛ゴール到達`);
-      break;
-    }
+    if (relayPhase === 'done') break;
+
+    // CLOSE_CALL判定はrelayPhase==='active'時のみ（GameScene.jsと同一条件）
     for (const z of zombies) {
-      if (!z.alive && !z._retreating && z._closestToEscort < CELL * 1.5) {
+      if (!z.alive && !z._retreating && z._closestToEscort < CELL * 1.5 && relayPhase === 'active') {
         closecallCount++;
         if (z._closestToEscort < closestEver) closestEver = z._closestToEscort;
         log.push(`[CLOSE_CALL] t=${Math.round(scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
       }
     }
     zombies = zombies.filter(z => z.alive);
+
+    // インターバルカウントダウン（GameScene.jsのintervalTimer -= totalDtと同一設計）
+    if (relayPhase === 'interval') {
+      intervalTimer -= DT;
+      if (intervalTimer <= 0) activateNextEscort(scaledTime);
+    }
+
     scaledTime += DT;
   }
   if (scaledTime > MAX_TIME) log.push('[TIMEOUT] 最大時間(10分)超過');
 
-  const survived   = (escort.state === 'exiting' || escort.reached) ? 1 : 0;
+  const total       = escortDefs.length;
   const passThrough = spawnTotal - killCount;
-  const judgment   = survived >= (stage.minSurvivors ?? 1) ? 'CLEAR' : 'GAMEOVER';
-  const hpPct      = Math.round(escort.hp / escort.maxHp * 100);
-  const closestPx = closestEver === Infinity ? '-' : Math.round(closestEver);
-  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survived}/1 HP残=${hpPct}% CLOSE_CALL=${closecallCount}回 最接近=${closestPx}px 判定=${judgment}`);
+  const judgment    = survivors >= minSurvivors ? 'CLEAR' : 'GAMEOVER';
+  const hpPct       = Math.round((escort.hp ?? 0) / (escort.maxHp || 1) * 100);
+  const closestPx   = closestEver === Infinity ? '-' : Math.round(closestEver);
+  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survivors}/${total} HP残=${hpPct}% CLOSE_CALL=${closecallCount}回 最接近=${closestPx}px 判定=${judgment}`);
 
-  return { log, judgment, hpPct, spawnTotal, killCount, passThrough, closecallCount, closestEver };
+  return { log, judgment, hpPct, spawnTotal, killCount, passThrough, closecallCount, closestEver, survivors, total };
 }
 
 // ─── CLI エントリ ─────────────────────────────────────────────────────────────

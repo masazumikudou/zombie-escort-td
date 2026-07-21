@@ -366,3 +366,61 @@ var SegmentManager = class SegmentManager {
   // GameSceneがwaveManager.getWarning()を呼ぶためスタブ実装
   getWarning(scaledTime) { return null; }
 }
+
+// ─── YInflowManager（Y専用・時間駆動流入） ──────────────────────────
+// Y開始（onDetourActivate）からの経過時間で発火する専用スポーン管理。
+// 護衛が停止しているY中はSegmentManagerの位置トリガー（progress）が使えないため、
+// 独立した時間駆動の流入だけを担当する。SegmentManager本体（区間のretreat）とは
+// 無関係に、自分がスポーンしたゾンビだけをY終了時にretreatAll()で退場させる。
+var YInflowManager = class YInflowManager {
+  constructor(spawns, yInflowDefs) {
+    this.spawns   = spawns;
+    this.defs     = yInflowDefs ?? [];
+    this._startAt = null;    // Y開始時刻（scaledTime）。start()で設定
+    this._fired   = new Set();
+    this._zombies = [];      // 自分がスポーンしたゾンビ（Y終了時のretreat対象）
+  }
+
+  start(scaledTime) {
+    this._startAt = scaledTime;
+  }
+
+  update(scaledTime, spawnFn) {
+    if (this._startAt === null) return;
+    const elapsed = scaledTime - this._startAt;
+    for (let i = 0; i < this.defs.length; i++) {
+      if (this._fired.has(i)) continue;
+      const def = this.defs[i];
+      if (elapsed < (def.atMs ?? 0)) continue;
+      const coord = this.spawns[def.spawn];
+      if (!coord) { this._fired.add(i); continue; }
+      const count    = def.count ?? 1;
+      const enemyDef = this._buildEnemyDef(def.enemy ?? def);
+      for (let n = 0; n < count; n++) {
+        const z = spawnFn(coord.col, coord.row, enemyDef, 'Y', null);
+        if (z) this._zombies.push(z);
+      }
+      this._fired.add(i);
+    }
+  }
+
+  // Y終了時（onDetourEnd）に呼ぶ。区間境界のretreatと同じ扱い（失敗の蓄積を切る）
+  retreatAll() {
+    for (const z of this._zombies) {
+      if (z.alive && !z._retreating) z.retreat();
+    }
+    this._zombies = [];
+  }
+
+  _buildEnemyDef(def) {
+    const type   = def.type ?? 'salaryman';
+    const base   = (typeof ZOMBIE_BASE !== 'undefined' ? ZOMBIE_BASE[type] : null) ?? {};
+    const result = { ...base, type };
+    if (def.hp      !== undefined) result.hp      = def.hp;
+    if (def.speed   !== undefined) result.speed   = def.speed;
+    if (def.damage  !== undefined) result.damage  = def.damage;
+    if (def.reward  !== undefined) result.reward  = def.reward;
+    if (def.leashTo !== undefined) result.leashTo = def.leashTo;
+    return result;
+  }
+}

@@ -51,6 +51,10 @@ class GameScene extends Phaser.Scene {
     this._bannerText   = null;
     this._bannerBg     = null;
 
+    // Y（寄り道防衛）状態
+    this._buildLocked = false;  // Y中はタワー新規建設・アップグレードを禁止
+    this._yInflow     = null;   // YInflowManager（Y中のみ生成）
+
     // 設置点
     this.buildSpots = new Set((sd.buildSpots || []).map(s => `${s.col},${s.row}`));
 
@@ -223,13 +227,21 @@ class GameScene extends Phaser.Scene {
       this._showDetourCard(variantName);
     };
     this.escort.onDetourActivate = () => {
-      const _mul = def.detour?.spawnMultiplier ?? 2.0;
-      this.waveManager?.setSpawnMultiplier(_mul);
-      this._playLog.push(`[DETOUR_ACTIVATE] t=${Math.round(this.scaledTime)}ms spawnMul=${_mul}`);
+      this._buildLocked = true;
+      const walletAmount = def.detour?.walletAmount ?? 0;
+      if (walletAmount > 0) {
+        this.money += walletAmount;
+        this._playLog.push(`[WALLET] t=${Math.round(this.scaledTime)}ms 着席取得 +${walletAmount}  money=${this.money}`);
+      }
+      this._yInflow = new YInflowManager(this.stageData.spawns ?? {}, def.detour?.yInflow ?? []);
+      this._yInflow.start(this.scaledTime);
+      this._playLog.push(`[DETOUR_ACTIVATE] t=${Math.round(this.scaledTime)}ms waitTime=${def.detour?.waitTime ?? 30000}ms buildLocked=true`);
     };
     this.escort.onDetourEnd      = () => {
-      this.waveManager?.setSpawnMultiplier(1.0);
-      this._playLog.push(`[DETOUR_END]      t=${Math.round(this.scaledTime)}ms → spawn通常に戻す`);
+      this._buildLocked = false;
+      this._yInflow?.retreatAll();
+      this._yInflow = null;
+      this._playLog.push(`[DETOUR_END]      t=${Math.round(this.scaledTime)}ms buildLocked=false`);
       this._closeDetourCard();
     };
 
@@ -354,6 +366,7 @@ class GameScene extends Phaser.Scene {
 
         const escortTarget = this.relayPhase === 'active' ? this.escort : null;
         this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader), escortTarget);
+        this._yInflow?.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader));
 
         this.zombies.forEach(z => z.update(this.scaledTime, step, escortTarget));
         this.towers.forEach(t  => t.update(this.scaledTime, step, this.zombies, this.bullets, escortTarget));
@@ -1195,6 +1208,7 @@ class GameScene extends Phaser.Scene {
 
   // ─── タワー配置 ──────────────────────────────────────────
   _canPlace(col, row, type) {
+    if (this._buildLocked) return false;  // Y中は新規建設禁止
     if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
     if (this.buildSpots.size > 0) {
       // buildSpots定義ステージ: buildSpotの権威を最優先（pf.blocked=草マスでも建設可）
@@ -1237,6 +1251,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _upgradeTower(tower) {
+    if (this._buildLocked) return;  // Y中はアップグレード禁止
     const cost = tower.upgradeCost?.() ?? null;
     if (cost === null || this.money < cost) return;
     this.money -= cost;
