@@ -13,7 +13,8 @@
 | 今すぐ（1-4.5と並行可・害ゼロ） | R-2: WaveManager生死確認 | WaveManager.js | ✅ 完了（2026-07-17。js/_legacy/へ移動＋index.htmlのscriptタグ削除＋GameScene.jsのwaves分岐除去まで実施） |
 | 今すぐ（1-4.5と並行可・害ゼロ） | R-5: 小物掃除 | preview_mom.html他 | ✅ 完了（2026-07-17。preview_mom.html・Sprite Lab (standalone) (3).htmlをtools/へ移動。stage_y_tutorial.jsonの_archive移動のみ1-4着手時に保留） |
 | 1-4.5 GO判定後・1-7前 | R-1: GameScene分割 | GameScene.js | 未着手 |
-| 1-4.5クローズ後 | R-3: シム共通コア統合 | simulator.html / run_sim.js | 未着手 |
+| 前倒し実施済み（2026-07-19） | R-3a: マルチエスコートリレー対応の復元 | simulator.html / run_sim.js | ✅ 完了 |
+| 1-4.5クローズ後 | R-3b: シム共通コア統合 | simulator.html / run_sim.js | 未着手 |
 | P4着手時（発注文に都度記載） | R-4: 新規ファイル配置ルール適用 | 新規実装全般 | 未着手 |
 | **1-4.5クローズ後に着手可・P3開始前必須** | **R-6: ステージJSON検証スクリプト新設** | `validate_stage.js`（新規） | 未着手・**量産の門番** |
 
@@ -46,13 +47,21 @@
 
 **回帰確認**: 実働3ステージ（meander_verified/segment_test/behavior_test）のシム基準値と完全一致を確認済み。
 
-## R-3: シム共通コアの統合【1-4.5クローズ後】
+## R-3a: マルチエスコートリレー対応の復元【前倒し実施済み・2026-07-19】✅ 完了
+
+**発端**: 1-4.5の本番segment_test検証中、`run_sim.js`・`simulator.html`がどちらも`stage.escorts[0]`（dadのみ）しかシミュレートしておらず、mom等2人目以降の家族が絡む検証が実機オンリーになっていることが判明。1-4（Y再実装）でも「2人目以降の家族のY」を検証する段階で同じ壁にぶつかることが分かっていたため前倒しで着手。過去にescorts forループ対応をした記録がメモリ上に残っていたことから、機能の後退（リグレッション）だった可能性が高い。
+
+**実施内容（2026-07-19）**: GameScene.jsの`escortIdx`/`relayPhase`(`active`|`interval`|`done`)/`intervalTimer`/`survivors`/`_onEscortDone`/`_activateNextEscort`と同一の状態機械を両ファイルに実装。更新順（ff→sem→zombie→tower→escort）・escortTargetのnull化条件・CLOSE_CALL集計条件も含めてGameScene.jsと完全に一致させた。RELAY_INTERVAL=4000msは両ファイルにハードコードで複製（config.js等の共有定数化はR-3bで検討）。
+
+**回帰確認**: dad区間の挙動（スポーン時刻・HIT/KILLシーケンス・REACH時刻）が全ステージで修正前と完全一致することを確認済み。加えて、1-4.5 GOの根拠となった「良配置」`normal:14,2 normal:15,4 normal:15,9 cannon:4,8 cannon:4,16 normal:9,16 normal:15,16`は、**dad区間のみで見た数値**（HP残100%・撃破16/16・すり抜け0）だったことが判明。mom区間まで通した場合は生還2/2・HP残67%（mom分）・撃破30・すり抜け2となる。GO判定自体は実機プレイが最終根拠のため覆らないが、今後のシム基準値としては「dad区間単体」と「dad+mom通し」を区別して記録すること。
+
+## R-3b: シム共通コアの統合【1-4.5クローズ後】
 
 **現状**: simulator.html（613行）とrun_sim.js（262行）に、SimTower・スタブ・実行ループ・RESULT生成が別実装で存在。simStub.js（31行）という共通化の芽はある。
 
-**実績**: 片側修正事故が既に2回発生（Phaserスタブ漏れによるブラウザクラッシュ／vm束縛バグ）。リスク登記簿7番の実体。
+**実績**: 片側修正事故が既に3回発生（Phaserスタブ漏れによるブラウザクラッシュ／vm束縛バグ／escorts[0]のみ対応のリグレッション）。リスク登記簿7番の実体。
 
-**方針**: `js/SimCore.js`（新規）に実行ループ・RESULT行生成・スタブ・SimTowerを統合し、simulator.htmlとrun_sim.jsは「入出力のガワ」だけにする。統合後の回帰基準はR-1と同じく既存3ステージのシム基準値完全一致。
+**方針**: `js/SimCore.js`（新規）に実行ループ・RESULT行生成・スタブ・SimTower・リレー状態機械（R-3aで実装済み）を統合し、simulator.htmlとrun_sim.jsは「入出力のガワ」だけにする。統合後の回帰基準はR-1と同じく既存3ステージのシム基準値完全一致。
 
 **タイミング**: 1-4.5クローズ後、1-7前が理想（1-7の全部載せ検証を統合済みシムで回せば、統合の正しさと1-7検証が同時に担保される）。
 
