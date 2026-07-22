@@ -2,6 +2,12 @@
 // スプライット配置: assets/sprites/zombie/{type}/walk_{dir}_{frame:02d}.png
 // ファイルがなければ緑の円（グレーボックス）で自動フォールバック
 // type は stage JSON の waves[].enemy.type と一致させること
+
+// 鳥（bird_closed/bird_open）専用倍率: 胴体(くちばし先端から120px)を護衛(156px)の1/4相当(39px)にした版を
+// 実機確認したところ尾羽込みの全体高さが護衛とほぼ同じ(≈155px)に見え「デカい」と判断されたため、さらに半分に縮小。
+// 2枚は同一スケールで描かれているため両テクスチャ共通で使える（実測で確認済み）。
+const BIRD_SCALE = 39 / 120 / 2;
+
 var Zombie = class Zombie {
   constructor(scene, spawnCol, spawnRow, def, waveNum, leader = null) {
     const { x, y } = cellCenter(spawnCol, spawnRow);
@@ -41,10 +47,28 @@ var Zombie = class Zombie {
     this._retDx        = 0;
     this._retDy        = 0;
     this._engageGate    = false;  // true = 護衛範囲円に入るまで静止（initial配置ゾンビ用）
+    // 鳥系: FlowField/propを無視し直進のみで移動する特殊個体（侵入→旋回→ホーミングの3フェーズ）
+    this._flying           = !!def.flying;
+    this._birdPhase        = null;  // 'circling' | 'homing'（flying個体のみ意味を持つ。侵入完了時にセット）
+    this._circleRadius     = def.circleRadius     ?? 300;
+    this._circleDurationMs = def.circleDurationMs ?? 5000;
     // 画面外スポーン: グリッド外col/rowで生成された場合、最寄りの盤内セルまで直進してから通常AIに接続
+    // 鳥（flying）はcircleAt指定時、最寄りセルではなく旋回地点の円周上（侵入方向側）へ直進する
     this._entering = (spawnCol < 0 || spawnCol >= COLS || spawnRow < 0 || spawnRow >= ROWS);
     if (this._entering) {
-      const et = cellCenter(clamp(spawnCol, 0, COLS - 1), clamp(spawnRow, 0, ROWS - 1));
+      let et;
+      if (this._flying && def.circleAt) {
+        const c    = cellCenter(def.circleAt.col, def.circleAt.row);
+        const rdx  = c.x - x, rdy = c.y - y;
+        const rlen = Math.sqrt(rdx * rdx + rdy * rdy) || 1;
+        const ux   = rdx / rlen, uy = rdy / rlen;
+        et = { x: c.x - ux * this._circleRadius, y: c.y - uy * this._circleRadius };
+        this._circleCenterX = c.x;
+        this._circleCenterY = c.y;
+        this._circleAngle0  = Math.atan2(-uy, -ux);  // 侵入点(et)を中心から見た角度
+      } else {
+        et = cellCenter(clamp(spawnCol, 0, COLS - 1), clamp(spawnRow, 0, ROWS - 1));
+      }
       this._entryTargetX = et.x;
       this._entryTargetY = et.y;
       this._entryMoveStart = null;
@@ -85,6 +109,16 @@ var Zombie = class Zombie {
     else                 { this._retDx =  0; this._retDy =  1; }
   }
 
+  // 侵入完了時に呼ぶ: 半径/秒数が0以下なら旋回スキップで即ホーミング
+  _startBirdFlight(scaledTime) {
+    if (this._circleRadius > 0 && this._circleDurationMs > 0) {
+      this._birdPhase     = 'circling';
+      this._circleStartMs = scaledTime;
+    } else {
+      this._birdPhase = 'homing';
+    }
+  }
+
   update(scaledTime, dt, escort) {
     if (!this.alive) return;
     if (this._retreating) {
@@ -112,13 +146,39 @@ var Zombie = class Zombie {
         if (traveled >= eLen) {
           this._entering   = false;
           this._spawnTimer = 0;  // 侵入の歩行自体が telegraph 済みのためスポーン硬直はスキップ
+          if (this._flying) this._startBirdFlight(scaledTime);
           this._log(`[MAP_ENTER] t=${Math.round(scaledTime)}ms id=${this._logId} at=(${this.col},${this.row})`);
         }
       } else {
         this._entering   = false;
         this._spawnTimer = 0;
+        if (this._flying) this._startBirdFlight(scaledTime);
       }
       return;
+    }
+
+    if (this._birdPhase === 'circling') {
+      const elapsed = scaledTime - this._circleStartMs;
+      if (elapsed >= this._circleDurationMs) {
+        this._birdPhase = 'homing';
+        this._log(`[BIRD_HOMING] t=${Math.round(scaledTime)}ms id=${this._logId} at=(${this.col},${this.row})`);
+        // 旋回終了フレームでの即攻撃を防ぐため、この1フレームは攻撃判定へ進まず次tickからホーミングを開始する
+        return;
+      } else {
+        const angVel = this.speed / this._circleRadius;  // rad/s（接線速度=speedを維持）
+        const angle  = this._circleAngle0 + angVel * (elapsed / 1000);
+        this.x = this._circleCenterX + Math.cos(angle) * this._circleRadius;
+        this.y = this._circleCenterY + Math.sin(angle) * this._circleRadius;
+        this.lastDx = -Math.sin(angle);
+        this.lastDy =  Math.cos(angle);
+        this._animTime  += dt;
+        this._animFrame  = Math.floor(this._animTime / (1000 / zombieFps(this.type))) % zombieFrameCount(this.type) + 1;
+        // 安全弁: 旋回地点がマップ端に近く軌道が盤外に出た場合は強制退場（retreatと同じ扱い）
+        if (this.x < -CELL || this.x > MAP_W + CELL || this.y < -CELL || this.y > MAP_H + CELL) {
+          this.alive = false;
+        }
+        return;
+      }
     }
     if (this._spawnTimer > 0) { this._spawnTimer -= dt; return; }
     if (this.hitFlash > 0) this.hitFlash -= dt;
@@ -158,6 +218,17 @@ var Zombie = class Zombie {
     // 移動中 - 歩行アニメ進行
     this._animTime  += dt;
     this._animFrame  = Math.floor(this._animTime / (1000 / zombieFps(this.type))) % zombieFrameCount(this.type) + 1;
+
+    // 鳥（ホーミング中）: FlowField/隊列/leashを一切使わず護衛へ直線追尾
+    if (this._birdPhase === 'homing') {
+      this.lastDx = dx; this.lastDy = dy;
+      const step = this.speed * dt / 1000;
+      if (distToEscort > 0) {
+        this.x += (dx / distToEscort) * step;
+        this.y += (dy / distToEscort) * step;
+      }
+      return;
+    }
 
     if (this.leader !== null && !this.leader.alive) {
       this.leader = null;
@@ -402,7 +473,22 @@ var Zombie = class Zombie {
         this._dustEmitter = null;
       }
 
-    } else if (this.scene.textures.exists('salaryman_right')) {
+    } else if (this.skin === 'bird' && this.scene.textures.exists('bird_closed')) {
+      // ─── 鳥（羽ばたき2枚を進行方向へ回転。原点=くちばし先端で全方位対応・未登録時はグレーボックスへ自動フォールバック） ──
+      const texKey = (this._animFrame === 2 && this.scene.textures.exists('bird_open')) ? 'bird_open' : 'bird_closed';
+      if (!this._sprite || this._spriteKey !== texKey) {
+        if (this._sprite) this._sprite.destroy();
+        this._sprite    = this.scene.add.image(this.x, this.y, texKey).setDepth(3);
+        this._spriteKey = texKey;
+      }
+      const heading = Math.atan2(this.lastDy, this.lastDx) - Math.PI / 2;  // 基準絵はくちばしが下向き(=90°)のため補正
+      this._sprite.setScale(BIRD_SCALE);
+      this._sprite.setOrigin(0.5, 1.0);
+      this._sprite.setRotation(heading);
+      this._sprite.setPosition(this.x, this.y).setVisible(true);
+      this._sprite.setAlpha(1);
+      this._sprite.setTint(this.hitFlash > 0 ? 0xff8888 : 0xffffff);
+    } else if (this.skin !== 'bird' && this.scene.textures.exists('salaryman_right')) {
       // ─── スプライトシートモード ───────────────────────────
       let sheetKey, animKey;
       if (dir === 'down' && this.scene.textures.exists(`${skinKey}_down`)) {

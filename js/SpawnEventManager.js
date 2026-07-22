@@ -255,6 +255,9 @@ var SpawnEventManager = class SpawnEventManager {
     if (src.damage !== undefined) def.damage = src.damage;
     if (src.reward !== undefined) def.reward = src.reward;
     if (ev.leashTo !== undefined) def.leashTo = ev.leashTo;
+    if (src.circleAt         !== undefined) def.circleAt         = src.circleAt;
+    if (src.circleRadius     !== undefined) def.circleRadius     = src.circleRadius;
+    if (src.circleDurationMs !== undefined) def.circleDurationMs = src.circleDurationMs;
     return def;
   }
 }
@@ -262,7 +265,9 @@ var SpawnEventManager = class SpawnEventManager {
 // ─── SegmentManager ───────────────────────────────────────────────────────────
 // 区間制・位置トリガー方式のスポーン管理（SegmentManagerとSpawnEventManagerは並存）
 // JSON形式: escortDef.segments = [ { segmentId, range:{fromWp,toWp}, initial:[], triggers:[], onExit } ]
-// trigger: { type:"progress", atWpIdx, spawn, count?, interval?, enemy:{type,hp,speed,...,leashTo?} }
+// trigger: { type:"progress", atWpIdx, spawn, count?, interval?, enemy:{type,hp,speed,...,leashTo?,circleAt?,circleRadius?,circleDurationMs?} }
+// 鳥系(type:"bird")専用: circleAt{col,row}=旋回中心・circleRadius(px,既定300)・circleDurationMs(既定5000)。
+// radius/durationを0にすると旋回スキップで侵入直後に即ホーミング。
 var SegmentManager = class SegmentManager {
   constructor(spawns, segments) {
     this.spawns      = spawns;     // {"A":{col,row}, ...} spawnDefsと同形式
@@ -362,6 +367,9 @@ var SegmentManager = class SegmentManager {
     if (def.damage  !== undefined) result.damage  = def.damage;
     if (def.reward  !== undefined) result.reward  = def.reward;
     if (def.leashTo !== undefined) result.leashTo = def.leashTo;
+    if (def.circleAt         !== undefined) result.circleAt         = def.circleAt;
+    if (def.circleRadius     !== undefined) result.circleRadius     = def.circleRadius;
+    if (def.circleDurationMs !== undefined) result.circleDurationMs = def.circleDurationMs;
     return result;
   }
 
@@ -423,6 +431,9 @@ var YInflowManager = class YInflowManager {
     if (def.damage  !== undefined) result.damage  = def.damage;
     if (def.reward  !== undefined) result.reward  = def.reward;
     if (def.leashTo !== undefined) result.leashTo = def.leashTo;
+    if (def.circleAt         !== undefined) result.circleAt         = def.circleAt;
+    if (def.circleRadius     !== undefined) result.circleRadius     = def.circleRadius;
+    if (def.circleDurationMs !== undefined) result.circleDurationMs = def.circleDurationMs;
     return result;
   }
 }

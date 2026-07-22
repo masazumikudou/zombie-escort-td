@@ -254,6 +254,10 @@ class BootScene extends Phaser.Scene {
     this.load.image('kickboard_up',   'assets/sprites/zombie/Kickboard/キックボード下.png');
     this.load.image('kickboard_down', 'assets/sprites/zombie/Kickboard/キックボード上.png');
 
+    // 鳥ゾンビ（羽ばたき2枚・回転で全方位対応。方向別ファイルは不要）
+    this.load.image('bird_closed', 'assets/sprites/zombie/Crow/カラス羽閉じ.png');
+    this.load.image('bird_open',   'assets/sprites/zombie/Crow/カラス羽開き.png');
+
     // MOM 護衛キャラ
     this.load.spritesheet('mom_right', 'assets/sprites/zombie/MAM/walk_right.png', {
       frameWidth: 410, frameHeight: 689,  // 横歩き、足=(196,660)、setOrigin(0.478,0.958)

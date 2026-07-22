@@ -4,6 +4,7 @@
     { "id": 2, "file": "stages/stage_Yチュートリアル.json",          "title": "Yチュートリアル" },
     { "id": 3, "file": "stages/stage_newテスト.json",                "title": "newテスト" },
     { "id": 4, "file": "stages/stage_本番テスト（読める盤面）.json",  "title": "本番テスト（読める盤面）" },
-    { "id": 5, "file": "stages/stage_お父さん、寄り道中.json",        "title": "お父さん、寄り道中" }
+    { "id": 5, "file": "stages/stage_お父さん、寄り道中.json",        "title": "お父さん、寄り道中" },
+    { "id": 6, "file": "stages/stage_鳥プレビュー.json",              "title": "【確認用】鳥プレビュー" }
   ]
 }

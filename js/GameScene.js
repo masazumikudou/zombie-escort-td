@@ -1279,6 +1279,10 @@ class GameScene extends Phaser.Scene {
       damage: Math.round(enemyDef.damage != null ? enemyDef.damage : base.damage * (enemyDef.damageMul ?? 1)),
       reward: Math.round(enemyDef.reward != null ? enemyDef.reward : base.reward * (enemyDef.rewardMul ?? 1)),
       leashTo: enemyDef.leashTo,
+      flying:           enemyDef.flying ?? base.flying ?? false,
+      circleAt:         enemyDef.circleAt,
+      circleRadius:     enemyDef.circleRadius,
+      circleDurationMs: enemyDef.circleDurationMs,
     };
     const z = new Zombie(this, col, row, def, waveNum, leader);
     this.spawnCount++;

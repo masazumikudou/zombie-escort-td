@@ -1,0 +1,93 @@
+{
+  "_comment": "鳥の旋回・複数羽登場の見た目確認専用（大型マップ版）。数値バランスは考慮しない使い捨てステージ。確認後は削除してよい。元は「waves」形式で頂いたが、waves(WaveManager)は完全に不使用のため現行のsegments形式に変換した。",
+  "id": "stage_bird_preview",
+  "name": "鳥旋回プレビュー(25x25)",
+  "grid": { "cols": 25, "rows": 25 },
+  "ground_base": "grass",
+  "startMoney": 600,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "startTrigger": "afterPrevious",
+      "start": { "col": 0, "row": 19 },
+      "goal":  { "col": 24, "row": 19 },
+      "path": [
+        {"col":0,"row":19},{"col":1,"row":19},{"col":2,"row":19},{"col":3,"row":19},
+        {"col":4,"row":19},{"col":5,"row":19},{"col":6,"row":19},{"col":7,"row":19},
+        {"col":8,"row":19},{"col":9,"row":19},{"col":10,"row":19},{"col":11,"row":19},
+        {"col":12,"row":19},{"col":13,"row":19},{"col":14,"row":19},{"col":15,"row":19},
+        {"col":16,"row":19},{"col":17,"row":19},{"col":18,"row":19},{"col":19,"row":19},
+        {"col":20,"row":19},{"col":21,"row":19},{"col":22,"row":19},{"col":23,"row":19},
+        {"col":24,"row":19}
+      ],
+      "hp": 100,
+      "speed": 40,
+      "segments": [
+        {
+          "segmentId": "seg1_full_crossing",
+          "_comment": "下寄り横断の全区間。旋回地点を3箇所(col6/col12/col18・row9〜11)に配置し、それぞれ複数羽(2〜3羽)を同時旋回させる",
+          "range": { "fromWp": 0, "toWp": 24 },
+          "initial": [],
+          "triggers": [
+            {
+              "type": "progress",
+              "atWpIdx": 4,
+              "_comment": "旋回地点A(6,10) 2羽・スポーン(6,-1)から盤外侵入",
+              "spawn": "BIRD_A",
+              "count": 2,
+              "interval": 800,
+              "enemy": {
+                "type": "bird",
+                "circleAt": { "col": 6, "row": 10 },
+                "circleRadius": 150,
+                "circleDurationMs": 6000
+              }
+            },
+            {
+              "type": "progress",
+              "atWpIdx": 10,
+              "_comment": "旋回地点B(12,9) 2羽・スポーン(12,-1)から盤外侵入",
+              "spawn": "BIRD_B",
+              "count": 2,
+              "interval": 800,
+              "enemy": {
+                "type": "bird",
+                "circleAt": { "col": 12, "row": 9 },
+                "circleRadius": 180,
+                "circleDurationMs": 6000
+              }
+            },
+            {
+              "type": "progress",
+              "atWpIdx": 16,
+              "_comment": "旋回地点C(18,11) 3羽・スポーン(18,-1)から盤外侵入。フィナーレとして1箇所多め",
+              "spawn": "BIRD_C",
+              "count": 3,
+              "interval": 700,
+              "enemy": {
+                "type": "bird",
+                "circleAt": { "col": 18, "row": 11 },
+                "circleRadius": 200,
+                "circleDurationMs": 7000
+              }
+            }
+          ],
+          "onExit": "retreat"
+        }
+      ]
+    }
+  ],
+  "obstacles": [],
+  "spawns": {
+    "BIRD_A": { "col": 6,  "row": -1 },
+    "BIRD_B": { "col": 12, "row": -1 },
+    "BIRD_C": { "col": 18, "row": -1 }
+  },
+  "buildSpots": [
+    {"col":2, "row":18},{"col":5, "row":20},{"col":8, "row":18},{"col":11,"row":20},
+    {"col":14,"row":18},{"col":17,"row":20},{"col":20,"row":18},{"col":22,"row":20}
+  ],
+  "ground_cells": [],
+  "props": []
+}
