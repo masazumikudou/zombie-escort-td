@@ -256,7 +256,7 @@ class GameScene extends Phaser.Scene {
     } else {
       this.waveManager = new SpawnEventManager(
         this.stageData.spawns ?? {},
-        def.spawnEvents ?? this.stageData.spawnEvents
+        def.spawnEvents ?? this.stageData.spawnEvents ?? []
       );
       this.waveManager.start(timeOffset);
       this.waveLabel = '';

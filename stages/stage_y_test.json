@@ -1,0 +1,85 @@
+{
+  "id": "stage_custom",
+  "name": "カスタムステージ（Yテスト）",
+  "grid": { "cols": 25, "rows": 11 },
+  "ground_base": "asphalt",
+  "startMoney": 600,
+  "minSurvivors": 1,
+  "escorts": [
+    {
+      "variant": "dad",
+      "startTrigger": "afterPrevious",
+      "start": { "col": 0, "row": 4 },
+      "goal": { "col": 24, "row": 4 },
+      "path": [
+        {"col":0,"row":4},{"col":1,"row":4},{"col":2,"row":4},{"col":3,"row":4},{"col":4,"row":4},
+        {"col":5,"row":4},{"col":6,"row":4},{"col":7,"row":4},{"col":8,"row":4},{"col":9,"row":4},
+        {"col":10,"row":4},{"col":11,"row":4},{"col":12,"row":4},{"col":13,"row":4},{"col":14,"row":4},
+        {"col":15,"row":4},{"col":16,"row":4},{"col":17,"row":4},{"col":18,"row":4},{"col":19,"row":4},
+        {"col":20,"row":4},{"col":21,"row":4},{"col":22,"row":4},{"col":23,"row":4},{"col":24,"row":4}
+      ],
+      "detour": {
+        "branchIdx": 11,
+        "path": [
+          {"col":11,"row":4},{"col":11,"row":5},{"col":11,"row":6},{"col":11,"row":7}
+        ],
+        "waitTime": 20000,
+        "_comment_waitTime": "テスト用に50000→20000へ短縮（検証時間短縮のため）。本番数値は1-4bで詰める",
+        "walletAmount": 500,
+        "_comment_wallet": "Y着席時に自動取得。仮値500G。防衛タワー2〜3基分の想定",
+        "yInflow": [
+          { "atMs": 0,    "spawn": "Y_L", "count": 2, "interval": 800, "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+          { "atMs": 0,    "spawn": "Y_R", "count": 1, "interval": 0,   "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+          { "atMs": 6000, "spawn": "Y_B", "count": 2, "interval": 800, "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+          { "atMs": 6000, "spawn": "Y_L", "count": 1, "interval": 0,   "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+          { "atMs": 12000,"spawn": "Y_R", "count": 2, "interval": 700, "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } },
+          { "atMs": 12000,"spawn": "Y_B", "count": 1, "interval": 0,   "enemy": { "type": "salaryman", "hp": 200, "speed": 30, "damage": 10, "reward": 20 } }
+        ],
+        "_comment_yInflow": "波状(0/6000/12000ms)＋方向バラバラ(左/右/下)の仮構成。合計9体。waitTime20000msに対し最終波が終了8秒前に来るよう配置（掃討猶予を残す）"
+      },
+      "hp": 100,
+      "speed": 40,
+      "waves": [
+        {
+          "startDelay": 6000,
+          "spawnInterval": 2500,
+          "count": 4,
+          "enemy": { "type": "normal", "hp": 30, "speed": 55, "damage": 10, "reward": 20 }
+        },
+        {
+          "startDelay": 4000,
+          "spawnInterval": 2000,
+          "count": 7,
+          "enemy": { "type": "normal_cap", "hp": 45, "speed": 62, "damage": 13, "reward": 25 }
+        },
+        {
+          "startDelay": 4000,
+          "spawnInterval": 1500,
+          "count": 12,
+          "enemy": { "type": "normal_helmet", "hp": 60, "speed": 70, "damage": 18, "reward": 30 }
+        }
+      ]
+    }
+  ],
+  "obstacles": [
+    {"col":1,"row":5},{"col":9,"row":5},{"col":8,"row":6},{"col":9,"row":6},{"col":2,"row":7},{"col":9,"row":7}
+  ],
+  "buildSpots": [
+    {"col":3,"row":3},{"col":7,"row":3},{"col":17,"row":3},{"col":21,"row":3},
+    {"col":9,"row":4},{"col":15,"row":4},
+    {"col":10,"row":5},{"col":12,"row":5},{"col":13,"row":6},{"col":10,"row":7},{"col":12,"row":7},{"col":13,"row":7}
+  ],
+  "_comment_buildSpots": "row3沿い=本道用。(11,7)Y地点周辺の10,5/12,5/13,6/10,7/12,7/13,8=Y防衛用（3方向をカバーする配置）",
+  "spawns": {
+    "Y_L": { "col": -2, "row": 7 },
+    "Y_R": { "col": 15, "row": 7 },
+    "Y_B": { "col": 11, "row": 10 }
+  },
+  "_comment_spawns": "Y_L=左盤外・Y_R=右側（マップ内だが導線から離れた位置、暫定）・Y_B=下盤外。Y_Rは本来盤外が望ましいがgrid幅25でY地点col11から右盤外は遠すぎるため近傍セルで代用。気になる場合は要調整",
+  "_comment_groundcells": "ground_cellsは意図的に未設定。指定するとground_cells以外の全セルがゾンビ移動禁止になるroad-only制約が有効化されるが、元データのground_cellsはrow3（道横）のみでescort本道(row4)・Y地点(row7)を一切含んでおらず、実機ではゾンビがrow4/row7に到達できず詰む。ground_base=asphaltの開けた駐車場という設定とも整合するため、road-only制約自体を外す形にした。",
+  "props": [
+    {"type":"ハンバーガー","col":10,"row":8},{"type":"ハンバーガー","col":5,"row":5},
+    {"type":"ハンバーガー","col":7,"row":8},{"type":"ハンバーガー","col":15,"row":5},
+    {"type":"ハンバーガー","col":13,"row":8}
+  ]
+}

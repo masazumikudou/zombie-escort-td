@@ -3,6 +3,7 @@
     { "id": 1, "file": "stages/stage_01_meander_verified.json", "title": "確定中級ステージ" },
     { "id": 2, "file": "stages/stage_y_tutorial.json",           "title": "Yチュートリアル" },
     { "id": 3, "file": "stages/stage_01_segment_test.json",      "title": "newテスト" },
-    { "id": 4, "file": "stages/stage_honban_test.json",          "title": "本番テスト（読める盤面）" }
+    { "id": 4, "file": "stages/stage_honban_test.json",          "title": "本番テスト（読める盤面）" },
+    { "id": 5, "file": "stages/stage_y_test.json",               "title": "お父さん、寄り道中" }
   ]
 }

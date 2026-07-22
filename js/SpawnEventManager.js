@@ -121,7 +121,9 @@ FormationGroup.USE_FLOW_FIELD = false;
 var SpawnEventManager = class SpawnEventManager {
   constructor(spawns, spawnEvents) {
     this.spawnDefs   = spawns;
-    this.events      = [...spawnEvents].sort((a, b) => a.time - b.time);
+    // spawnEventsがundefined/nullでも落ちないようガード（segments・spawnEvents両方とも
+    // 未定義のステージ（旧wavesのみ等）で呼ばれると[...undefined]がTypeErrorになるため）
+    this.events      = [...(spawnEvents ?? [])].sort((a, b) => a.time - b.time);
     this.eventIdx    = 0;
     this._pending    = [];   // { fireAt, col, row, enemyDef, evIdx, gid, isFirst, formation }
     this._leaders    = {};   // gid → zombie（非隊列グループ先頭リーダー参照）
