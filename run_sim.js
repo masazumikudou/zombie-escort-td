@@ -1,7 +1,7 @@
 'use strict';
 // Node.js バッチシミュレーター
 // 使い方: node run_sim.js <stageFile> [towerPattern] [escortSpeed] [enemySpeed]
-// 例:     node run_sim.js stages/stage_01_meander_verified.json "normal:12,4 sniper:15,4"
+// 例:     node run_sim.js stages/stage_確定中級ステージ.json "normal:12,4 sniper:15,4"
 
 const fs   = require('fs');
 const path = require('path');
@@ -142,6 +142,16 @@ function run(stageFile, towerPattern = '', opts = {}) {
   const cellCenter = ctx.cellCenter;
 
   const pf         = new ctx.Pathfinder(ctx.COLS, ctx.ROWS, stage.obstacles ?? []);
+  // road-only: ground_cellsが1件でも指定されていれば、それ以外の全セルをブロックする
+  // （GameScene.jsと同一ロジック。opt-in仕様＝未指定なら従来通り全域移動可能）
+  if (stage.ground_cells && stage.ground_cells.length > 0) {
+    const roadSet = new Set(stage.ground_cells.map(c => `${c.col},${c.row}`));
+    for (let c = 0; c < ctx.COLS; c++) {
+      for (let r = 0; r < ctx.ROWS; r++) {
+        if (!roadSet.has(`${c},${r}`)) pf.blocked.add(`${c},${r}`);
+      }
+    }
+  }
   const ff         = new ctx.FlowField(pf);
   const mockScene  = { flowField: ff, _playLog: log, scaledTime: 0,
                        add: ctx.createMockSceneAdd(), textures: ctx.MOCK_TEXTURES, anims: ctx.MOCK_ANIMS };
