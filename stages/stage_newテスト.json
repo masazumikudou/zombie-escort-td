@@ -1,5 +1,5 @@
 {
-  "_comment": "1-4.5 新文法実証実験。stage_01_meander_verified.jsonのsegments版。spawnEventsをsegmentsに置換。元ファイルは変更しない。",
+  "_comment": "1-4.5 新文法実証実験。stage_確定中級ステージ.jsonのsegments版。spawnEventsをsegmentsに置換。元ファイルは変更しない。",
   "id": "stage_custom",
   "name": "確定中級ステージ（segments実験版）",
   "grid": { "cols": 20, "rows": 20 },
