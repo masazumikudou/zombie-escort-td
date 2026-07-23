@@ -258,6 +258,7 @@ var SpawnEventManager = class SpawnEventManager {
     if (src.circleAt         !== undefined) def.circleAt         = src.circleAt;
     if (src.circleRadius     !== undefined) def.circleRadius     = src.circleRadius;
     if (src.circleDurationMs !== undefined) def.circleDurationMs = src.circleDurationMs;
+    if (src.circleLoops      !== undefined) def.circleLoops      = src.circleLoops;
     return def;
   }
 }
@@ -265,8 +266,9 @@ var SpawnEventManager = class SpawnEventManager {
 // ─── SegmentManager ───────────────────────────────────────────────────────────
 // 区間制・位置トリガー方式のスポーン管理（SegmentManagerとSpawnEventManagerは並存）
 // JSON形式: escortDef.segments = [ { segmentId, range:{fromWp,toWp}, initial:[], triggers:[], onExit } ]
-// trigger: { type:"progress", atWpIdx, spawn, count?, interval?, enemy:{type,hp,speed,...,leashTo?,circleAt?,circleRadius?,circleDurationMs?} }
-// 鳥系(type:"bird")専用: circleAt{col,row}=旋回中心・circleRadius(px,既定300)・circleDurationMs(既定5000)。
+// trigger: { type:"progress", atWpIdx, spawn, count?, interval?, enemy:{type,hp,speed,...,leashTo?,circleAt?,circleRadius?,circleDurationMs?,circleLoops?} }
+// 鳥系(type:"bird")専用: circleAt{col,row}=旋回中心・circleRadius(px,既定150・見た目の円サイズのみを決める)・
+// circleDurationMs(既定6000・突撃までの旋回時間)・circleLoops(既定2.5・その時間内に何周するか。半径からは独立)。
 // radius/durationを0にすると旋回スキップで侵入直後に即ホーミング。
 var SegmentManager = class SegmentManager {
   constructor(spawns, segments) {
@@ -370,6 +372,7 @@ var SegmentManager = class SegmentManager {
     if (def.circleAt         !== undefined) result.circleAt         = def.circleAt;
     if (def.circleRadius     !== undefined) result.circleRadius     = def.circleRadius;
     if (def.circleDurationMs !== undefined) result.circleDurationMs = def.circleDurationMs;
+    if (def.circleLoops      !== undefined) result.circleLoops      = def.circleLoops;
     return result;
   }
 
@@ -434,6 +437,7 @@ var YInflowManager = class YInflowManager {
     if (def.circleAt         !== undefined) result.circleAt         = def.circleAt;
     if (def.circleRadius     !== undefined) result.circleRadius     = def.circleRadius;
     if (def.circleDurationMs !== undefined) result.circleDurationMs = def.circleDurationMs;
+    if (def.circleLoops      !== undefined) result.circleLoops      = def.circleLoops;
     return result;
   }
 }

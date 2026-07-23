@@ -87,16 +87,19 @@ function makeSimTower(col, row, type, log) {
         return false;
       });
       if (scaledTime - this.lastFire < this.fireRate) return;
+      const noAA = (this._type === 'cannon' || this._type === 'ice' || this._type === 'punch');  // 対空不可タワー
       let best = null, bestDist = Infinity;
       for (const z of zombies) {
         if (!z.alive) continue;
+        if (noAA && z._flying) continue;
         const tdx = z.x - this.x, tdy = z.y - this.y;
         if (Math.sqrt(tdx*tdx + tdy*tdy) > this.range) continue;
         const ref = escort ?? { x: this.x, y: this.y };
         const edx = z.x - ref.x, edy = z.y - ref.y;
         const dist = Math.sqrt(edx*edx + edy*edy);
-        // 護衛範囲円（交戦ゲート）: 円の外のゾンビはタワーの射程内でも対象外
-        if (escort && dist > ESCORT_ENGAGE_RADIUS) continue;
+        // 護衛範囲円（交戦ゲート）: 円の外のゾンビはタワーの射程内でも対象外。
+        // 鳥（_flying）のみ例外（v2.1確定事項に対する初の例外・2026-07-23小松判断）
+        if (escort && !z._flying && dist > ESCORT_ENGAGE_RADIUS) continue;
         if (dist < bestDist) { bestDist = dist; best = z; }
       }
       if (!best) return;

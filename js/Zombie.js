@@ -50,8 +50,9 @@ var Zombie = class Zombie {
     // 鳥系: FlowField/propを無視し直進のみで移動する特殊個体（侵入→旋回→ホーミングの3フェーズ）
     this._flying           = !!def.flying;
     this._birdPhase        = null;  // 'circling' | 'homing'（flying個体のみ意味を持つ。侵入完了時にセット）
-    this._circleRadius     = def.circleRadius     ?? 300;
-    this._circleDurationMs = def.circleDurationMs ?? 5000;
+    this._circleRadius     = def.circleRadius     ?? 150;
+    this._circleDurationMs = def.circleDurationMs ?? 6000;
+    this._circleLoops      = def.circleLoops      ?? 2.5;  // 半径とは独立: 突撃までに何周するか
     // 画面外スポーン: グリッド外col/rowで生成された場合、最寄りの盤内セルまで直進してから通常AIに接続
     // 鳥（flying）はcircleAt指定時、最寄りセルではなく旋回地点の円周上（侵入方向側）へ直進する
     this._entering = (spawnCol < 0 || spawnCol >= COLS || spawnRow < 0 || spawnRow >= ROWS);
@@ -165,7 +166,7 @@ var Zombie = class Zombie {
         // 旋回終了フレームでの即攻撃を防ぐため、この1フレームは攻撃判定へ進まず次tickからホーミングを開始する
         return;
       } else {
-        const angVel = this.speed / this._circleRadius;  // rad/s（接線速度=speedを維持）
+        const angVel = (2 * Math.PI * this._circleLoops) / (this._circleDurationMs / 1000);  // rad/s（半径から独立。旋回秒数内にcircleLoops周させる）
         const angle  = this._circleAngle0 + angVel * (elapsed / 1000);
         this.x = this._circleCenterX + Math.cos(angle) * this._circleRadius;
         this.y = this._circleCenterY + Math.sin(angle) * this._circleRadius;
@@ -538,6 +539,7 @@ var Zombie = class Zombie {
       g.fillStyle(0xff3333, 1);
       g.fillRect(this.x - bw / 2, this.y - 22, bw * ratio, bh);
     }
+
   }
 
   cleanup() {

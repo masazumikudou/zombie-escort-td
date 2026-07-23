@@ -30,8 +30,8 @@
     "worker":     { "hp": 100, "speed": 50, "damage": 12, "reward": 25 },
     "police":     { "hp": 150, "speed": 50, "damage": 15, "reward": 35 },
     "kickboard":  { "hp": 60,  "speed": 90, "damage": 15, "reward": 30 },
-    "burger":     { "hp": 75,  "speed": 50, "damage": 10, "reward": 20 },
-    "bird":       { "hp": 30,  "speed": 70, "damage": 8,  "reward": 15 }
+    "bird":       { "hp": 60,  "speed": 70, "damage": 12, "reward": 30 },
+    "debu":       { "hp": 300, "speed": 25, "damage": 20, "reward": 50 }
   },
 
   "escorts": {
