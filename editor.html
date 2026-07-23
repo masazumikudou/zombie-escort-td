@@ -1778,6 +1778,13 @@ function buildJSON() {
         };
       });
     })(),
+    // 導線A/Bの生の形状（家族の割当状況とは無関係に常に保持する。エディター専用メタデータでゲーム側は無視してよい）
+    ...((pathA.length > 0 || pathB.length > 0) ? {
+      lanes: {
+        ...(pathA.length > 0 ? { A: pathA.map(p => ({ col: p.col, row: p.row })) } : {}),
+        ...(pathB.length > 0 ? { B: pathB.map(p => ({ col: p.col, row: p.row })) } : {}),
+      }
+    } : {}),
     obstacles:    obsArr,
     ...(spawns.length > 0 ? { spawns: Object.fromEntries(spawns.map((s, i) => [s.name || `S${i + 1}`, { col: s.col, row: s.row }])) } : {}),
     ...(_passthruSpawnEvents ? { spawnEvents: _passthruSpawnEvents } : {}),
@@ -1894,18 +1901,29 @@ function applyJSON(obj) {
   startCell = (s && s.col != null) ? { col: s.col, row: s.row } : null;
   goalCell  = (g && g.col != null) ? { col: g.col, row: g.row } : null;
 
-  // 導線A/Bの再構築: 各escortのpath配列を比較し、最初に現れた形をA、次に現れた異なる形をBとする
-  // （同一レーンのescort同士はpath配列が完全一致する前提。素の旧ステージ（全escort同一path）はA単本として復元される）
+  // 導線A/Bの再構築
   const _arrEq = (a, b) => a.length === b.length && a.every((p, i) => p.col === b[i].col && p.row === b[i].row);
-  pathA = []; pathB = [];
-  const laneIds = escs.map(esc => {
-    const p = (esc.path ?? []).map(pp => ({ col: pp.col, row: pp.row }));
-    if (p.length === 0) return 'A';
-    if (pathA.length === 0 && pathB.length === 0) { pathA = p; return 'A'; }
-    if (_arrEq(p, pathA)) return 'A';
-    if (pathB.length === 0) { pathB = p; return 'B'; }
-    return 'B'; // 3本目以降の異なる導線は現状未対応のためBへ寄せる
-  });
+  let laneIds;
+  if (obj.lanes) {
+    // 新フォーマット: lanesに生の形状が明示されているので、家族の割当数に関係なく正確に復元できる
+    pathA = (obj.lanes.A ?? []).map(p => ({ col: p.col, row: p.row }));
+    pathB = (obj.lanes.B ?? []).map(p => ({ col: p.col, row: p.row }));
+    laneIds = escs.map(esc => {
+      const p = (esc.path ?? []).map(pp => ({ col: pp.col, row: pp.row }));
+      return (p.length > 0 && _arrEq(p, pathB)) ? 'B' : 'A';
+    });
+  } else {
+    // 旧フォーマット（lanes未対応）: 各escortのpath配列を比較し、最初に現れた形をA、次に現れた異なる形をBとする
+    pathA = []; pathB = [];
+    laneIds = escs.map(esc => {
+      const p = (esc.path ?? []).map(pp => ({ col: pp.col, row: pp.row }));
+      if (p.length === 0) return 'A';
+      if (pathA.length === 0 && pathB.length === 0) { pathA = p; return 'A'; }
+      if (_arrEq(p, pathA)) return 'A';
+      if (pathB.length === 0) { pathB = p; return 'B'; }
+      return 'B'; // 3本目以降の異なる導線は現状未対応のためBへ寄せる
+    });
+  }
   editingLane = 'A';
 
   // マルチWAVE読み込み（segmentsはGUI未対応のためescortごとに_segmentsPassthruへ素通し保存）

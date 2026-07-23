@@ -74,8 +74,20 @@ class GameScene extends Phaser.Scene {
     }
 
     // road-only: ground_cells 以外のセルをすべてブロック（ゾンビは道路上のみ移動）
+    // ブロック型タイル(blockW/blockH・道縦ノーマル(2)等)は原点セルのみ記録されているため、
+    // 幅・高さ分を展開してから歩行可能判定に使う（描画側は元々展開済み・判定側だけ漏れていた）
     if (sd.ground_cells && sd.ground_cells.length > 0) {
-      const roadSet = new Set(sd.ground_cells.map(c => `${c.col},${c.row}`));
+      const roadSet = new Set();
+      for (const cell of sd.ground_cells) {
+        const bdef = GROUND_BLOCK_DEFS[cell.type];
+        const bw = bdef ? (bdef.blockW ?? bdef.blockCells ?? 1) : 1;
+        const bh = bdef ? (bdef.blockH ?? bdef.blockCells ?? 1) : 1;
+        for (let dc = 0; dc < bw; dc++) {
+          for (let dr = 0; dr < bh; dr++) {
+            roadSet.add(`${cell.col + dc},${cell.row + dr}`);
+          }
+        }
+      }
       for (let c = 0; c < COLS; c++) {
         for (let r = 0; r < ROWS; r++) {
           if (!roadSet.has(`${c},${r}`)) {
