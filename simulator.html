@@ -499,7 +499,7 @@ class StageSimulator {
       log.push('──────────────────────────────────────────────────────');
     }
 
-    return { log: log.join('\n'), judgment, hpPct, closecallCount };
+    return { log: log.join('\n'), judgment, hpPct, closecallCount, survivors, total, killCount, spawnTotal, passThrough };
   }
 }
 
@@ -651,6 +651,70 @@ function copyText(text, btn) {
   });
 }
 
+// ─── スイープモード（2-7 機能A・run_sim.jsとロジックをミラー） ───────────────
+function parseSweepExpr(expr) {
+  const m = expr.match(/^(\w+)=(-?\d+(?:\.\d+)?)\.\.(-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?)$/);
+  if (!m) throw new Error(`スイープの形式が不正です: "${expr}"\n期待形式: KEY=START..END:STEP（例: startMoney=600..1400:100）`);
+  const [, key, startS, endS, stepS] = m;
+  const start = Number(startS), end = Number(endS), step = Number(stepS);
+  if (step === 0) throw new Error('スイープのSTEPは0にできません');
+  const values = [];
+  if (step > 0) for (let v = start; v <= end + 1e-9; v += step) values.push(Math.round(v * 1000) / 1000);
+  else          for (let v = start; v >= end - 1e-9; v += step) values.push(Math.round(v * 1000) / 1000);
+  return { key, values };
+}
+
+// 対応キー: startMoney / escortSpeed / enemyCountMul / enemyHpMul / triggerIntervalMul
+function applySweepOverride(stage, opts, key, value) {
+  const newStage = JSON.parse(JSON.stringify(stage));
+  const newOpts  = { ...opts };
+
+  const forEachTrigger = (fn) => {
+    for (const esc of newStage.escorts ?? []) {
+      for (const seg of esc.segments ?? []) {
+        for (const trig of seg.triggers ?? []) fn(trig);
+      }
+    }
+  };
+  const forEachEnemy = (fn) => {
+    for (const esc of newStage.escorts ?? []) {
+      for (const seg of esc.segments ?? []) {
+        for (const entry of [...(seg.initial ?? []), ...(seg.triggers ?? [])]) fn(entry.enemy ?? entry);
+      }
+    }
+  };
+
+  switch (key) {
+    case 'startMoney':
+      newStage.startMoney = value;
+      break;
+    case 'escortSpeed':
+      newOpts.escortSpeed = value;
+      break;
+    case 'enemyCountMul':
+      forEachTrigger(trig => { if (trig.count != null) trig.count = Math.max(0, Math.round(trig.count * value)); });
+      break;
+    case 'enemyHpMul':
+      forEachEnemy(enemy => { if (enemy.hp != null) enemy.hp = Math.max(1, Math.round(enemy.hp * value)); });
+      break;
+    case 'triggerIntervalMul':
+      forEachTrigger(trig => { if (trig.interval != null) trig.interval = Math.max(0, Math.round(trig.interval * value)); });
+      break;
+    default:
+      throw new Error(`未対応のスイープキー: "${key}"（対応: startMoney/escortSpeed/enemyCountMul/enemyHpMul/triggerIntervalMul）`);
+  }
+  return { newStage, newOpts };
+}
+
+function formatSweepLine(key, value, res) {
+  return `${key}=${value}`.padEnd(20) +
+    `生還${res.survivors}/${res.total}`.padEnd(10) +
+    `HP残${res.hpPct}%`.padEnd(9) +
+    `撃破${res.killCount}/${res.spawnTotal}`.padEnd(11) +
+    `すり抜け${res.passThrough}`.padEnd(11) +
+    `CC=${res.closecallCount}`;
+}
+
 async function runAll() {
   await ensureBalance();
 
@@ -664,11 +728,63 @@ async function runAll() {
     maxTimeMs:   document.getElementById('maxTimeMs').value   || null,
   };
 
+  const sweepExprRaw = document.getElementById('sweepExpr').value.trim();
+
   const results = document.getElementById('results');
   results.innerHTML = '';
   const sim      = new StageSimulator();
   const entries  = [];
   const allLogs  = [];
+
+  if (sweepExprRaw) {
+    // ─── スイープモード: パターンごとに1行サマリ表を作る（詳細ログ・GitHub保存は行わない） ───
+    let key, values;
+    try {
+      ({ key, values } = parseSweepExpr(sweepExprRaw));
+    } catch (e) {
+      alert(e.message);
+      return;
+    }
+
+    document.querySelectorAll('#patterns .pattern-row').forEach(row => {
+      const name      = row.querySelector('.pname').value   || 'パターン';
+      const towerText = row.querySelector('.ptowers').value;
+      const towers    = parseTowerPattern(towerText);
+
+      const lines = [];
+      for (const value of values) {
+        const { newStage, newOpts } = applySweepOverride(stage, opts, key, value);
+        const res = sim.run(newStage, towers, newOpts);
+        lines.push(formatSweepLine(key, value, res));
+      }
+      const sweepText = lines.join('\n');
+      allLogs.push(`=== ${name} [スイープ: ${sweepExprRaw}] ===\n${sweepText}`);
+
+      const div = document.createElement('div');
+      div.className = 'result';
+
+      const header = document.createElement('div');
+      header.className = 'result-header';
+      header.innerHTML = `<h2>${name} — スイープ: <code>${sweepExprRaw}</code></h2>`;
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'sm gray';
+      copyBtn.textContent = 'コピー';
+      copyBtn.onclick = () => copyText(sweepText, copyBtn);
+      header.appendChild(copyBtn);
+
+      const pre = document.createElement('pre');
+      pre.textContent = sweepText;
+
+      div.appendChild(header);
+      div.appendChild(pre);
+      results.appendChild(div);
+    });
+
+    window._lastAllLogs = allLogs;
+    document.getElementById('copyAllBtn').style.display = allLogs.length > 1 ? '' : 'none';
+    return;  // スイープ時はGitHub自動保存をスキップ（通常実行のみ保存）
+  }
 
   document.querySelectorAll('#patterns .pattern-row').forEach(row => {
     const name      = row.querySelector('.pname').value   || 'パターン';
@@ -807,6 +923,11 @@ window.addEventListener('DOMContentLoaded', loadGhSettings);
         <label>最大時間(ms)（空欄=JSONのsimMaxTimeMsか既定10分）</label>
         <input type="number" id="maxTimeMs" style="width:100px" placeholder="600000">
       </div>
+    </div>
+
+    <label>スイープ（空欄=通常実行）: <code>KEY=START..END:STEP</code>　対応KEY: startMoney/escortSpeed/enemyCountMul/enemyHpMul/triggerIntervalMul</label>
+    <div class="flex" style="margin-bottom:10px">
+      <input type="text" id="sweepExpr" style="width:100%" placeholder="startMoney=600..1400:100">
     </div>
 
     <label>タワー配置パターン &nbsp;<code>type:col,row</code>&nbsp; 例: <code>basic:5,3 sniper:8,3</code> &nbsp;|&nbsp; 道中建設: <code>sniper:7,14@90000</code>（@ms）</label>
