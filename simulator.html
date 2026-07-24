@@ -318,14 +318,21 @@ class StageSimulator {
     let spawnTotal = 0, killCount = 0, idSeq = 0;
     let closecallCount = 0, closestEver = Infinity;
 
+    // 被弾原因・すり抜けのスポーン地点別集計（2-7 機能B）
+    const damageBySpawn = new Map(); // "col,row" → { totalDmg, hits, byType: Map<type,count> }
+    const leakBySpawn   = new Map(); // "col,row" → count
+
     const spawnFn = (col, row, def, waveNum, leader) => {
       const finalDef = opts.enemySpeed ? { ...def, speed: +opts.enemySpeed } : def;
       spawnTotal++;
       const z          = new Zombie(mockScene, col, row, finalDef, waveNum, leader);
       z._simId         = idSeq++;
       z._firstContact  = null;
+      z._spawnOrigin   = { col, row };
+      z._killed        = false;
 
       z.onDeath = () => {
+        z._killed = true;
         killCount++;
         money += z.reward ?? 0;
         log.push(`[KILL]   t=${Math.round(scaledTime)}ms  id=${z._logId}  killCount=${killCount}  reward+${z.reward ?? 0}  残=${money}`);
@@ -339,7 +346,8 @@ class StageSimulator {
 
     // ─── シミュレーションループ ─────────────────────────────────────────
     const DT       = 50;         // ms/tick（20Hz）
-    const MAX_TIME = 600_000;    // 10分タイムアウト
+    // 優先順位: UI指定(opts.maxTimeMs) > ステージJSON指定(stage.simMaxTimeMs) > 既定値600000ms(10分)
+    const MAX_TIME = opts.maxTimeMs ? +opts.maxTimeMs : (stage.simMaxTimeMs ?? 600_000);
 
     while (scaledTime <= MAX_TIME) {
       mockScene.scaledTime = scaledTime;
@@ -377,7 +385,19 @@ class StageSimulator {
 
       // ゾンビ更新 + 初接触追跡
       for (const z of alive) {
+        const _hpBefore = escortTarget ? escortTarget.hp : null;
         z.update(scaledTime, DT, escortTarget);
+        if (escortTarget && _hpBefore != null) {
+          const _dmg = _hpBefore - escortTarget.hp;
+          if (_dmg > 0) {
+            const _key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
+            let _rec = damageBySpawn.get(_key);
+            if (!_rec) { _rec = { totalDmg: 0, hits: 0, byType: new Map() }; damageBySpawn.set(_key, _rec); }
+            _rec.totalDmg += _dmg;
+            _rec.hits += 1;
+            _rec.byType.set(z.type, (_rec.byType.get(z.type) ?? 0) + 1);
+          }
+        }
         if (!z._firstContact && escortTarget) {
           const dx = escortTarget.x - z.x, dy = escortTarget.y - z.y;
           if (Math.sqrt(dx*dx + dy*dy) < CELL * 0.95) {
@@ -422,7 +442,7 @@ class StageSimulator {
 
       scaledTime += DT;
     }
-    if (scaledTime > MAX_TIME) log.push(`[TIMEOUT] 最大時間(10分)超過`);
+    if (scaledTime > MAX_TIME) log.push(`[TIMEOUT] 最大時間(${Math.round(MAX_TIME / 60000)}分)超過`);
 
     // RESULT
     const total       = escortDefs.length;
@@ -431,6 +451,28 @@ class StageSimulator {
     const hpPct       = Math.round((escort.hp ?? 0) / (escort.maxHp || 1) * 100);
     const closestPx   = closestEver === Infinity ? '-' : Math.round(closestEver);
     log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survivors}/${total} HP残=${hpPct}% CLOSE_CALL=${closecallCount}回 最接近=${closestPx}px 判定=${judgment}`);
+
+    // すり抜け（未撃破）をスポーン地点別に集計（2-7 機能B）
+    for (const z of allSpawned) {
+      if (z._killed) continue;
+      const key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
+      leakBySpawn.set(key, (leakBySpawn.get(key) ?? 0) + 1);
+    }
+    if (damageBySpawn.size > 0) {
+      log.push('[DAMAGE_BY_SPAWN]');
+      const sorted = [...damageBySpawn.entries()].sort((a, b) => b[1].totalDmg - a[1].totalDmg);
+      for (const [key, rec] of sorted) {
+        const byTypeStr = [...rec.byType.entries()].map(([t, n]) => `${t}×${n}`).join(', ');
+        log.push(`  spawn=(${key})   被弾${rec.hits}回  合計${rec.totalDmg}dmg  （${byTypeStr}）`);
+      }
+    }
+    if (leakBySpawn.size > 0) {
+      log.push('[LEAK_BY_SPAWN]');
+      const sorted = [...leakBySpawn.entries()].sort((a, b) => b[1] - a[1]);
+      for (const [key, count] of sorted) {
+        log.push(`  spawn=(${key})  すり抜け${count}体`);
+      }
+    }
 
     // 交戦地分析（encounterHints）
     if (stage.encounterHints?.length > 0) {
@@ -619,6 +661,7 @@ async function runAll() {
   const opts = {
     escortSpeed: document.getElementById('escortSpeed').value || null,
     enemySpeed:  document.getElementById('enemySpeed').value  || null,
+    maxTimeMs:   document.getElementById('maxTimeMs').value   || null,
   };
 
   const results = document.getElementById('results');
@@ -759,6 +802,10 @@ window.addEventListener('DOMContentLoaded', loadGhSettings);
       <div class="col">
         <label>全敵 speed (px/s)</label>
         <input type="number" id="enemySpeed" style="width:80px" placeholder="50">
+      </div>
+      <div class="col">
+        <label>最大時間(ms)（空欄=JSONのsimMaxTimeMsか既定10分）</label>
+        <input type="number" id="maxTimeMs" style="width:100px" placeholder="600000">
       </div>
     </div>
 

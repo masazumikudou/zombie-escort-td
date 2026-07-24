@@ -1,7 +1,16 @@
 'use strict';
 // Node.js バッチシミュレーター
-// 使い方: node run_sim.js <stageFile> [towerPattern] [escortSpeed] [enemySpeed]
+// 使い方: node run_sim.js <stageFile> [towerPattern] [escortSpeed] [enemySpeed] [maxTimeMs]
+// maxTimeMs省略時はステージJSONのsimMaxTimeMs、それも無ければ既定600000ms(10分)
 // 例:     node run_sim.js stages/stage_確定中級ステージ.json "normal:12,4 sniper:15,4"
+//
+// スイープモード（2-7 機能A・数値の感度分析。タワー配置の探索はしない）:
+// 使い方: node run_sim.js <stageFile> [--tower "<配置>"] --sweep KEY=START..END:STEP
+// 対応KEY: startMoney / escortSpeed / enemyCountMul / enemyHpMul / triggerIntervalMul
+// 例:     node run_sim.js stages/stage_確定中級ステージ.json --tower "normal:12,4 sniper:15,4" --sweep startMoney=600..1400:100
+//
+// 通常実行時（スイープでなくても）、RESULT行に続けて護衛被弾・すり抜けのスポーン地点別
+// 内訳（[DAMAGE_BY_SPAWN]/[LEAK_BY_SPAWN]、2-7 機能B）を出力する。
 
 const fs   = require('fs');
 const path = require('path');
@@ -126,10 +135,17 @@ function parseTowerPattern(text) {
 }
 
 // ─── シミュレーション本体 ─────────────────────────────────────────────────────
+// stageFile（ファイルパス）を読み込んでrunStageに渡す薄いラッパー。
+// スイープモードは同一stageオブジェクトを使い回して何度もrunStageを呼ぶため、
+// ファイル読み込み自体はrunStageから切り離してある。
 function run(stageFile, towerPattern = '', opts = {}) {
+  const stage = JSON.parse(fs.readFileSync(path.join(ROOT, stageFile), 'utf8'));
+  return runStage(stage, towerPattern, opts);
+}
+
+function runStage(stage, towerPattern = '', opts = {}) {
   ctx.Zombie._seq = 0;  // 連続run()でのIDリセット
 
-  const stage = JSON.parse(fs.readFileSync(path.join(ROOT, stageFile), 'utf8'));
   const log   = [];
 
   ctx.COLS  = stage.grid.cols;
@@ -277,12 +293,19 @@ function run(stageFile, towerPattern = '', opts = {}) {
   let spawnTotal = 0, killCount = 0, closecallCount = 0, closestEver = Infinity;
   let scaledTime = 0;
 
+  // 被弾原因・すり抜けのスポーン地点別集計（2-7 機能B）
+  const damageBySpawn = new Map(); // "col,row" → { totalDmg, hits, byType: Map<type,count> }
+  const leakBySpawn   = new Map(); // "col,row" → count
+
   const spawnFn = (col, row, def, waveNum, leader) => {
     const finalDef = opts.enemySpeed ? { ...def, speed: +opts.enemySpeed } : def;
     spawnTotal++;
     const z = new ctx.Zombie(mockScene, col, row, finalDef, waveNum, leader);
-    z._firstContact = null;
+    z._firstContact  = null;
+    z._spawnOrigin   = { col, row };
+    z._killed        = false;
     z.onDeath = () => {
+      z._killed = true;
       killCount++;
       money += z.reward ?? 0;
       log.push(`[KILL]   t=${Math.round(scaledTime)}ms  id=${z._logId}  killCount=${killCount}  reward+${z.reward ?? 0}  残=${money}`);
@@ -295,7 +318,8 @@ function run(stageFile, towerPattern = '', opts = {}) {
 
   // ─── シミュレーションループ ──────────────────────────────────────────────────
   const DT       = 50;
-  const MAX_TIME = 600_000;
+  // 優先順位: CLI指定(opts.maxTimeMs) > ステージJSON指定(stage.simMaxTimeMs) > 既定値600000ms(10分)
+  const MAX_TIME = opts.maxTimeMs ? +opts.maxTimeMs : (stage.simMaxTimeMs ?? 600_000);
 
   while (scaledTime <= MAX_TIME) {
     mockScene.scaledTime = scaledTime;
@@ -328,7 +352,19 @@ function run(stageFile, towerPattern = '', opts = {}) {
 
     const alive = zombies.filter(z => z.alive);
     for (const z of alive) {
+      const _hpBefore = escortTarget ? escortTarget.hp : null;
       z.update(scaledTime, DT, escortTarget);
+      if (escortTarget && _hpBefore != null) {
+        const _dmg = _hpBefore - escortTarget.hp;
+        if (_dmg > 0) {
+          const _key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
+          let _rec = damageBySpawn.get(_key);
+          if (!_rec) { _rec = { totalDmg: 0, hits: 0, byType: new Map() }; damageBySpawn.set(_key, _rec); }
+          _rec.totalDmg += _dmg;
+          _rec.hits += 1;
+          _rec.byType.set(z.type, (_rec.byType.get(z.type) ?? 0) + 1);
+        }
+      }
       if (!z._firstContact && escortTarget) {
         const dx = escortTarget.x - z.x, dy = escortTarget.y - z.y;
         if (Math.sqrt(dx*dx + dy*dy) < CELL * 0.95) {
@@ -368,7 +404,7 @@ function run(stageFile, towerPattern = '', opts = {}) {
 
     scaledTime += DT;
   }
-  if (scaledTime > MAX_TIME) log.push('[TIMEOUT] 最大時間(10分)超過');
+  if (scaledTime > MAX_TIME) log.push(`[TIMEOUT] 最大時間(${Math.round(MAX_TIME / 60000)}分)超過`);
 
   const total       = escortDefs.length;
   const passThrough = spawnTotal - killCount;
@@ -377,18 +413,138 @@ function run(stageFile, towerPattern = '', opts = {}) {
   const closestPx   = closestEver === Infinity ? '-' : Math.round(closestEver);
   log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survivors}/${total} HP残=${hpPct}% CLOSE_CALL=${closecallCount}回 最接近=${closestPx}px 判定=${judgment}`);
 
+  // すり抜け（未撃破）をスポーン地点別に集計（2-7 機能B）
+  for (const z of allSpawned) {
+    if (z._killed) continue;
+    const key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
+    leakBySpawn.set(key, (leakBySpawn.get(key) ?? 0) + 1);
+  }
+
+  if (damageBySpawn.size > 0) {
+    log.push('[DAMAGE_BY_SPAWN]');
+    const sorted = [...damageBySpawn.entries()].sort((a, b) => b[1].totalDmg - a[1].totalDmg);
+    for (const [key, rec] of sorted) {
+      const byTypeStr = [...rec.byType.entries()].map(([t, n]) => `${t}×${n}`).join(', ');
+      log.push(`  spawn=(${key})   被弾${rec.hits}回  合計${rec.totalDmg}dmg  （${byTypeStr}）`);
+    }
+  }
+  if (leakBySpawn.size > 0) {
+    log.push('[LEAK_BY_SPAWN]');
+    const sorted = [...leakBySpawn.entries()].sort((a, b) => b[1] - a[1]);
+    for (const [key, count] of sorted) {
+      log.push(`  spawn=(${key})  すり抜け${count}体`);
+    }
+  }
+
   return { log, judgment, hpPct, spawnTotal, killCount, passThrough, closecallCount, closestEver, survivors, total };
+}
+
+// ─── スイープモード（2-7 機能A） ───────────────────────────────────────────────
+// "KEY=START..END:STEP" を解析して振る値の配列を返す
+function parseSweepExpr(expr) {
+  const m = expr.match(/^(\w+)=(-?\d+(?:\.\d+)?)\.\.(-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?)$/);
+  if (!m) throw new Error(`--sweep の形式が不正です: "${expr}"\n期待形式: KEY=START..END:STEP （例: startMoney=600..1400:100）`);
+  const [, key, startS, endS, stepS] = m;
+  const start = Number(startS), end = Number(endS), step = Number(stepS);
+  if (step === 0) throw new Error('--sweep のSTEPは0にできません');
+  const values = [];
+  if (step > 0) for (let v = start; v <= end + 1e-9; v += step) values.push(Math.round(v * 1000) / 1000);
+  else          for (let v = start; v >= end - 1e-9; v += step) values.push(Math.round(v * 1000) / 1000);
+  return { key, values };
+}
+
+// 対応キー: startMoney / escortSpeed / enemyCountMul / enemyHpMul / triggerIntervalMul
+// stage(生JSON)をディープコピーしてから上書きする（元のstageは書き換えない）
+function applySweepOverride(stage, opts, key, value) {
+  const newStage = JSON.parse(JSON.stringify(stage));
+  const newOpts  = { ...opts };
+
+  const forEachTrigger = (fn) => {
+    for (const esc of newStage.escorts ?? []) {
+      for (const seg of esc.segments ?? []) {
+        for (const trig of seg.triggers ?? []) fn(trig);
+      }
+    }
+  };
+  const forEachEnemy = (fn) => {
+    for (const esc of newStage.escorts ?? []) {
+      for (const seg of esc.segments ?? []) {
+        for (const entry of [...(seg.initial ?? []), ...(seg.triggers ?? [])]) fn(entry.enemy ?? entry);
+      }
+    }
+  };
+
+  switch (key) {
+    case 'startMoney':
+      newStage.startMoney = value;
+      break;
+    case 'escortSpeed':
+      newOpts.escortSpeed = value;
+      break;
+    case 'enemyCountMul':
+      forEachTrigger(trig => { if (trig.count != null) trig.count = Math.max(0, Math.round(trig.count * value)); });
+      break;
+    case 'enemyHpMul':
+      forEachEnemy(enemy => { if (enemy.hp != null) enemy.hp = Math.max(1, Math.round(enemy.hp * value)); });
+      break;
+    case 'triggerIntervalMul':
+      forEachTrigger(trig => { if (trig.interval != null) trig.interval = Math.max(0, Math.round(trig.interval * value)); });
+      break;
+    default:
+      throw new Error(`未対応の--sweepキー: "${key}"（対応: startMoney/escortSpeed/enemyCountMul/enemyHpMul/triggerIntervalMul）`);
+  }
+  return { newStage, newOpts };
+}
+
+function runSweep(stageFile, towerPattern, sweepExpr) {
+  const baseStage  = JSON.parse(fs.readFileSync(path.join(ROOT, stageFile), 'utf8'));
+  const { key, values } = parseSweepExpr(sweepExpr);
+
+  for (const value of values) {
+    const { newStage, newOpts } = applySweepOverride(baseStage, {}, key, value);
+    const res = runStage(newStage, towerPattern, newOpts);
+    console.log(
+      `${key}=${value}`.padEnd(20) +
+      `生還${res.survivors}/${res.total}`.padEnd(10) +
+      `HP残${res.hpPct}%`.padEnd(9) +
+      `撃破${res.killCount}/${res.spawnTotal}`.padEnd(11) +
+      `すり抜け${res.passThrough}`.padEnd(11) +
+      `CC=${res.closecallCount}`
+    );
+  }
 }
 
 // ─── CLI エントリ ─────────────────────────────────────────────────────────────
 if (require.main === module) {
-  const [,, stageFile, towerPattern, escortSpeed, enemySpeed] = process.argv;
+  const argv = process.argv.slice(2);
+  const sweepFlagIdx = argv.indexOf('--sweep');
+
+  if (sweepFlagIdx >= 0) {
+    // ─── スイープモード: node run_sim.js <stageFile> [--tower "<配置>"] --sweep KEY=START..END:STEP ───
+    const stageFile = argv[0];
+    if (!stageFile || stageFile.startsWith('--')) {
+      console.error('使い方: node run_sim.js <stageFile> [--tower "<配置>"] --sweep KEY=START..END:STEP');
+      process.exit(1);
+    }
+    const towerFlagIdx = argv.indexOf('--tower');
+    const towerPattern = towerFlagIdx >= 0 ? argv[towerFlagIdx + 1] : '';
+    try {
+      runSweep(stageFile, towerPattern, argv[sweepFlagIdx + 1]);
+    } catch (e) {
+      console.error(e.message);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // ─── 既存の位置引数モード（変更なし） ───────────────────────────────────────
+  const [stageFile, towerPattern, escortSpeed, enemySpeed, maxTimeMs] = argv;
   if (!stageFile) {
-    console.error('使い方: node run_sim.js <stageFile> [towerPattern] [escortSpeed] [enemySpeed]');
+    console.error('使い方: node run_sim.js <stageFile> [towerPattern] [escortSpeed] [enemySpeed] [maxTimeMs]');
     process.exit(1);
   }
-  const result = run(stageFile, towerPattern, { escortSpeed, enemySpeed });
+  const result = run(stageFile, towerPattern, { escortSpeed, enemySpeed, maxTimeMs });
   console.log(result.log.join('\n'));
 }
 
-module.exports = { run, parseTowerPattern };
+module.exports = { run, runStage, parseTowerPattern, parseSweepExpr, applySweepOverride };
