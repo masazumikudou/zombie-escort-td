@@ -26,11 +26,11 @@
   },
 
   "zombies": {
-    "salaryman":  { "hp": 75,  "speed": 50, "damage": 10, "reward": 20 },
-    "worker":     { "hp": 100, "speed": 50, "damage": 12, "reward": 25 },
-    "police":     { "hp": 150, "speed": 50, "damage": 15, "reward": 35 },
-    "kickboard":  { "hp": 60,  "speed": 90, "damage": 15, "reward": 30 },
-    "bird":       { "hp": 60,  "speed": 70, "damage": 12, "reward": 30 },
+    "salaryman":  { "hp": 100, "speed": 50, "damage": 10, "reward": 20 },
+    "worker":     { "hp": 150, "speed": 50, "damage": 12, "reward": 25 },
+    "police":     { "hp": 200, "speed": 50, "damage": 15, "reward": 35 },
+    "kickboard":  { "hp": 50,  "speed": 90, "damage": 15, "reward": 30 },
+    "bird":       { "hp": 50,  "speed": 70, "damage": 12, "reward": 30 },
     "debu":       { "hp": 300, "speed": 25, "damage": 20, "reward": 50 }
   },
 

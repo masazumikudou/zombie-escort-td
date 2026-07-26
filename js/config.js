@@ -124,11 +124,11 @@ const ESCORT_DEFS = {
 // ─── ゾンビ基準値 ────────────────────────────────────────────
 // balance.json が読めない場合のフォールバック。数値は balance.json を正とする
 const ZOMBIE_BASE = {
-  salaryman: { hp: 75,  speed: 50, damage: 10, reward: 20, skin: 'salaryman' },
-  worker:    { hp: 100, speed: 50, damage: 12, reward: 25, skin: 'worker'    },
-  police:    { hp: 150, speed: 50, damage: 15, reward: 35, skin: 'police'    },
-  kickboard: { hp: 60,  speed: 90, damage: 15, reward: 30, skin: 'kickboard' },
-  bird:      { hp: 60,  speed: 70, damage: 12, reward: 30, skin: 'bird', flying: true },
+  salaryman: { hp: 100, speed: 50, damage: 10, reward: 20, skin: 'salaryman' },
+  worker:    { hp: 150, speed: 50, damage: 12, reward: 25, skin: 'worker'    },
+  police:    { hp: 200, speed: 50, damage: 15, reward: 35, skin: 'police'    },
+  kickboard: { hp: 50,  speed: 90, damage: 15, reward: 30, skin: 'kickboard' },
+  bird:      { hp: 50,  speed: 70, damage: 12, reward: 30, skin: 'bird', flying: true },
   debu:      { hp: 300, speed: 25, damage: 20, reward: 50, skin: 'burger' },  // burgerスプライト(完成済み1体目・サイドビューのみ)を使用
 };
 
