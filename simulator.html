@@ -131,6 +131,8 @@ class SimTower {
     for (const z of zombies) {
       if (!z.alive) continue;
       if (noAA && z._flying) continue;
+      // 鳥は旋回に入るまで(侵入フェーズ=_birdPhase===null)交戦対象外（2026-07-26小松判断）
+      if (z._flying && z._birdPhase === null) continue;
       const tdx = z.x - this.x, tdy = z.y - this.y;
       if (Math.sqrt(tdx*tdx + tdy*tdy) > this.range) continue;
       const ref = escort ?? { x: this.x, y: this.y };

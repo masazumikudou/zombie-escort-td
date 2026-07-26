@@ -162,6 +162,9 @@ class Tower {
     for (const z of zombies) {
       if (!z.alive || z._spawnTimer > 0) continue;
       if (noAA && z._flying) continue;
+      // 鳥は旋回に入るまで(侵入フェーズ=_birdPhase===null)交戦対象外（2026-07-26小松判断）:
+      // 旋回演出がプレイヤーの読み時間として機能する前に射程外から撃破されてしまうため
+      if (z._flying && z._birdPhase === null) continue;
       const dx = z.x - this.x, dy = z.y - this.y;
       if (dx * dx + dy * dy > range2) continue;
       const ex = z.x - ref.x, ey = z.y - ref.y;
