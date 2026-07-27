@@ -1239,6 +1239,7 @@ class GameScene extends Phaser.Scene {
 
     this._delayedTowerQueue = [];
     const errors = [];
+    const placedCoords = new Set(); // JSON/テキスト入力の重複座標を検知（同一座標は先着1基のみ建設）
     for (const t of [...fromJson.map(t => ({ ...t, buildAt: 0 })), ...fromText]) {
       if (!TOWER_DEFS[t.type]) {
         errors.push(`不明なタワー種別: "${t.type}"`);
@@ -1252,6 +1253,12 @@ class GameScene extends Phaser.Scene {
         errors.push(`prop衝突（配置不可）: ${t.type}@(${t.col},${t.row})`);
         continue;
       }
+      const coordKey = `${t.col},${t.row}`;
+      if (placedCoords.has(coordKey)) {
+        errors.push(`重複配置（JSON/テキスト両方に同一座標指定・1基のみ建設）: ${t.type}@(${t.col},${t.row})`);
+        continue;
+      }
+      placedCoords.add(coordKey);
       if (t.buildAt > 0) {
         this._delayedTowerQueue.push(t);
       } else {
