@@ -32,6 +32,8 @@ class GameScene extends Phaser.Scene {
     this._playLog        = [];
     this._closecallCount = 0;
     this._closestEver    = Infinity;
+    this._damageBySpawn     = new Map();  // "col,row" → {totalDmg,hits,byType} 護衛被弾のスポーン地点別集計（2-7機能B）
+    this._allSpawnedZombies = [];         // すり抜け集計(LEAK_BY_SPAWN)用に全スポーン個体を保持
     this.debugOpen    = false;
     this.showGrid     = false;
     this.showPaths    = false;
@@ -331,18 +333,48 @@ class GameScene extends Phaser.Scene {
   _endGame() {
     const minS  = this.stageData.minSurvivors ?? 1;
     const total = this.escortDefs.length;
+    const hpPct = Math.round((this.escort?.hp ?? 0) / (this.escort?.maxHp || 1) * 100);
     if (this.survivors >= minS) {
       this.gameState = 'victory';
       audioSynth.stageClear();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  CLOSE_CALL=${this._closecallCount}回  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=CLEAR`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}%  CLOSE_CALL=${this._closecallCount}回  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=CLEAR`);
+      this._printDamageAndLeakLogs();
       this._printPlayLog();
       this._showResult('STAGE CLEAR!', '#ffff44', 'リスタート', true);
     } else {
       this.gameState = 'defeat';
       audioSynth.gameOver();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  CLOSE_CALL=${this._closecallCount}回  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=GAMEOVER`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}%  CLOSE_CALL=${this._closecallCount}回  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=GAMEOVER`);
+      this._printDamageAndLeakLogs();
       this._printPlayLog();
       this._showResult('GAME OVER', '#ff4444', 'もう一度', false);
+    }
+  }
+
+  // すり抜け（未撃破）・被弾をスポーン地点別に集計してログへ追加（run_sim.js/simulator.htmlと同一形式・2-7機能B）
+  _printDamageAndLeakLogs() {
+    if (this._damageBySpawn?.size > 0) {
+      this._playLog.push('[DAMAGE_BY_SPAWN]');
+      const sorted = [...this._damageBySpawn.entries()].sort((a, b) => b[1].totalDmg - a[1].totalDmg);
+      for (const [key, rec] of sorted) {
+        const byTypeStr = [...rec.byType.entries()].map(([t, n]) => `${t}×${n}`).join(', ');
+        this._playLog.push(`  spawn=(${key})   被弾${rec.hits}回  合計${rec.totalDmg}dmg  （${byTypeStr}）`);
+      }
+    }
+    if (this._allSpawnedZombies?.length > 0) {
+      const leakBySpawn = new Map();
+      for (const z of this._allSpawnedZombies) {
+        if (z._killed) continue;
+        const key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
+        leakBySpawn.set(key, (leakBySpawn.get(key) ?? 0) + 1);
+      }
+      if (leakBySpawn.size > 0) {
+        this._playLog.push('[LEAK_BY_SPAWN]');
+        const sorted = [...leakBySpawn.entries()].sort((a, b) => b[1] - a[1]);
+        for (const [key, count] of sorted) {
+          this._playLog.push(`  spawn=(${key})  すり抜け${count}体`);
+        }
+      }
     }
   }
 
@@ -380,7 +412,21 @@ class GameScene extends Phaser.Scene {
         this.waveManager.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader), escortTarget);
         this._yInflow?.update(this.scaledTime, (col, row, def, wn, leader) => this._spawnZombie(col, row, def, wn, leader));
 
-        this.zombies.forEach(z => z.update(this.scaledTime, step, escortTarget));
+        this.zombies.forEach(z => {
+          const _hpBefore = escortTarget ? escortTarget.hp : null;
+          z.update(this.scaledTime, step, escortTarget);
+          if (escortTarget && _hpBefore != null) {
+            const _dmg = _hpBefore - escortTarget.hp;
+            if (_dmg > 0) {
+              const _key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
+              let _rec = this._damageBySpawn.get(_key);
+              if (!_rec) { _rec = { totalDmg: 0, hits: 0, byType: new Map() }; this._damageBySpawn.set(_key, _rec); }
+              _rec.totalDmg += _dmg;
+              _rec.hits += 1;
+              _rec.byType.set(z.type, (_rec.byType.get(z.type) ?? 0) + 1);
+            }
+          }
+        });
         this.towers.forEach(t  => t.update(this.scaledTime, step, this.zombies, this.bullets, escortTarget));
 
         this.bullets = this.bullets.filter(b => b.active);
@@ -1297,10 +1343,13 @@ class GameScene extends Phaser.Scene {
       circleDurationMs: enemyDef.circleDurationMs,
     };
     const z = new Zombie(this, col, row, def, waveNum, leader);
+    z._spawnOrigin = { col, row };
+    z._killed      = false;
     this.spawnCount++;
     this._playLog.push(`[SPAWN]  t=${Math.round(this.scaledTime)}ms  id=${z._logId}  wave=${waveNum}  spawn=(${col},${row})  hp=${def.hp}  total=${this.spawnCount}`);
     const origOnDeath = z.onDeath;
     z.onDeath = () => {
+      z._killed = true;
       this.money += z.reward;
       this.killCount++;
       const src = z._lastHitBy;
@@ -1309,6 +1358,7 @@ class GameScene extends Phaser.Scene {
       if (origOnDeath) origOnDeath();
     };
     this.zombies.push(z);
+    this._allSpawnedZombies.push(z);
     return z;
   }
 

@@ -1,0 +1,215 @@
+{
+ "id": "stage_test_06",
+ "name": "型カタログ検証 3人リレー",
+ "grid": { "cols": 18, "rows": 18 },
+ "ground_base": "grass",
+ "startMoney": 1300,
+ "_comment_startMoney": "実機CLOSE_CALL計測用の暫定値。良100%配置13基=1300Gを開幕から自由に組めるようにし、資金繰りの制約を検証から切り離す目的。製品版の値ではない",
+ "minSurvivors": 1,
+ "spawns": {
+  "A1": {"col": 4,"row": 4}, "A2": {"col": 5,"row": 4}, "A3": {"col": 6,"row": 4},
+  "C1": {"col": 8,"row": 6}, "C2": {"col": 8,"row": 7},
+  "D1": {"col": 5,"row": 8}, "D2": {"col": 6,"row": 8}, "D3": {"col": 7,"row": 8}, "D4": {"col": 4,"row": 8},
+  "E1": {"col": 8,"row": 11},
+  "F1": {"col": 13,"row": 13}, "F2": {"col": 14,"row": 13},
+  "G1": {"col": 16,"row": 13}, "G2": {"col": 16,"row": 14},
+  "H1": {"col": 0,"row": 7}, "H2": {"col": 1,"row": 7},
+  "I1": {"col": 0,"row": 11}, "I2": {"col": 1,"row": 11}, "I3": {"col": 0,"row": 10},
+  "J1": {"col": 3,"row": 13}, "J2": {"col": 4,"row": 13}
+ },
+ "escorts": [
+  {
+   "variant": "dad", "startTrigger": "afterPrevious",
+   "start": {"col": 0,"row": 4}, "goal": {"col": 17,"row": 13},
+   "path": [
+    {"col":0,"row":4},{"col":1,"row":4},{"col":2,"row":4},{"col":3,"row":4},{"col":4,"row":4},
+    {"col":5,"row":4},{"col":6,"row":4},{"col":7,"row":4},{"col":8,"row":4},{"col":8,"row":5},
+    {"col":8,"row":6},{"col":8,"row":7},{"col":8,"row":8},{"col":8,"row":9},{"col":8,"row":10},
+    {"col":8,"row":11},{"col":8,"row":12},{"col":8,"row":13},{"col":9,"row":13},{"col":10,"row":13},
+    {"col":11,"row":13},{"col":12,"row":13},{"col":13,"row":13},{"col":14,"row":13},{"col":15,"row":13},
+    {"col":16,"row":13},{"col":17,"row":13}
+   ],
+   "hp": 120, "speed": 50,
+   "segments": [
+    { "segmentId": "seg1_ue", "range": {"fromWp":0,"toWp":8}, "onExit": "retreat",
+      "initial": [
+        {"spawn":"A1","enemy":{"type":"salaryman"}},
+        {"spawn":"A2","enemy":{"type":"salaryman"}},
+        {"spawn":"A3","enemy":{"type":"salaryman"}}
+      ], "triggers": [] },
+    { "segmentId": "seg2_tate", "range": {"fromWp":8,"toWp":17}, "onExit": "retreat",
+      "initial": [
+        {"spawn":"C1","enemy":{"type":"police"}},
+        {"spawn":"C2","enemy":{"type":"police"}},
+        {"spawn":"D1","enemy":{"type":"debu"}},
+        {"spawn":"D2","enemy":{"type":"debu"}},
+        {"spawn":"D3","enemy":{"type":"debu"}},
+        {"spawn":"D4","enemy":{"type":"debu"}}
+      ],
+      "triggers": [
+        { "type":"progress","atWpIdx":13,"spawn":"E1","count":3,"interval":100,"enemy":{"type":"kickboard"} }
+      ] },
+    { "segmentId": "seg3_shita", "range": {"fromWp":17,"toWp":26}, "onExit": "retreat",
+      "initial": [
+        {"spawn":"F1","enemy":{"type":"police"}},
+        {"spawn":"F2","enemy":{"type":"police"}},
+        {"spawn":"G1","enemy":{"type":"debu"}},
+        {"spawn":"G2","enemy":{"type":"debu"}}
+      ], "triggers": [] }
+   ]
+  },
+  {
+   "variant": "mom", "startTrigger": "afterPrevious",
+   "start": {"col": 0,"row": 4}, "goal": {"col": 17,"row": 13},
+   "path": [
+    {"col":0,"row":4},{"col":0,"row":5},{"col":0,"row":6},{"col":0,"row":7},{"col":0,"row":8},
+    {"col":0,"row":9},{"col":0,"row":10},{"col":0,"row":11},{"col":0,"row":12},{"col":0,"row":13},
+    {"col":1,"row":13},{"col":2,"row":13},{"col":3,"row":13},{"col":4,"row":13},{"col":5,"row":13},
+    {"col":6,"row":13},{"col":7,"row":13},{"col":8,"row":13},{"col":9,"row":13},{"col":10,"row":13},
+    {"col":11,"row":13},{"col":12,"row":13},{"col":13,"row":13},{"col":14,"row":13},{"col":15,"row":13},
+    {"col":16,"row":13},{"col":17,"row":13}
+   ],
+   "hp": 90, "speed": 65,
+   "segments": [
+    { "segmentId": "seg1_hidari", "range": {"fromWp":0,"toWp":9}, "onExit": "retreat",
+      "initial": [
+        {"spawn":"H1","enemy":{"type":"police"}},
+        {"spawn":"H2","enemy":{"type":"police"}},
+        {"spawn":"I1","enemy":{"type":"worker"}},
+        {"spawn":"I2","enemy":{"type":"worker"}},
+        {"spawn":"I3","enemy":{"type":"worker"}}
+      ], "triggers": [] },
+    { "segmentId": "seg2_shita", "range": {"fromWp":9,"toWp":26}, "onExit": "retreat",
+      "initial": [
+        {"spawn":"J1","enemy":{"type":"debu"}},
+        {"spawn":"J2","enemy":{"type":"debu"}},
+        {"spawn":"F1","enemy":{"type":"police"}},
+        {"spawn":"F2","enemy":{"type":"police"}},
+        {"spawn":"G1","enemy":{"type":"debu"}},
+        {"spawn":"G2","enemy":{"type":"debu"}}
+      ],
+      "triggers": [
+        { "type":"progress","atWpIdx":14,"spawn":"E1","count":3,"interval":100,"enemy":{"type":"kickboard"} }
+      ] }
+   ]
+  },
+  {
+   "variant": "son", "startTrigger": "afterPrevious",
+   "start": {"col": 0,"row": 4}, "goal": {"col": 17,"row": 13},
+   "path": [
+    {"col":0,"row":4},{"col":1,"row":4},{"col":2,"row":4},{"col":3,"row":4},{"col":4,"row":4},
+    {"col":5,"row":4},{"col":6,"row":4},{"col":7,"row":4},{"col":8,"row":4},{"col":8,"row":5},
+    {"col":8,"row":6},{"col":8,"row":7},{"col":8,"row":8},{"col":8,"row":9},{"col":8,"row":10},
+    {"col":8,"row":11},{"col":8,"row":12},{"col":8,"row":13},{"col":9,"row":13},{"col":10,"row":13},
+    {"col":11,"row":13},{"col":12,"row":13},{"col":13,"row":13},{"col":14,"row":13},{"col":15,"row":13},
+    {"col":16,"row":13},{"col":17,"row":13}
+   ],
+   "hp": 80, "speed": 70,
+   "segments": [
+    { "segmentId": "seg1_ue", "range": {"fromWp":0,"toWp":8}, "onExit": "retreat",
+      "initial": [
+        {"spawn":"A1","enemy":{"type":"salaryman"}},
+        {"spawn":"A2","enemy":{"type":"salaryman"}},
+        {"spawn":"A3","enemy":{"type":"salaryman"}}
+      ], "triggers": [] },
+    { "segmentId": "seg2_tate", "range": {"fromWp":8,"toWp":17}, "onExit": "retreat",
+      "initial": [
+        {"spawn":"C1","enemy":{"type":"police"}},
+        {"spawn":"C2","enemy":{"type":"police"}},
+        {"spawn":"D1","enemy":{"type":"debu"}},
+        {"spawn":"D2","enemy":{"type":"debu"}},
+        {"spawn":"D3","enemy":{"type":"debu"}},
+        {"spawn":"D4","enemy":{"type":"debu"}}
+      ],
+      "triggers": [
+        { "type":"progress","atWpIdx":13,"spawn":"E1","count":3,"interval":100,"enemy":{"type":"kickboard"} }
+      ] },
+    { "segmentId": "seg3_shita", "range": {"fromWp":17,"toWp":26}, "onExit": "retreat",
+      "initial": [
+        {"spawn":"F1","enemy":{"type":"police"}},
+        {"spawn":"F2","enemy":{"type":"police"}},
+        {"spawn":"G1","enemy":{"type":"debu"}},
+        {"spawn":"G2","enemy":{"type":"debu"}}
+      ], "triggers": [] }
+   ]
+  }
+ ],
+ "obstacles": [],
+ "buildSpots": [
+  {"col":0,"row":4},{"col":0,"row":9},{"col":0,"row":14},
+  {"col":1,"row":0},{"col":1,"row":1},{"col":1,"row":2},{"col":1,"row":3},{"col":1,"row":4},
+  {"col":1,"row":5},{"col":1,"row":6},{"col":1,"row":7},{"col":1,"row":8},{"col":1,"row":9},
+  {"col":1,"row":10},{"col":1,"row":11},{"col":1,"row":12},{"col":1,"row":13},{"col":1,"row":14},
+  {"col":1,"row":15},{"col":1,"row":16},{"col":1,"row":17},
+  {"col":2,"row":4},{"col":2,"row":7},{"col":2,"row":9},{"col":2,"row":14},{"col":2,"row":17},
+  {"col":3,"row":4},{"col":3,"row":7},{"col":3,"row":9},{"col":3,"row":14},
+  {"col":4,"row":4},{"col":4,"row":5},{"col":4,"row":7},{"col":4,"row":9},{"col":4,"row":14},{"col":4,"row":15},
+  {"col":5,"row":4},{"col":5,"row":7},{"col":5,"row":9},{"col":5,"row":14},
+  {"col":6,"row":4},{"col":6,"row":7},{"col":6,"row":9},{"col":6,"row":14},
+  {"col":7,"row":4},{"col":7,"row":5},{"col":7,"row":6},{"col":7,"row":7},{"col":7,"row":9},{"col":7,"row":14},
+  {"col":8,"row":4},{"col":8,"row":9},{"col":8,"row":14},
+  {"col":9,"row":0},{"col":9,"row":1},{"col":9,"row":2},{"col":9,"row":3},{"col":9,"row":4},
+  {"col":9,"row":5},{"col":9,"row":6},{"col":9,"row":7},{"col":9,"row":8},{"col":9,"row":9},
+  {"col":9,"row":10},{"col":9,"row":11},{"col":9,"row":12},{"col":9,"row":13},{"col":9,"row":14},
+  {"col":9,"row":15},{"col":9,"row":16},{"col":9,"row":17},
+  {"col":10,"row":4},{"col":10,"row":7},{"col":10,"row":9},{"col":10,"row":14},{"col":10,"row":17},
+  {"col":11,"row":4},{"col":11,"row":7},{"col":11,"row":9},{"col":11,"row":14},
+  {"col":12,"row":4},{"col":12,"row":5},{"col":12,"row":7},{"col":12,"row":9},{"col":12,"row":14},{"col":12,"row":15},
+  {"col":13,"row":4},{"col":13,"row":9},{"col":13,"row":14},
+  {"col":14,"row":4},{"col":14,"row":9},{"col":14,"row":14},
+  {"col":15,"row":4},{"col":15,"row":9},{"col":15,"row":14},{"col":15,"row":15},
+  {"col":16,"row":4},{"col":16,"row":9},{"col":16,"row":12},{"col":16,"row":14},{"col":16,"row":15},
+  {"col":17,"row":4},{"col":17,"row":9},{"col":17,"row":12},{"col":17,"row":14},{"col":17,"row":15}
+ ],
+ "ground_cells": [
+  {"col":0,"row":3,"type":"道横"},{"col":0,"row":8,"type":"道横"},{"col":0,"row":13,"type":"道横"},
+  {"col":1,"row":3,"type":"道横"},{"col":1,"row":8,"type":"道横"},{"col":1,"row":13,"type":"道横"},
+  {"col":2,"row":3,"type":"道横"},{"col":2,"row":8,"type":"道横"},{"col":2,"row":13,"type":"道横"},
+  {"col":3,"row":3,"type":"道横"},{"col":3,"row":8,"type":"道横"},{"col":3,"row":13,"type":"道横"},
+  {"col":4,"row":3,"type":"道横"},{"col":4,"row":8,"type":"道横"},{"col":4,"row":13,"type":"道横"},
+  {"col":5,"row":3,"type":"道横"},{"col":5,"row":8,"type":"道横"},{"col":5,"row":13,"type":"道横"},
+  {"col":6,"row":3,"type":"道横"},{"col":6,"row":8,"type":"道横"},{"col":6,"row":13,"type":"道横"},
+  {"col":7,"row":3,"type":"道横"},{"col":7,"row":8,"type":"道横"},{"col":7,"row":13,"type":"道横"},
+  {"col":8,"row":3,"type":"道横"},{"col":8,"row":8,"type":"道横"},{"col":8,"row":13,"type":"道横"},
+  {"col":9,"row":3,"type":"道横"},{"col":9,"row":8,"type":"道横"},{"col":9,"row":13,"type":"道横"},
+  {"col":10,"row":3,"type":"道横"},{"col":10,"row":8,"type":"道横"},{"col":10,"row":13,"type":"道横"},
+  {"col":11,"row":3,"type":"道横"},{"col":11,"row":8,"type":"道横"},{"col":11,"row":13,"type":"道横"},
+  {"col":12,"row":3,"type":"道横"},{"col":12,"row":8,"type":"道横"},{"col":12,"row":13,"type":"道横"},
+  {"col":13,"row":3,"type":"道横"},{"col":13,"row":8,"type":"道横"},{"col":13,"row":13,"type":"道横"},
+  {"col":14,"row":3,"type":"道横"},{"col":14,"row":8,"type":"道横"},{"col":14,"row":13,"type":"道横"},
+  {"col":15,"row":3,"type":"道横"},{"col":15,"row":8,"type":"道横"},{"col":15,"row":13,"type":"道横"},
+  {"col":16,"row":3,"type":"道横"},{"col":16,"row":8,"type":"道横"},{"col":16,"row":13,"type":"道横"},
+  {"col":17,"row":3,"type":"道横"},{"col":17,"row":8,"type":"道横"},{"col":17,"row":13,"type":"道横"},
+  {"col":0,"row":0,"type":"道縦ノーマル (2)"},{"col":8,"row":0,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":1,"type":"道縦ノーマル (2)"},{"col":8,"row":1,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":2,"type":"道縦ノーマル (2)"},{"col":8,"row":2,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":4,"type":"道縦ノーマル (2)"},{"col":8,"row":4,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":5,"type":"道縦ノーマル (2)"},{"col":8,"row":5,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":6,"type":"道縦ノーマル (2)"},{"col":8,"row":6,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":7,"type":"道縦ノーマル (2)"},{"col":8,"row":7,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":9,"type":"道縦ノーマル (2)"},{"col":8,"row":9,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":10,"type":"道縦ノーマル (2)"},{"col":8,"row":10,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":11,"type":"道縦ノーマル (2)"},{"col":8,"row":11,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":12,"type":"道縦ノーマル (2)"},{"col":8,"row":12,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":14,"type":"道縦ノーマル (2)"},{"col":8,"row":14,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":15,"type":"道縦ノーマル (2)"},{"col":8,"row":15,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":16,"type":"道縦ノーマル (2)"},{"col":8,"row":16,"type":"道縦ノーマル (2)"},
+  {"col":0,"row":17,"type":"道縦ノーマル (2)"},{"col":8,"row":17,"type":"道縦ノーマル (2)"}
+ ],
+ "props": [
+  {"type":"家青","col":2,"row":0}, {"type":"家青","col":2,"row":10},
+  {"type":"家緑","col":5,"row":10}, {"type":"家緑","col":5,"row":0},
+  {"type":"アイスクリーム","col":2,"row":5}, {"type":"ハンバーガー","col":5,"row":5},
+  {"type":"ハンバーガー","col":10,"row":15}, {"type":"アイスクリーム","col":2,"row":15},
+  {"type":"アイスクリーム","col":10,"row":5}, {"type":"ハンバーガー","col":13,"row":15},
+  {"type":"家青","col":10,"row":10}, {"type":"家青","col":10,"row":0},
+  {"type":"家青","col":5,"row":15}, {"type":"家緑","col":13,"row":10},
+  {"type":"家緑","col":13,"row":0}, {"type":"家青","col":13,"row":5},
+  {"type":"木2","col":16,"row":7}, {"type":"木2","col":17,"row":7},
+  {"type":"木2","col":16,"row":5}, {"type":"木2","col":17,"row":5},
+  {"type":"木2","col":16,"row":2}, {"type":"木2","col":17,"row":2},
+  {"type":"木2","col":16,"row":10}, {"type":"木2","col":17,"row":10},
+  {"type":"木2","col":16,"row":16}, {"type":"木2","col":17,"row":16},
+  {"type":"木2","col":17,"row":17}, {"type":"木2","col":16,"row":17}
+ ]
+}
