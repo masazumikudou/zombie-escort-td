@@ -100,7 +100,7 @@ GameScene.jsはground_cellsを1件でも指定すると「登録セル以外は�
 
 **方針**: `node validate_stage.js <stageFile>` の単体スクリプト（新規・実装規模100行前後）として、以下をシム実行前に静的チェックする:
 
-1. buildSpots vs propフットプリント衝突（今回発見した件）
+1. buildSpots vs propフットプリント衝突（今回発見した件）。**【2026-07-27・部分実装済み】** run_sim.js/simulator.htmlのタワー建設処理自体に実行時チェックとして追加済み（衝突する座標への設置は`[ERROR]`ログで拒否）。ただしこれは「シム実行中に配置しようとした時点で弾く」ランタイムゲートであり、validate_stage.jsが目指す「シム実行前の静的チェック（全buildSpotsを事前に一覧報告）」とは性質が異なるため、本項目としては引き続き未着手（両方あると強い：静的チェックは配置前の一覧確認、ランタイムゲートは万一の見逃しの最終防波堤）。GameScene.js（実機）側は未対応のまま
 2. buildSpots vs 道路セル(ground_cells)衝突（旧`(5,8)`の件と同種。**本ステージにも未修正の`(13,2)`・`(16,8)`が残存確認済み**）
 3. initial/triggersの`spawn`キーが`spawns`に未定義の場合、黙殺せず即エラー
 4. スポーン座標・leashTo座標の歩行可能性（`ground_cells`定義時のroad-only判定と整合）

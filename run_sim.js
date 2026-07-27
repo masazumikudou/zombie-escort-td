@@ -189,6 +189,25 @@ function runStage(stage, towerPattern = '', opts = {}) {
   const mockScene  = { flowField: ff, _playLog: log, scaledTime: 0,
                        add: ctx.createMockSceneAdd(), textures: ctx.MOCK_TEXTURES, anims: ctx.MOCK_ANIMS };
 
+  // propフットプリントが占有する全セルを事前計算（タワー設置不可判定用・2026-07-27追加）
+  // 「シムが衝突の最終ゲートキーパー」という前提が実際には未実装だった穴を塞ぐ
+  //
+  // 注意: vmコンテキストのトップレベルconst/letは、宣言時にctx.NAMEというプロパティに
+  // 必ずしも反映されない（Node vmの既知の癖。TOWER_DEFS/GROUND_BLOCK_DEFS等は偶然
+  // 露出していたが、PROP_DEFSはctx.PROP_DEFSではundefinedだった＝実地検証で発覚）。
+  // 確実に取得するには vm.runInContext() でコンテキスト内の束縛として評価すること。
+  const PROP_DEFS = vm.runInContext('PROP_DEFS', ctx);
+  const propBlocked = new Map();  // "col,row" -> "type@(col,row)" ラベル
+  for (const p of stage.props ?? []) {
+    const pdef = PROP_DEFS?.[p.type];
+    if (!pdef) continue;
+    for (let dc = 0; dc < (pdef.cols ?? 1); dc++) {
+      for (let dr = 0; dr < (pdef.rows ?? 1); dr++) {
+        propBlocked.set(`${p.col + dc},${p.row + dr}`, `${p.type}@(${p.col},${p.row})`);
+      }
+    }
+  }
+
   // ─── リレー状態（GameScene.jsの escortIdx/relayPhase/intervalTimer/survivors と同一設計） ───
   const RELAY_INTERVAL = 4000;  // GameScene.js の RELAY_INTERVAL と一致させること（1×基準・4000ms固定）
   const escortDefs = stage.escorts;
@@ -283,6 +302,8 @@ function runStage(stage, towerPattern = '', opts = {}) {
     const TOWER_DEFS = ctx.TOWER_DEFS;
     const def = TOWER_DEFS[tp.type];
     if (!def) { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }
+    const propHit = propBlocked.get(`${tp.col},${tp.row}`);
+    if (propHit) { log.push(`[ERROR]  設置不可: ${tp.type}@(${tp.col},${tp.row}) はprop(${propHit})のフットプリント内です。ステージ側のbuildSpots/props定義が不整合`); continue; }
     if (money < def.cost) { log.push(`[WARN]   資金不足: ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`); continue; }
     simTowers.push(makeSimTower(tp.col, tp.row, tp.type, log));
     money -= def.cost;
@@ -339,6 +360,8 @@ function runStage(stage, towerPattern = '', opts = {}) {
       const TOWER_DEFS = ctx.TOWER_DEFS;
       const def = TOWER_DEFS[tp.type];
       if (!def) { log.push(`[WARN]   不明タワー種別: ${tp.type}`); continue; }
+      const propHit = propBlocked.get(`${tp.col},${tp.row}`);
+      if (propHit) { log.push(`[ERROR]  t=${Math.round(scaledTime)}ms 設置不可: ${tp.type}@(${tp.col},${tp.row}) はprop(${propHit})のフットプリント内です。ステージ側のbuildSpots/props定義が不整合`); continue; }
       if (money < def.cost) { log.push(`[WARN]   t=${Math.round(scaledTime)}ms 資金不足: ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`); continue; }
       simTowers.push(makeSimTower(tp.col, tp.row, tp.type, log));
       money -= def.cost;
