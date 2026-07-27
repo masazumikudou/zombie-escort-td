@@ -100,6 +100,7 @@ function makeSimTower(col, row, type, log) {
       let best = null, bestDist = Infinity;
       for (const z of zombies) {
         if (!z.alive) continue;
+        if (z._spawnTimer > 0) continue;
         if (noAA && z._flying) continue;
         // 鳥は旋回に入るまで(侵入フェーズ=_birdPhase===null)交戦対象外（2026-07-26小松判断）
         if (z._flying && z._birdPhase === null) continue;

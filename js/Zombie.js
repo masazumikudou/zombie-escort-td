@@ -74,7 +74,7 @@ var Zombie = class Zombie {
       this._entryTargetY = et.y;
       this._entryMoveStart = null;
     }
-    this._spawnTimer   = 2000;  // スポーン後2秒は移動・攻撃しない（タワー被弾は有効）
+    this._spawnTimer   = 2000;  // スポーン後2秒は移動・攻撃しない（タワーからの被弾・ターゲット対象からも除外される＝実質無敵）
     // トレイル（リーダーのみ記録、フォロワーはリーダーのcellTrailを参照）
     this.cellTrail     = (leader === null) ? [cellCenter(spawnCol, spawnRow)] : null;
     this._lastTrailCol = spawnCol;
