@@ -298,7 +298,7 @@ var SegmentManager = class SegmentManager {
       this.segments.forEach((seg, segIdx) => {
         for (const def of (seg.initial ?? [])) {
           const coord = this.spawns[def.spawn];
-          if (!coord) continue;
+          if (!coord) { console.warn(`[SegmentManager] initial: 未定義のspawn名「${def.spawn}」（segment=${seg.segmentId ?? segIdx}）。stage.spawnsに存在しないため配置スキップ`); continue; }
           const z = spawnFn(coord.col, coord.row, this._buildEnemyDef(def.enemy ?? def), segIdx, null);
           // initial配置は護衛範囲円ゲートで静止させる（progress/intervalスポーンは即行動）
           if (z) { z._engageGate = true; this._segZombieGroups[segIdx].push(z); }
@@ -331,7 +331,11 @@ var SegmentManager = class SegmentManager {
       if (this._fired.has(key)) continue;
       if (trig.type === 'progress' && escort.wpIdx >= trig.atWpIdx) {
         const coord = this.spawns[trig.spawn];
-        if (!coord) { this._fired.add(key); continue; }
+        if (!coord) {
+          console.warn(`[SegmentManager] trigger: 未定義のspawn名「${trig.spawn}」（segment=${seg.segmentId ?? this._segIdx}, atWpIdx=${trig.atWpIdx}）。stage.spawnsに存在しないため発火をスキップ`);
+          this._fired.add(key);
+          continue;
+        }
         const count    = trig.count ?? 1;
         const interval = trig.interval ?? 0;
         const enemyDef = this._buildEnemyDef(trig.enemy ?? trig);
