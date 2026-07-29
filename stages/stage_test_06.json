@@ -13,6 +13,7 @@
   "F1": {"col": 13,"row": 13}, "F2": {"col": 14,"row": 13},
   "G1": {"col": 16,"row": 13}, "G2": {"col": 16,"row": 14},
   "H1": {"col": 0,"row": 7}, "H2": {"col": 1,"row": 7},
+  "H1b": {"col": 0,"row": 10}, "H2b": {"col": 1,"row": 10},
   "I1": {"col": 0,"row": 11}, "I2": {"col": 1,"row": 11}, "I3": {"col": 0,"row": 10},
   "J1": {"col": 3,"row": 13}, "J2": {"col": 4,"row": 13}
  },
@@ -53,7 +54,7 @@
       ],
       "triggers": [
         { "type":"progress","atWpIdx":18,"spawn":"G1","count":5,"interval":500,
-          "_comment_trigger": "Gから来る型。stage_test_08で確定した5体・0.5秒を実ステージに適用（2026-07-29）。G1のデブはCLOSE_CALL内訳を分離するため削除済み。",
+          "_comment_trigger": "Gから来る型。stage_test_08で確定したdad(speed50)の値5体・0.5秒。G1のデブはCLOSE_CALL内訳を分離するため削除済み。",
           "enemy":{"type":"kickboard"} }
       ] }
    ]
@@ -72,12 +73,11 @@
    "hp": 90, "speed": 65,
    "segments": [
     { "segmentId": "seg1_hidari", "range": {"fromWp":0,"toWp":9}, "onExit": "retreat",
+      "_comment_segment": "2026-07-29改訂。旧構成はH1(0,7)/H2(1,7)の警察2体がmomのpath上にあり、ゼロ距離接触で45dmg被弾していた（タワーを増やしても改善せず）。spec07 §2-5に従い警察をrow10へ後退させ、あわせて作業員を3体→1体に減らして密度を調整。",
       "initial": [
-        {"spawn":"H1","enemy":{"type":"police"}},
-        {"spawn":"H2","enemy":{"type":"police"}},
-        {"spawn":"I1","enemy":{"type":"worker"}},
-        {"spawn":"I2","enemy":{"type":"worker"}},
-        {"spawn":"I3","enemy":{"type":"worker"}}
+        {"spawn":"H1b","enemy":{"type":"police"}},
+        {"spawn":"H2b","enemy":{"type":"police"}},
+        {"spawn":"I1","enemy":{"type":"worker"}}
       ], "triggers": [] },
     { "segmentId": "seg2_shita", "range": {"fromWp":9,"toWp":26}, "onExit": "retreat",
       "initial": [
@@ -122,9 +122,13 @@
       "initial": [
         {"spawn":"F1","enemy":{"type":"police"}},
         {"spawn":"F2","enemy":{"type":"police"}},
-        {"spawn":"G1","enemy":{"type":"debu"}},
         {"spawn":"G2","enemy":{"type":"debu"}}
-      ], "triggers": [] }
+      ],
+      "triggers": [
+        { "type":"progress","atWpIdx":18,"spawn":"G1","count":4,"interval":500,
+          "_comment_trigger": "Gから来る型。stage_test_09で確定したson(speed70)の値4体・0.5秒。dadは5体だが速いsonは4体で成立する。G1のデブはCLOSE_CALL内訳を分離するため削除済み。",
+          "enemy":{"type":"kickboard"} }
+      ] }
    ]
   }
  ],
