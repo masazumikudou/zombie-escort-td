@@ -63,7 +63,7 @@ class GameScene extends Phaser.Scene {
 
     // 経路探索（props の占有セルも obstacles と同等にブロック）
     this.pf = new Pathfinder(sd.grid.cols, sd.grid.rows, sd.obstacles);
-    this._propBlocked = new Set();
+    this._propBlocked = new Map(); // "col,row" → "type@(col,row)" ラベル（run_sim.js/simulator.htmlと同一形式）
     for (const prop of (sd.props || [])) {
       const def = PROP_DEFS[prop.type];
       if (!def) continue;
@@ -71,7 +71,7 @@ class GameScene extends Phaser.Scene {
         for (let dr = 0; dr < def.rows; dr++) {
           const key = `${prop.col + dc},${prop.row + dr}`;
           this.pf.blocked.add(key);
-          this._propBlocked.add(key);
+          this._propBlocked.set(key, `${prop.type}@(${prop.col},${prop.row})`);
         }
       }
     }
@@ -1261,8 +1261,9 @@ class GameScene extends Phaser.Scene {
         errors.push(`範囲外: ${t.type}@(${t.col},${t.row})`);
         continue;
       }
-      if (this._propBlocked.has(`${t.col},${t.row}`)) {
-        errors.push(`prop衝突（配置不可）: ${t.type}@(${t.col},${t.row})`);
+      const propHit = this._propBlocked.get(`${t.col},${t.row}`);
+      if (propHit) {
+        errors.push(`[ERROR] 設置不可: ${t.type}@(${t.col},${t.row}) はprop(${propHit})のフットプリント内です。ステージ側のbuildSpots/props定義が不整合`);
         continue;
       }
       const coordKey = `${t.col},${t.row}`;
@@ -1287,8 +1288,11 @@ class GameScene extends Phaser.Scene {
   _canPlace(col, row, type) {
     if (this._buildLocked) return false;  // Y中は新規建設禁止
     if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
+    // prop衝突はbuildSpots権威より優先（run_sim.js/simulator.htmlと同一判定・2026-07-29）。
+    // buildSpotが道路セル上に乗るのは仕様だが、propのフットプリント内は常に設置不可。
+    if (this._propBlocked.has(`${col},${row}`)) return false;
     if (this.buildSpots.size > 0) {
-      // buildSpots定義ステージ: buildSpotの権威を最優先（pf.blocked=草マスでも建設可）
+      // buildSpots定義ステージ: buildSpotの権威を優先（pf.blocked=草マスでも建設可。propのみ上のガードで別途除外）
       if (!this.buildSpots.has(`${col},${row}`)) return false;
     } else {
       // buildSpots未定義の自由配置ステージ: walkable判定で道路・prop侵入を防ぐ
