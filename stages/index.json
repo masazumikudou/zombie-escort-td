@@ -7,6 +7,7 @@
     { "id": 5, "file": "stages/stage_お父さん、寄り道中.json",        "title": "お父さん、寄り道中" },
     { "id": 6, "file": "stages/stage_鳥プレビュー.json",              "title": "【確認用】鳥プレビュー" },
     { "id": 7, "file": "stages/stage_test_06.json",                   "title": "型カタログ検証 3人リレー" },
-    { "id": 8, "file": "stages/stage_test_08.json",                   "title": "キックボード緊張度テスト" }
+    { "id": 8, "file": "stages/stage_test_08.json",                   "title": "キックボード緊張度テスト" },
+    { "id": 9, "file": "stages/stage_test_09.json",                   "title": "キックボード家族別テスト" }
   ]
 }
