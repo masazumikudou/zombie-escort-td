@@ -35,6 +35,7 @@ class GameScene extends Phaser.Scene {
     this._damageBySpawn     = new Map();  // "col,row" → {totalDmg,hits,byType} 護衛被弾のスポーン地点別集計（2-7機能B）
     this._allSpawnedZombies = [];         // すり抜け集計(LEAK_BY_SPAWN)用に全スポーン個体を保持
     this._closeCallBySpawn  = new Map();  // "col,row" → {count,closest} CLOSE_CALLのスポーン地点別集計
+    this._escortHpRecords   = [];         // [{variant,hp,maxHp}] 護衛ごとのHP残（交代時にスナップショット・2026-07-29追加）
     this.debugOpen    = false;
     this.showGrid     = false;
     this.showPaths    = false;
@@ -280,8 +281,14 @@ class GameScene extends Phaser.Scene {
     this.relayPhase = 'active';
   }
 
+  // 護衛ごとのHP残スナップショット（run_sim.js/simulator.htmlと同一設計）
+  _recordEscortHp() {
+    this._escortHpRecords.push({ variant: this.escort.variant, hp: this.escort.hp, maxHp: this.escort.maxHp });
+  }
+
   // ─── リレー：護衛者終了処理 ───────────────────────────────
   _onEscortDone(reached) {
+    this._recordEscortHp();
     if (reached) {
       this.survivors++;
       this._playLog.push(`[REACH]  t=${Math.round(this.scaledTime)}ms  護衛ゴール到達  生存護衛=${this.survivors}`);
@@ -334,18 +341,23 @@ class GameScene extends Phaser.Scene {
   _endGame() {
     const minS  = this.stageData.minSurvivors ?? 1;
     const total = this.escortDefs.length;
-    const hpPct = Math.round((this.escort?.hp ?? 0) / (this.escort?.maxHp || 1) * 100);
+    // HP残: 全護衛のHP合計÷maxHp合計（交代のたびに前護衛のHPが消えるバグを修正・2026-07-29）
+    if (this._escortHpRecords.length <= this.escortIdx) this._recordEscortHp();
+    const hpSum       = this._escortHpRecords.reduce((s, r) => s + r.hp, 0);
+    const hpMaxSum    = this._escortHpRecords.reduce((s, r) => s + r.maxHp, 0);
+    const hpPct       = hpMaxSum > 0 ? Math.round(hpSum / hpMaxSum * 100) : 0;
+    const hpBreakdown = this._escortHpRecords.map(r => `${r.variant}${Math.round(r.hp / r.maxHp * 100)}`).join('/');
     if (this.survivors >= minS) {
       this.gameState = 'victory';
       audioSynth.stageClear();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}%  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=CLEAR`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}% (${hpBreakdown})  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=CLEAR`);
       this._printDamageAndLeakLogs();
       this._printPlayLog();
       this._showResult('STAGE CLEAR!', '#ffff44', 'リスタート', true);
     } else {
       this.gameState = 'defeat';
       audioSynth.gameOver();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}%  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=GAMEOVER`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}% (${hpBreakdown})  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=GAMEOVER`);
       this._printDamageAndLeakLogs();
       this._printPlayLog();
       this._showResult('GAME OVER', '#ff4444', 'もう一度', false);
@@ -358,8 +370,9 @@ class GameScene extends Phaser.Scene {
       this._playLog.push('[DAMAGE_BY_SPAWN]');
       const sorted = [...this._damageBySpawn.entries()].sort((a, b) => b[1].totalDmg - a[1].totalDmg);
       for (const [key, rec] of sorted) {
-        const byTypeStr = [...rec.byType.entries()].map(([t, n]) => `${t}×${n}`).join(', ');
-        this._playLog.push(`  spawn=(${key})   被弾${rec.hits}回  合計${rec.totalDmg}dmg  （${byTypeStr}）`);
+        const byTypeStr   = [...rec.byType.entries()].map(([t, n]) => `${t}×${n}`).join(', ');
+        const byEscortStr = [...rec.byEscort.entries()].map(([v, n]) => `${v}×${n}`).join(', ');
+        this._playLog.push(`  spawn=(${key})   被弾${rec.hits}回  合計${rec.totalDmg}dmg  （${byTypeStr}）  護衛=${byEscortStr}`);
       }
     }
     if (this._allSpawnedZombies?.length > 0) {
@@ -427,10 +440,11 @@ class GameScene extends Phaser.Scene {
             if (_dmg > 0) {
               const _key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
               let _rec = this._damageBySpawn.get(_key);
-              if (!_rec) { _rec = { totalDmg: 0, hits: 0, byType: new Map() }; this._damageBySpawn.set(_key, _rec); }
+              if (!_rec) { _rec = { totalDmg: 0, hits: 0, byType: new Map(), byEscort: new Map() }; this._damageBySpawn.set(_key, _rec); }
               _rec.totalDmg += _dmg;
               _rec.hits += 1;
               _rec.byType.set(z.type, (_rec.byType.get(z.type) ?? 0) + 1);
+              _rec.byEscort.set(escortTarget.variant, (_rec.byEscort.get(escortTarget.variant) ?? 0) + 1);
             }
           }
         });

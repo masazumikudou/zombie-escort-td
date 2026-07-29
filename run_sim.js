@@ -219,6 +219,13 @@ function runStage(stage, towerPattern = '', opts = {}) {
   let survivors    = 0;
   let escort, sem;
 
+  // 護衛ごとのHP残（2026-07-29追加）: 交代/終了時にhp/maxHpをスナップショットする。
+  // escort変数は交代のたびに新規Escortへ再代入されるため、ここで記録しないと前の護衛の被弾が消える。
+  const escortHpRecords = [];
+  function recordEscortHp() {
+    escortHpRecords.push({ variant: escort.variant, hp: escort.hp, maxHp: escort.maxHp });
+  }
+
   // Y（寄り道防衛）状態。moneyは後段で宣言されるが、参照はコールバック実行時（クロージャ）なので順序問題なし
   let buildLocked = false;
   let yInflow     = null;
@@ -263,6 +270,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
 
   // GameScene.js の _onEscortDone 相当
   function onEscortDone(reached, scaledTime) {
+    recordEscortHp();
     if (reached) {
       survivors++;
       log.push(`[REACH]  t=${Math.round(scaledTime)}ms  護衛ゴール到達  生存護衛=${survivors}`);
@@ -386,10 +394,11 @@ function runStage(stage, towerPattern = '', opts = {}) {
         if (_dmg > 0) {
           const _key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
           let _rec = damageBySpawn.get(_key);
-          if (!_rec) { _rec = { totalDmg: 0, hits: 0, byType: new Map() }; damageBySpawn.set(_key, _rec); }
+          if (!_rec) { _rec = { totalDmg: 0, hits: 0, byType: new Map(), byEscort: new Map() }; damageBySpawn.set(_key, _rec); }
           _rec.totalDmg += _dmg;
           _rec.hits += 1;
           _rec.byType.set(z.type, (_rec.byType.get(z.type) ?? 0) + 1);
+          _rec.byEscort.set(escortTarget.variant, (_rec.byEscort.get(escortTarget.variant) ?? 0) + 1);
         }
       }
       if (!z._firstContact && escortTarget) {
@@ -441,9 +450,14 @@ function runStage(stage, towerPattern = '', opts = {}) {
   const total       = escortDefs.length;
   const passThrough = spawnTotal - killCount;
   const judgment    = survivors >= minSurvivors ? 'CLEAR' : 'GAMEOVER';
-  const hpPct       = Math.round((escort.hp ?? 0) / (escort.maxHp || 1) * 100);
+  // HP残: 全護衛のHP合計÷maxHp合計（交代のたびに前護衛のHPが消えるバグを修正・2026-07-29）
+  if (escortHpRecords.length <= escortIdx) recordEscortHp();
+  const hpSum       = escortHpRecords.reduce((s, r) => s + r.hp, 0);
+  const hpMaxSum    = escortHpRecords.reduce((s, r) => s + r.maxHp, 0);
+  const hpPct       = hpMaxSum > 0 ? Math.round(hpSum / hpMaxSum * 100) : 0;
+  const hpBreakdown = escortHpRecords.map(r => `${r.variant}${Math.round(r.hp / r.maxHp * 100)}`).join('/');
   const closestPx   = closestEver === Infinity ? '-' : Math.round(closestEver);
-  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survivors}/${total} HP残=${hpPct}% CLOSE_CALL=${closecallCount}回/${closeCallBySpawn.size}箇所 最接近=${closestPx}px 判定=${judgment}`);
+  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survivors}/${total} HP残=${hpPct}% (${hpBreakdown}) CLOSE_CALL=${closecallCount}回/${closeCallBySpawn.size}箇所 最接近=${closestPx}px 判定=${judgment}`);
 
   // すり抜け（未撃破）をスポーン地点別に集計（2-7 機能B）
   for (const z of allSpawned) {
@@ -456,8 +470,9 @@ function runStage(stage, towerPattern = '', opts = {}) {
     log.push('[DAMAGE_BY_SPAWN]');
     const sorted = [...damageBySpawn.entries()].sort((a, b) => b[1].totalDmg - a[1].totalDmg);
     for (const [key, rec] of sorted) {
-      const byTypeStr = [...rec.byType.entries()].map(([t, n]) => `${t}×${n}`).join(', ');
-      log.push(`  spawn=(${key})   被弾${rec.hits}回  合計${rec.totalDmg}dmg  （${byTypeStr}）`);
+      const byTypeStr   = [...rec.byType.entries()].map(([t, n]) => `${t}×${n}`).join(', ');
+      const byEscortStr = [...rec.byEscort.entries()].map(([v, n]) => `${v}×${n}`).join(', ');
+      log.push(`  spawn=(${key})   被弾${rec.hits}回  合計${rec.totalDmg}dmg  （${byTypeStr}）  護衛=${byEscortStr}`);
     }
   }
   if (leakBySpawn.size > 0) {
