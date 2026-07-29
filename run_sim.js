@@ -320,6 +320,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
   // 被弾原因・すり抜けのスポーン地点別集計（2-7 機能B）
   const damageBySpawn = new Map(); // "col,row" → { totalDmg, hits, byType: Map<type,count> }
   const leakBySpawn   = new Map(); // "col,row" → count
+  const closeCallBySpawn = new Map(); // "col,row" → { count, closest }
 
   const spawnFn = (col, row, def, waveNum, leader) => {
     const finalDef = opts.enemySpeed ? { ...def, speed: +opts.enemySpeed } : def;
@@ -418,6 +419,11 @@ function runStage(stage, towerPattern = '', opts = {}) {
         closecallCount++;
         if (z._closestToEscort < closestEver) closestEver = z._closestToEscort;
         log.push(`[CLOSE_CALL] t=${Math.round(scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
+        const key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
+        const rec = closeCallBySpawn.get(key) ?? { count: 0, closest: Infinity };
+        rec.count++;
+        if (z._closestToEscort < rec.closest) rec.closest = z._closestToEscort;
+        closeCallBySpawn.set(key, rec);
       }
     }
     zombies = zombies.filter(z => z.alive);
@@ -437,7 +443,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
   const judgment    = survivors >= minSurvivors ? 'CLEAR' : 'GAMEOVER';
   const hpPct       = Math.round((escort.hp ?? 0) / (escort.maxHp || 1) * 100);
   const closestPx   = closestEver === Infinity ? '-' : Math.round(closestEver);
-  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survivors}/${total} HP残=${hpPct}% CLOSE_CALL=${closecallCount}回 最接近=${closestPx}px 判定=${judgment}`);
+  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survivors}/${total} HP残=${hpPct}% CLOSE_CALL=${closecallCount}回/${closeCallBySpawn.size}箇所 最接近=${closestPx}px 判定=${judgment}`);
 
   // すり抜け（未撃破）をスポーン地点別に集計（2-7 機能B）
   for (const z of allSpawned) {
@@ -459,6 +465,12 @@ function runStage(stage, towerPattern = '', opts = {}) {
     const sorted = [...leakBySpawn.entries()].sort((a, b) => b[1] - a[1]);
     for (const [key, count] of sorted) {
       log.push(`  spawn=(${key})  すり抜け${count}体`);
+    }
+  }
+  if (closeCallBySpawn.size > 0) {
+    const sorted = [...closeCallBySpawn.entries()].sort((a, b) => b[1].count - a[1].count);
+    for (const [key, rec] of sorted) {
+      log.push(`[CLOSE_CALL_BY_SPAWN] spawn=(${key}) ${rec.count}回 最接近${Math.round(rec.closest)}px`);
     }
   }
 

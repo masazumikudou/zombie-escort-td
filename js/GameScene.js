@@ -34,6 +34,7 @@ class GameScene extends Phaser.Scene {
     this._closestEver    = Infinity;
     this._damageBySpawn     = new Map();  // "col,row" → {totalDmg,hits,byType} 護衛被弾のスポーン地点別集計（2-7機能B）
     this._allSpawnedZombies = [];         // すり抜け集計(LEAK_BY_SPAWN)用に全スポーン個体を保持
+    this._closeCallBySpawn  = new Map();  // "col,row" → {count,closest} CLOSE_CALLのスポーン地点別集計
     this.debugOpen    = false;
     this.showGrid     = false;
     this.showPaths    = false;
@@ -337,14 +338,14 @@ class GameScene extends Phaser.Scene {
     if (this.survivors >= minS) {
       this.gameState = 'victory';
       audioSynth.stageClear();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}%  CLOSE_CALL=${this._closecallCount}回  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=CLEAR`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}%  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=CLEAR`);
       this._printDamageAndLeakLogs();
       this._printPlayLog();
       this._showResult('STAGE CLEAR!', '#ffff44', 'リスタート', true);
     } else {
       this.gameState = 'defeat';
       audioSynth.gameOver();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}%  CLOSE_CALL=${this._closecallCount}回  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=GAMEOVER`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}%  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  判定=GAMEOVER`);
       this._printDamageAndLeakLogs();
       this._printPlayLog();
       this._showResult('GAME OVER', '#ff4444', 'もう一度', false);
@@ -374,6 +375,12 @@ class GameScene extends Phaser.Scene {
         for (const [key, count] of sorted) {
           this._playLog.push(`  spawn=(${key})  すり抜け${count}体`);
         }
+      }
+    }
+    if (this._closeCallBySpawn?.size > 0) {
+      const sorted = [...this._closeCallBySpawn.entries()].sort((a, b) => b[1].count - a[1].count);
+      for (const [key, rec] of sorted) {
+        this._playLog.push(`[CLOSE_CALL_BY_SPAWN] spawn=(${key}) ${rec.count}回 最接近${Math.round(rec.closest)}px`);
       }
     }
   }
@@ -438,6 +445,11 @@ class GameScene extends Phaser.Scene {
               this._closecallCount++;
               if (z._closestToEscort < this._closestEver) this._closestEver = z._closestToEscort;
               this._playLog?.push(`[CLOSE_CALL] t=${Math.round(this.scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
+              const _ccKey = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
+              const _ccRec = this._closeCallBySpawn.get(_ccKey) ?? { count: 0, closest: Infinity };
+              _ccRec.count++;
+              if (z._closestToEscort < _ccRec.closest) _ccRec.closest = z._closestToEscort;
+              this._closeCallBySpawn.set(_ccKey, _ccRec);
             }
             z.cleanup();
           }
