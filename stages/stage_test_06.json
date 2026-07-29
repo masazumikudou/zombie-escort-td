@@ -10,7 +10,6 @@
   "A1": {"col": 4,"row": 4}, "A2": {"col": 5,"row": 4}, "A3": {"col": 6,"row": 4},
   "C1": {"col": 8,"row": 6}, "C2": {"col": 8,"row": 7},
   "D1": {"col": 5,"row": 8}, "D2": {"col": 6,"row": 8}, "D3": {"col": 7,"row": 8}, "D4": {"col": 4,"row": 8},
-  "E1": {"col": 8,"row": 11},
   "F1": {"col": 13,"row": 13}, "F2": {"col": 14,"row": 13},
   "G1": {"col": 16,"row": 13}, "G2": {"col": 16,"row": 14},
   "H1": {"col": 0,"row": 7}, "H2": {"col": 1,"row": 7},
@@ -45,17 +44,18 @@
         {"spawn":"D2","enemy":{"type":"debu"}},
         {"spawn":"D3","enemy":{"type":"debu"}},
         {"spawn":"D4","enemy":{"type":"debu"}}
-      ],
-      "triggers": [
-        { "type":"progress","atWpIdx":13,"spawn":"E1","count":3,"interval":100,"enemy":{"type":"kickboard"} }
-      ] },
+      ], "triggers": [] },
     { "segmentId": "seg3_shita", "range": {"fromWp":17,"toWp":26}, "onExit": "retreat",
       "initial": [
         {"spawn":"F1","enemy":{"type":"police"}},
         {"spawn":"F2","enemy":{"type":"police"}},
-        {"spawn":"G1","enemy":{"type":"debu"}},
         {"spawn":"G2","enemy":{"type":"debu"}}
-      ], "triggers": [] }
+      ],
+      "triggers": [
+        { "type":"progress","atWpIdx":18,"spawn":"G1","count":5,"interval":500,
+          "_comment_trigger": "Gから来る型。stage_test_08で確定した5体・0.5秒を実ステージに適用（2026-07-29）。G1のデブはCLOSE_CALL内訳を分離するため削除済み。",
+          "enemy":{"type":"kickboard"} }
+      ] }
    ]
   },
   {
@@ -87,10 +87,7 @@
         {"spawn":"F2","enemy":{"type":"police"}},
         {"spawn":"G1","enemy":{"type":"debu"}},
         {"spawn":"G2","enemy":{"type":"debu"}}
-      ],
-      "triggers": [
-        { "type":"progress","atWpIdx":14,"spawn":"E1","count":3,"interval":100,"enemy":{"type":"kickboard"} }
-      ] }
+      ], "triggers": [] }
    ]
   },
   {
@@ -120,10 +117,7 @@
         {"spawn":"D2","enemy":{"type":"debu"}},
         {"spawn":"D3","enemy":{"type":"debu"}},
         {"spawn":"D4","enemy":{"type":"debu"}}
-      ],
-      "triggers": [
-        { "type":"progress","atWpIdx":13,"spawn":"E1","count":3,"interval":100,"enemy":{"type":"kickboard"} }
-      ] },
+      ], "triggers": [] },
     { "segmentId": "seg3_shita", "range": {"fromWp":17,"toWp":26}, "onExit": "retreat",
       "initial": [
         {"spawn":"F1","enemy":{"type":"police"}},
