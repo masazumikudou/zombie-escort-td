@@ -323,12 +323,14 @@ function runStage(stage, towerPattern = '', opts = {}) {
   // ゾンビ管理
   let zombies = [], allSpawned = [];
   let spawnTotal = 0, killCount = 0, closecallCount = 0, closestEver = Infinity;
+  let yHitCount = 0;  // Y中の一撃離脱ゾンビ数（CLOSE_CALL・すり抜けとは別集計）
   let scaledTime = 0;
 
   // 被弾原因・すり抜けのスポーン地点別集計（2-7 機能B）
   const damageBySpawn = new Map(); // "col,row" → { totalDmg, hits, byType: Map<type,count> }
   const leakBySpawn   = new Map(); // "col,row" → count
   const closeCallBySpawn = new Map(); // "col,row" → { count, closest }
+  const yHitBySpawn      = new Map(); // "col,row" → count（Y中の一撃離脱）
 
   const spawnFn = (col, row, def, waveNum, leader) => {
     const finalDef = opts.enemySpeed ? { ...def, speed: +opts.enemySpeed } : def;
@@ -422,9 +424,10 @@ function runStage(stage, towerPattern = '', opts = {}) {
     }
     if (relayPhase === 'done') break;
 
-    // CLOSE_CALL判定はrelayPhase==='active'時のみ（GameScene.jsと同一条件）
+    // CLOSE_CALL判定はrelayPhase==='active'時のみ（GameScene.jsと同一条件）。
+    // Y中の一撃離脱ゾンビは攻撃成立時点で必ず150px以内にいるため除外する（別途yHitBySpawnで集計）
     for (const z of zombies) {
-      if (!z.alive && !z._retreating && z._closestToEscort < CELL * 1.5 && relayPhase === 'active') {
+      if (!z.alive && !z._retreating && !z._oneShotDefeated && z._closestToEscort < CELL * 1.5 && relayPhase === 'active') {
         closecallCount++;
         if (z._closestToEscort < closestEver) closestEver = z._closestToEscort;
         log.push(`[CLOSE_CALL] t=${Math.round(scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
@@ -433,6 +436,11 @@ function runStage(stage, towerPattern = '', opts = {}) {
         rec.count++;
         if (z._closestToEscort < rec.closest) rec.closest = z._closestToEscort;
         closeCallBySpawn.set(key, rec);
+      }
+      if (!z.alive && z._oneShotDefeated) {
+        yHitCount++;
+        const yKey = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
+        yHitBySpawn.set(yKey, (yHitBySpawn.get(yKey) ?? 0) + 1);
       }
     }
     zombies = zombies.filter(z => z.alive);
@@ -448,7 +456,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
   if (scaledTime > MAX_TIME) log.push(`[TIMEOUT] 最大時間(${Math.round(MAX_TIME / 60000)}分)超過`);
 
   const total       = escortDefs.length;
-  const passThrough = spawnTotal - killCount;
+  const passThrough = spawnTotal - killCount - yHitCount;
   const judgment    = survivors >= minSurvivors ? 'CLEAR' : 'GAMEOVER';
   // HP残: 全護衛のHP合計÷maxHp合計（交代のたびに前護衛のHPが消えるバグを修正・2026-07-29）
   if (escortHpRecords.length <= escortIdx) recordEscortHp();
@@ -457,11 +465,11 @@ function runStage(stage, towerPattern = '', opts = {}) {
   const hpPct       = hpMaxSum > 0 ? Math.round(hpSum / hpMaxSum * 100) : 0;
   const hpBreakdown = escortHpRecords.map(r => `${r.variant}${Math.round(r.hp / r.maxHp * 100)}`).join('/');
   const closestPx   = closestEver === Infinity ? '-' : Math.round(closestEver);
-  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survivors}/${total} HP残=${hpPct}% (${hpBreakdown}) CLOSE_CALL=${closecallCount}回/${closeCallBySpawn.size}箇所 最接近=${closestPx}px 判定=${judgment}`);
+  log.push(`[RESULT] スポーン総数=${spawnTotal} 撃破=${killCount} すり抜け=${passThrough} 護衛生還=${survivors}/${total} HP残=${hpPct}% (${hpBreakdown}) CLOSE_CALL=${closecallCount}回/${closeCallBySpawn.size}箇所 最接近=${closestPx}px Y一撃離脱=${yHitCount}体 判定=${judgment}`);
 
-  // すり抜け（未撃破）をスポーン地点別に集計（2-7 機能B）
+  // すり抜け（未撃破）をスポーン地点別に集計（2-7 機能B）。Y一撃離脱は別枠(yHitBySpawn)のため除外
   for (const z of allSpawned) {
-    if (z._killed) continue;
+    if (z._killed || z._oneShotDefeated) continue;
     const key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
     leakBySpawn.set(key, (leakBySpawn.get(key) ?? 0) + 1);
   }
@@ -488,8 +496,14 @@ function runStage(stage, towerPattern = '', opts = {}) {
       log.push(`[CLOSE_CALL_BY_SPAWN] spawn=(${key}) ${rec.count}回 最接近${Math.round(rec.closest)}px`);
     }
   }
+  if (yHitBySpawn.size > 0) {
+    const sorted = [...yHitBySpawn.entries()].sort((a, b) => b[1] - a[1]);
+    for (const [key, count] of sorted) {
+      log.push(`[Y_HIT_BY_SPAWN] spawn=(${key}) ${count}体`);
+    }
+  }
 
-  return { log, judgment, hpPct, spawnTotal, killCount, passThrough, closecallCount, closestEver, survivors, total };
+  return { log, judgment, hpPct, spawnTotal, killCount, passThrough, closecallCount, closestEver, survivors, total, yHitCount };
 }
 
 // ─── スイープモード（2-7 機能A） ───────────────────────────────────────────────

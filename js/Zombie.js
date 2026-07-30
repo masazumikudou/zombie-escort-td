@@ -46,6 +46,7 @@ var Zombie = class Zombie {
     this._retreating   = false;
     this._retDx        = 0;
     this._retDy        = 0;
+    this._oneShotDefeated = false;  // true = Y中の一撃離脱で消滅（CLOSE_CALL集計・すり抜け集計から除外）
     this._engageGate    = false;  // true = 護衛範囲円に入るまで静止（initial配置ゾンビ用）
     // 鳥系: FlowField/propを無視し直進のみで移動する特殊個体（侵入→旋回→ホーミングの3フェーズ）
     this._flying           = !!def.flying;
@@ -212,6 +213,13 @@ var Zombie = class Zombie {
       if (scaledTime - this.lastAttack > 1000) {
         this.lastAttack = scaledTime;
         escort.takeDamage(this.damage);
+        // Y中(waveNum==='Y')のゾンビは一撃離脱: 被害を(体数-落とせた数)×damageに固定するため
+        // 護衛への攻撃が1回成立した時点で消滅させる（onDeathは呼ばない=撃破カウント・報酬なし）
+        if (this.waveNum === 'Y') {
+          this._oneShotDefeated = true;
+          this.alive = false;
+          return;
+        }
       }
       return;
     }
