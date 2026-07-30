@@ -227,7 +227,6 @@ function runStage(stage, towerPattern = '', opts = {}) {
   }
 
   // Y（寄り道防衛）状態。moneyは後段で宣言されるが、参照はコールバック実行時（クロージャ）なので順序問題なし
-  let buildLocked = false;
   let yInflow     = null;
 
   // GameScene.js の _startEscort 相当: escortごとにEscort/SegmentManager(or SpawnEventManager)を作り直す
@@ -249,7 +248,6 @@ function runStage(stage, towerPattern = '', opts = {}) {
       log.push(`[DETOUR_START]    t=${Math.round(mockScene.scaledTime)}ms → announcing`);
     };
     escort.onDetourActivate = () => {
-      buildLocked = true;
       const walletAmount = escDef.detour?.walletAmount ?? 0;
       if (walletAmount > 0) {
         money += walletAmount;
@@ -257,13 +255,12 @@ function runStage(stage, towerPattern = '', opts = {}) {
       }
       yInflow = new ctx.YInflowManager(stage.spawns ?? {}, escDef.detour?.yInflow ?? []);
       yInflow.start(mockScene.scaledTime);
-      log.push(`[DETOUR_ACTIVATE] t=${Math.round(mockScene.scaledTime)}ms waitTime=${escDef.detour?.waitTime ?? 30000}ms buildLocked=true`);
+      log.push(`[DETOUR_ACTIVATE] t=${Math.round(mockScene.scaledTime)}ms waitTime=${escDef.detour?.waitTime ?? 30000}ms`);
     };
     escort.onDetourEnd = () => {
-      buildLocked = false;
       yInflow?.retreatAll();
       yInflow = null;
-      log.push(`[DETOUR_END]      t=${Math.round(mockScene.scaledTime)}ms buildLocked=false`);
+      log.push(`[DETOUR_END]      t=${Math.round(mockScene.scaledTime)}ms`);
     };
   }
   startEscort(0, 0);
@@ -362,7 +359,6 @@ function runStage(stage, towerPattern = '', opts = {}) {
     // 時間指定タワー
     while (delayedQueue.length > 0 && delayedQueue[0].buildAt <= scaledTime) {
       const tp = delayedQueue.shift();
-      if (buildLocked) { log.push(`[WARN]   t=${Math.round(scaledTime)}ms Y中のためスキップ: ${tp.type}@(${tp.col},${tp.row})`); continue; }
       if (tp.type === 'upgrade') {
         const t = simTowers.find(t => t._col === tp.col && t._row === tp.row);
         if (t) { t.upgrade(); log.push(`[UPGRADE] t=${Math.round(scaledTime)}ms  upgrade@(${tp.col},${tp.row}) Lv${t.upgradeLevel}`); }

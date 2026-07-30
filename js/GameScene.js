@@ -58,7 +58,6 @@ class GameScene extends Phaser.Scene {
     this._bannerBg     = null;
 
     // Y（寄り道防衛）状態
-    this._buildLocked = false;  // Y中はタワー新規建設・アップグレードを禁止
     this._yInflow     = null;   // YInflowManager（Y中のみ生成）
 
     // 設置点
@@ -245,7 +244,6 @@ class GameScene extends Phaser.Scene {
       this._showDetourCard(variantName);
     };
     this.escort.onDetourActivate = () => {
-      this._buildLocked = true;
       const walletAmount = def.detour?.walletAmount ?? 0;
       if (walletAmount > 0) {
         this.money += walletAmount;
@@ -253,13 +251,12 @@ class GameScene extends Phaser.Scene {
       }
       this._yInflow = new YInflowManager(this.stageData.spawns ?? {}, def.detour?.yInflow ?? []);
       this._yInflow.start(this.scaledTime);
-      this._playLog.push(`[DETOUR_ACTIVATE] t=${Math.round(this.scaledTime)}ms waitTime=${def.detour?.waitTime ?? 30000}ms buildLocked=true`);
+      this._playLog.push(`[DETOUR_ACTIVATE] t=${Math.round(this.scaledTime)}ms waitTime=${def.detour?.waitTime ?? 30000}ms`);
     };
     this.escort.onDetourEnd      = () => {
-      this._buildLocked = false;
       this._yInflow?.retreatAll();
       this._yInflow = null;
-      this._playLog.push(`[DETOUR_END]      t=${Math.round(this.scaledTime)}ms buildLocked=false`);
+      this._playLog.push(`[DETOUR_END]      t=${Math.round(this.scaledTime)}ms`);
       this._closeDetourCard();
     };
 
@@ -1314,7 +1311,6 @@ class GameScene extends Phaser.Scene {
 
   // ─── タワー配置 ──────────────────────────────────────────
   _canPlace(col, row, type) {
-    if (this._buildLocked) return false;  // Y中は新規建設禁止
     if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
     // prop衝突はbuildSpots権威より優先（run_sim.js/simulator.htmlと同一判定・2026-07-29）。
     // buildSpotが道路セル上に乗るのは仕様だが、propのフットプリント内は常に設置不可。
@@ -1360,7 +1356,6 @@ class GameScene extends Phaser.Scene {
   }
 
   _upgradeTower(tower) {
-    if (this._buildLocked) return;  // Y中はアップグレード禁止
     const cost = tower.upgradeCost?.() ?? null;
     if (cost === null || this.money < cost) return;
     this.money -= cost;
