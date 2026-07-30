@@ -1,0 +1,70 @@
+{
+ "id": "stage_test_10",
+ "name": "Y検証台（正面のみ）",
+ "grid": { "cols": 20, "rows": 10 },
+ "ground_base": "grass",
+ "startMoney": 1000,
+ "_comment_startMoney": "タワー位置の探索用。ステージ選択画面の入力欄から手動配置する運用",
+ "_comment_stage": "Y中の交戦が既存の計算式で説明できるかを測る台。護衛が止まるためspeed=0になり、交戦時間の式(450-85)÷(護衛speed+敵speed)がどう振る舞うかが焦点。まず正面(G側)1方向のみ。横・背後は別途。",
+ "_comment_groundcells": "ground_cellsは意図的に未設定。指定するとそれ以外の全セルがゾンビ通行止めになり、Y地点に敵が到達できなくなるため（1-4bのY単体テストと同じ判断）。",
+ "minSurvivors": 1,
+ "spawns": {
+  "Y_R": { "col": 19, "row": 6 }
+ },
+ "escorts": [
+  {
+   "variant": "dad",
+   "startTrigger": "afterPrevious",
+   "start": { "col": 0, "row": 3 },
+   "goal": { "col": 19, "row": 3 },
+   "path": [
+    {"col":0,"row":3},{"col":1,"row":3},{"col":2,"row":3},{"col":3,"row":3},{"col":4,"row":3},
+    {"col":5,"row":3},{"col":6,"row":3},{"col":7,"row":3},{"col":8,"row":3},{"col":9,"row":3},
+    {"col":10,"row":3},{"col":11,"row":3},{"col":12,"row":3},{"col":13,"row":3},{"col":14,"row":3},
+    {"col":15,"row":3},{"col":16,"row":3},{"col":17,"row":3},{"col":18,"row":3},{"col":19,"row":3}
+   ],
+   "hp": 120,
+   "speed": 50,
+   "detour": {
+    "branchIdx": 9,
+    "path": [
+     {"col":9,"row":3},{"col":9,"row":4},{"col":9,"row":5},{"col":9,"row":6}
+    ],
+    "waitTime": 20000,
+    "walletAmount": 0,
+    "_comment_wallet": "0に固定。資金という変数を切り離して交戦だけを測るため（タワーは入力欄から手動配置）",
+    "yInflow": [
+     { "atMs": 0, "spawn": "Y_R", "count": 8, "interval": 500,
+       "_comment": "stage_test_08で確定したdadの基準値(5体・0.5秒)をそのままY中で出す。歩行時と同じ体数で緩くなるかを見る",
+       "enemy": { "type": "kickboard" } }
+    ]
+   },
+   "segments": [
+    {
+     "segmentId": "seg_main",
+     "range": { "fromWp": 0, "toWp": 19 },
+     "onExit": "retreat",
+     "_comment_segment": "本道には敵を置かない。Y中の交戦だけを測るため",
+     "initial": [],
+     "triggers": []
+    }
+   ]
+  }
+ ],
+ "obstacles": [],
+ "buildSpots": [
+  {"col":0,"row":1},{"col":1,"row":1},{"col":2,"row":1},{"col":3,"row":1},{"col":4,"row":1},
+  {"col":5,"row":1},{"col":6,"row":1},{"col":7,"row":1},{"col":8,"row":1},{"col":9,"row":1},
+  {"col":10,"row":1},{"col":11,"row":1},{"col":12,"row":1},{"col":13,"row":1},{"col":14,"row":1},
+  {"col":15,"row":1},{"col":16,"row":1},{"col":17,"row":1},{"col":18,"row":1},{"col":19,"row":1},
+  {"col":0,"row":5},{"col":1,"row":5},{"col":2,"row":5},{"col":3,"row":5},{"col":4,"row":5},
+  {"col":5,"row":5},{"col":6,"row":5},{"col":7,"row":5},{"col":8,"row":5},
+  {"col":10,"row":5},{"col":11,"row":5},{"col":12,"row":5},{"col":13,"row":5},{"col":14,"row":5},
+  {"col":15,"row":5},{"col":16,"row":5},{"col":17,"row":5},{"col":18,"row":5},{"col":19,"row":5},
+  {"col":0,"row":8},{"col":1,"row":8},{"col":2,"row":8},{"col":3,"row":8},{"col":4,"row":8},
+  {"col":5,"row":8},{"col":6,"row":8},{"col":7,"row":8},{"col":8,"row":8},{"col":9,"row":8},
+  {"col":10,"row":8},{"col":11,"row":8},{"col":12,"row":8},{"col":13,"row":8},{"col":14,"row":8},
+  {"col":15,"row":8},{"col":16,"row":8},{"col":17,"row":8},{"col":18,"row":8},{"col":19,"row":8}
+ ],
+ "props": []
+}
