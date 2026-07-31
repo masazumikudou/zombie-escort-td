@@ -146,6 +146,28 @@ function run(stageFile, towerPattern = '', opts = {}) {
   return runStage(stage, towerPattern, opts);
 }
 
+// propフットプリントが占有する全セルを事前計算（タワー設置不可判定用・2026-07-27追加）
+// 「シムが衝突の最終ゲートキーパー」という前提が実際には未実装だった穴を塞ぐ
+//
+// 注意: vmコンテキストのトップレベルconst/letは、宣言時にctx.NAMEというプロパティに
+// 必ずしも反映されない（Node vmの既知の癖。TOWER_DEFS/GROUND_BLOCK_DEFS等は偶然
+// 露出していたが、PROP_DEFSはctx.PROP_DEFSではundefinedだった＝実地検証で発覚）。
+// 確実に取得するには vm.runInContext() でコンテキスト内の束縛として評価すること。
+function computePropBlocked(stage) {
+  const PROP_DEFS = vm.runInContext('PROP_DEFS', ctx);
+  const propBlocked = new Map();  // "col,row" -> "type@(col,row)" ラベル
+  for (const p of stage.props ?? []) {
+    const pdef = PROP_DEFS?.[p.type];
+    if (!pdef) continue;
+    for (let dc = 0; dc < (pdef.cols ?? 1); dc++) {
+      for (let dr = 0; dr < (pdef.rows ?? 1); dr++) {
+        propBlocked.set(`${p.col + dc},${p.row + dr}`, `${p.type}@(${p.col},${p.row})`);
+      }
+    }
+  }
+  return propBlocked;
+}
+
 function runStage(stage, towerPattern = '', opts = {}) {
   ctx.Zombie._seq = 0;  // 連続run()でのIDリセット
 
@@ -190,24 +212,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
   const mockScene  = { flowField: ff, _playLog: log, scaledTime: 0,
                        add: ctx.createMockSceneAdd(), textures: ctx.MOCK_TEXTURES, anims: ctx.MOCK_ANIMS };
 
-  // propフットプリントが占有する全セルを事前計算（タワー設置不可判定用・2026-07-27追加）
-  // 「シムが衝突の最終ゲートキーパー」という前提が実際には未実装だった穴を塞ぐ
-  //
-  // 注意: vmコンテキストのトップレベルconst/letは、宣言時にctx.NAMEというプロパティに
-  // 必ずしも反映されない（Node vmの既知の癖。TOWER_DEFS/GROUND_BLOCK_DEFS等は偶然
-  // 露出していたが、PROP_DEFSはctx.PROP_DEFSではundefinedだった＝実地検証で発覚）。
-  // 確実に取得するには vm.runInContext() でコンテキスト内の束縛として評価すること。
-  const PROP_DEFS = vm.runInContext('PROP_DEFS', ctx);
-  const propBlocked = new Map();  // "col,row" -> "type@(col,row)" ラベル
-  for (const p of stage.props ?? []) {
-    const pdef = PROP_DEFS?.[p.type];
-    if (!pdef) continue;
-    for (let dc = 0; dc < (pdef.cols ?? 1); dc++) {
-      for (let dr = 0; dr < (pdef.rows ?? 1); dr++) {
-        propBlocked.set(`${p.col + dc},${p.row + dr}`, `${p.type}@(${p.col},${p.row})`);
-      }
-    }
-  }
+  const propBlocked = computePropBlocked(stage);
 
   // ─── リレー状態（GameScene.jsの escortIdx/relayPhase/intervalTimer/survivors と同一設計） ───
   const RELAY_INTERVAL = 4000;  // GameScene.js の RELAY_INTERVAL と一致させること（1×基準・4000ms固定）
@@ -637,6 +642,56 @@ function runDropoutSweep(stageFile, towerPattern, dropoutN) {
   console.log(`\n全${total}通り中 ${full100Count}通りが全護衛100% (${full100Count}/${total} = ${pct}%)`);
 }
 
+// ─── タワー追加総当たり（addonモード。--dropoutの逆方向＝吸収率の計測） ─────────────
+function runAddonSweep(stageFile, towerPattern, addonN) {
+  const baseStage = JSON.parse(fs.readFileSync(path.join(ROOT, stageFile), 'utf8'));
+  const tokens    = towerPattern.trim().split(/\s+/).filter(Boolean);
+
+  // ベース配置の占有座標
+  const occupied = new Set(
+    tokens.flatMap(t => {
+      const m = t.match(/^(\w+):(\d+),(\d+)(?:@(\d+))?$/);
+      return m ? [`${m[2]},${m[3]}`] : [];
+    })
+  );
+
+  // 有効な空きbuildSpotのみを候補にする（占有済み・prop衝突を除外）
+  const propBlocked = computePropBlocked(baseStage);
+  const emptySpots = (baseStage.buildSpots ?? []).filter(s => {
+    const key = `${s.col},${s.row}`;
+    return !occupied.has(key) && !propBlocked.has(key);
+  });
+
+  if (addonN < 0 || addonN > emptySpots.length) {
+    throw new Error(`--addon の値が不正です: ${addonN}（有効な空きbuildSpot数=${emptySpots.length}）`);
+  }
+
+  const addCombos = combinationsIndices(emptySpots.length, addonN);
+  let full100Count = 0;
+
+  for (const addIdxs of addCombos) {
+    const addedSpots  = addIdxs.map(i => emptySpots[i]);
+    const addedTokens = addedSpots.map(s => `normal:${s.col},${s.row}`);
+    const res = runStage(JSON.parse(JSON.stringify(baseStage)), [...tokens, ...addedTokens].join(' '), {});
+    if (isAllEscorts100(res.hpBreakdown)) full100Count++;
+
+    console.log(
+      `生還${res.survivors}/${res.total}`.padEnd(9) +
+      `HP残${res.hpPct}%(${res.hpBreakdown})`.padEnd(28) +
+      `撃破${res.killCount}/${res.spawnTotal}`.padEnd(11) +
+      `すり抜け${res.passThrough}`.padEnd(10) +
+      `CC=${res.closecallCount}回/${res.closeCallSpots}箇所`.padEnd(16) +
+      `被弾${res.damageHits}回${res.damageTotal}dmg`.padEnd(16) +
+      `判定=${res.judgment}`.padEnd(13) +
+      `add=[${addedSpots.map(s => `${s.col},${s.row}`).join(', ')}]`
+    );
+  }
+
+  const total = addCombos.length;
+  const pct   = total > 0 ? Math.round(full100Count / total * 1000) / 10 : 0;
+  console.log(`\n全${total}通り中 ${full100Count}通りが全護衛100% (${full100Count}/${total} = ${pct}%)`);
+}
+
 // ─── CLI エントリ ─────────────────────────────────────────────────────────────
 if (require.main === module) {
   const argv = process.argv.slice(2);
@@ -690,6 +745,36 @@ if (require.main === module) {
     return;
   }
 
+  const addonFlagIdx = argv.indexOf('--addon');
+  if (addonFlagIdx >= 0) {
+    // ─── タワー追加総当たり: node run_sim.js <stageFile> --tower "<配置>" --addon N ───
+    const stageFile = argv[0];
+    if (!stageFile || stageFile.startsWith('--')) {
+      console.error('使い方: node run_sim.js <stageFile> --tower "<配置>" --addon N');
+      process.exit(1);
+    }
+    const towerFlagIdx = argv.indexOf('--tower');
+    const towerPattern = towerFlagIdx >= 0 ? argv[towerFlagIdx + 1] : '';
+    const addonN = Number(argv[addonFlagIdx + 1]);
+    if (!Number.isInteger(addonN) || addonN < 0) {
+      console.error(`--addon の値が不正です: "${argv[addonFlagIdx + 1]}"（0以上の整数を指定）`);
+      process.exit(1);
+    }
+    if (addonN === 0) {
+      // 0（または未指定扱い）は既存の単発実行と完全に同一の挙動にする
+      const result = run(stageFile, towerPattern, {});
+      console.log(result.log.join('\n'));
+      return;
+    }
+    try {
+      runAddonSweep(stageFile, towerPattern, addonN);
+    } catch (e) {
+      console.error(e.message);
+      process.exit(1);
+    }
+    return;
+  }
+
   // ─── 既存の位置引数モード（変更なし） ───────────────────────────────────────
   const [stageFile, towerPattern, escortSpeed, enemySpeed, maxTimeMs] = argv;
   if (!stageFile) {
@@ -700,4 +785,4 @@ if (require.main === module) {
   console.log(result.log.join('\n'));
 }
 
-module.exports = { run, runStage, parseTowerPattern, parseSweepExpr, applySweepOverride, combinationsIndices, isAllEscorts100, runDropoutSweep };
+module.exports = { run, runStage, parseTowerPattern, parseSweepExpr, applySweepOverride, combinationsIndices, isAllEscorts100, runDropoutSweep, runAddonSweep, computePropBlocked };
