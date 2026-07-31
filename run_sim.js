@@ -499,7 +499,10 @@ function runStage(stage, towerPattern = '', opts = {}) {
     }
   }
 
-  return { log, judgment, hpPct, spawnTotal, killCount, passThrough, closecallCount, closestEver, survivors, total, yHitCount };
+  let damageHits = 0, damageTotal = 0;
+  for (const rec of damageBySpawn.values()) { damageHits += rec.hits; damageTotal += rec.totalDmg; }
+
+  return { log, judgment, hpPct, hpBreakdown, spawnTotal, killCount, passThrough, closecallCount, closeCallSpots: closeCallBySpawn.size, closestEver, survivors, total, yHitCount, damageHits, damageTotal };
 }
 
 // ─── スイープモード（2-7 機能A） ───────────────────────────────────────────────
@@ -577,6 +580,63 @@ function runSweep(stageFile, towerPattern, sweepExpr) {
   }
 }
 
+// ─── タワー組み合わせ総当たり（dropoutモード） ─────────────────────────────────
+// n個からk個選ぶ組み合わせ（0-based index配列）を全列挙
+function combinationsIndices(n, k) {
+  const result = [];
+  const combo = [];
+  function backtrack(start) {
+    if (combo.length === k) { result.push([...combo]); return; }
+    for (let i = start; i < n; i++) {
+      combo.push(i);
+      backtrack(i + 1);
+      combo.pop();
+    }
+  }
+  backtrack(0);
+  return result;
+}
+
+// hpBreakdown（例: "dad100/mom50/son100"）の全護衛が100かを判定
+function isAllEscorts100(hpBreakdown) {
+  if (!hpBreakdown) return false;
+  return hpBreakdown.split('/').every(part => /(\d+)$/.exec(part)?.[1] === '100');
+}
+
+function runDropoutSweep(stageFile, towerPattern, dropoutN) {
+  const baseStage = JSON.parse(fs.readFileSync(path.join(ROOT, stageFile), 'utf8'));
+  const tokens = towerPattern.trim().split(/\s+/).filter(Boolean);
+  if (dropoutN < 0 || dropoutN >= tokens.length) {
+    throw new Error(`--dropout の値が不正です: ${dropoutN}（--towerのタワー数=${tokens.length}）`);
+  }
+
+  const dropCombos = combinationsIndices(tokens.length, dropoutN);
+  let full100Count = 0;
+
+  for (const dropIdxs of dropCombos) {
+    const dropSet      = new Set(dropIdxs);
+    const keptTokens    = tokens.filter((_, i) => !dropSet.has(i));
+    const droppedTokens = dropIdxs.map(i => tokens[i]);
+    const res = runStage(JSON.parse(JSON.stringify(baseStage)), keptTokens.join(' '), {});
+    if (isAllEscorts100(res.hpBreakdown)) full100Count++;
+
+    console.log(
+      `生還${res.survivors}/${res.total}`.padEnd(9) +
+      `HP残${res.hpPct}%(${res.hpBreakdown})`.padEnd(28) +
+      `撃破${res.killCount}/${res.spawnTotal}`.padEnd(11) +
+      `すり抜け${res.passThrough}`.padEnd(10) +
+      `CC=${res.closecallCount}回/${res.closeCallSpots}箇所`.padEnd(16) +
+      `被弾${res.damageHits}回${res.damageTotal}dmg`.padEnd(16) +
+      `判定=${res.judgment}`.padEnd(13) +
+      `drop=[${droppedTokens.join(', ')}]`
+    );
+  }
+
+  const total = dropCombos.length;
+  const pct   = total > 0 ? Math.round(full100Count / total * 1000) / 10 : 0;
+  console.log(`\n全${total}通り中 ${full100Count}通りが全護衛100% (${full100Count}/${total} = ${pct}%)`);
+}
+
 // ─── CLI エントリ ─────────────────────────────────────────────────────────────
 if (require.main === module) {
   const argv = process.argv.slice(2);
@@ -600,6 +660,36 @@ if (require.main === module) {
     return;
   }
 
+  const dropoutFlagIdx = argv.indexOf('--dropout');
+  if (dropoutFlagIdx >= 0) {
+    // ─── タワー組み合わせ総当たり: node run_sim.js <stageFile> --tower "<配置>" --dropout N ───
+    const stageFile = argv[0];
+    if (!stageFile || stageFile.startsWith('--')) {
+      console.error('使い方: node run_sim.js <stageFile> --tower "<配置>" --dropout N');
+      process.exit(1);
+    }
+    const towerFlagIdx = argv.indexOf('--tower');
+    const towerPattern = towerFlagIdx >= 0 ? argv[towerFlagIdx + 1] : '';
+    const dropoutN = Number(argv[dropoutFlagIdx + 1]);
+    if (!Number.isInteger(dropoutN) || dropoutN < 0) {
+      console.error(`--dropout の値が不正です: "${argv[dropoutFlagIdx + 1]}"（0以上の整数を指定）`);
+      process.exit(1);
+    }
+    if (dropoutN === 0) {
+      // 0（または未指定扱い）は既存の単発実行と完全に同一の挙動にする
+      const result = run(stageFile, towerPattern, {});
+      console.log(result.log.join('\n'));
+      return;
+    }
+    try {
+      runDropoutSweep(stageFile, towerPattern, dropoutN);
+    } catch (e) {
+      console.error(e.message);
+      process.exit(1);
+    }
+    return;
+  }
+
   // ─── 既存の位置引数モード（変更なし） ───────────────────────────────────────
   const [stageFile, towerPattern, escortSpeed, enemySpeed, maxTimeMs] = argv;
   if (!stageFile) {
@@ -610,4 +700,4 @@ if (require.main === module) {
   console.log(result.log.join('\n'));
 }
 
-module.exports = { run, runStage, parseTowerPattern, parseSweepExpr, applySweepOverride };
+module.exports = { run, runStage, parseTowerPattern, parseSweepExpr, applySweepOverride, combinationsIndices, isAllEscorts100, runDropoutSweep };
