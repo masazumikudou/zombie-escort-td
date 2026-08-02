@@ -25,6 +25,17 @@ class StageSelectScene extends Phaser.Scene {
     const startY = h * 0.28;
     const step   = Math.min(110, (h * 0.65) / Math.max(list.length, 1));
 
+    // step(行間隔)がステージ数の増加で縮んだ分、行内の各要素も比例して縮める
+    // （固定オフセットのままだと、次の行のボタンに前の行の入力欄が重なる事故が起きるため）
+    const scale        = Math.min(1, step / 110);
+    const btnFontSize  = Math.max(11, Math.round(20 * scale));
+    const btnPadX      = Math.max(8,  Math.round(28 * scale));
+    const btnPadY      = Math.max(4,  Math.round(12 * scale));
+    const jsonOffset   = Math.max(10, Math.round(14 * scale));
+    const jsonFontSize = Math.max(8,  Math.round(11 * scale));
+    const inputOffset  = Math.max(18, Math.round(36 * scale));
+    const inputFontSize = Math.max(8, Math.round(12 * scale));
+
     // タワー入力欄・JSONコピーボタン（DOM）
     const inputs = [];
     const domBtns = [];
@@ -32,9 +43,9 @@ class StageSelectScene extends Phaser.Scene {
       const y = startY + i * step;
 
       const btn = this.add.text(w / 2, y, stage.title, {
-        fontSize: '20px', color: '#ffffff',
+        fontSize: `${btnFontSize}px`, color: '#ffffff',
         backgroundColor: '#1e3a5f',
-        padding: { x: 28, y: 12 },
+        padding: { x: btnPadX, y: btnPadY },
         fontFamily: 'Arial, Helvetica, sans-serif',
       }).setOrigin(0.5).setInteractive();
 
@@ -51,10 +62,10 @@ class StageSelectScene extends Phaser.Scene {
       copyBtn.style.cssText = [
         'position:absolute',
         `left:calc(50% + 210px)`,
-        `top:${y - 14}px`,
+        `top:${y - jsonOffset}px`,
         'background:#0d2a1a', 'color:#4ade80',
         'border:1px solid #2a5a3a', 'border-radius:4px',
-        'padding:4px 10px', 'font-size:11px',
+        'padding:4px 10px', `font-size:${jsonFontSize}px`,
         'font-family:monospace', 'cursor:pointer',
       ].join(';');
       copyBtn.onclick = async () => {
@@ -79,11 +90,11 @@ class StageSelectScene extends Phaser.Scene {
       inp.style.cssText = [
         'position:absolute',
         `left:50%`, `transform:translateX(-50%)`,
-        `top:${y + 36}px`,
+        `top:${y + inputOffset}px`,
         'width:420px', 'max-width:90vw',
         'background:#0d1a2e', 'color:#aaddff',
         'border:1px solid #2a4a6a', 'border-radius:4px',
-        'padding:4px 10px', 'font-size:12px',
+        'padding:4px 10px', `font-size:${inputFontSize}px`,
         'font-family:monospace', 'outline:none',
       ].join(';');
       document.body.appendChild(inp);

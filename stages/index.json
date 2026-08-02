@@ -9,6 +9,7 @@
     { "id": 7, "file": "stages/stage_test_06.json",                   "title": "型カタログ検証 3人リレー" },
     { "id": 8, "file": "stages/stage_test_08.json",                   "title": "キックボード緊張度テスト" },
     { "id": 9, "file": "stages/stage_test_09.json",                   "title": "キックボード家族別テスト" },
-    { "id": 10, "file": "stages/stage_test_10.json",                  "title": "Y検証台（正面のみ）" }
+    { "id": 10, "file": "stages/stage_test_10.json",                  "title": "Y検証台（正面のみ）" },
+    { "id": 11, "file": "stages/stage_free_01.json",                  "title": "自由設計01（碁盤・3人・AB導線）" }
   ]
 }
