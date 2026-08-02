@@ -25,11 +25,15 @@ class GameScene extends Phaser.Scene {
     this.scaledTime   = 0;
     this.timeModeIdx  = 2;
     this.zoomIdx      = DEFAULT_ZOOM_IDX;
-    this.money        = sd.startMoney;
+    this.money        = sd.startMoney ?? 0;
+    this.totalEarned  = 0;  // ステージ通算の撃破報酬累計（資金表示の内訳用。建設で減らない）
     this.gameState    = 'playing';
     this.killCount       = 0;
     this.spawnCount      = 0;
     this._playLog        = [];
+    if (sd.startMoney === undefined) {
+      this._playLog.push(`[WARN] stage.startMoneyが未定義のため0として扱います（escort側のstartMoneyに全額寄せる設計なら意図通り。書き忘れの可能性もあるため確認推奨）`);
+    }
     this._closecallCount = 0;
     this._closestEver    = Infinity;
     this._yHitCount      = 0;             // Y中の一撃離脱ゾンビ数（CLOSE_CALL・すり抜けとは別集計）
@@ -227,6 +231,13 @@ class GameScene extends Phaser.Scene {
     const _baseDef = this.escortDefs[idx];
     const _vStats  = ESCORT_DEFS[_baseDef.variant] ?? ESCORT_DEFS.dad;
     const def      = { hp: _vStats.hp, speed: _vStats.speed, ..._baseDef };
+
+    // escort別初期マネー（合算方式）: stage.startMoneyへの加算。1人目起動時・リレー交代時いずれも同じ扱い
+    if (def.startMoney) {
+      this.money += def.startMoney;
+      this._playLog.push(`[START_MONEY] t=${Math.round(this.scaledTime)}ms escortIdx=${idx} variant=${def.variant} +${def.startMoney}  money=${this.money}`);
+    }
+
     let   escPath;
     if (def.path && def.path.length > 0) {
       escPath = def.path.map(p => cellCenter(p.col, p.row));
@@ -944,6 +955,7 @@ class GameScene extends Phaser.Scene {
   // HUD表示はUISceneが担当。ここではregistryへ最新値を書き込むのみ。
   _drawHUD() {
     this.registry.set('hud_money',     this.money);
+    this.registry.set('hud_earned',    this.totalEarned);
     this.registry.set('hud_wave',      this.waveLabel ?? '');
     this.registry.set('hud_timeIdx',   this.timeModeIdx);
     this.registry.set('hud_gameState', this.gameState);
@@ -1397,6 +1409,7 @@ class GameScene extends Phaser.Scene {
     z.onDeath = () => {
       z._killed = true;
       this.money += z.reward;
+      this.totalEarned += z.reward;
       this.killCount++;
       const src = z._lastHitBy;
       const srcStr = src ? `  by=${src.type}@(${src.col},${src.row})` : '';

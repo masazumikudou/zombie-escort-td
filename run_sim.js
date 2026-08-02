@@ -231,13 +231,27 @@ function runStage(stage, towerPattern = '', opts = {}) {
     escortHpRecords.push({ variant: escort.variant, hp: escort.hp, maxHp: escort.maxHp });
   }
 
-  // Y（寄り道防衛）状態。moneyは後段で宣言されるが、参照はコールバック実行時（クロージャ）なので順序問題なし
+  // Y（寄り道防衛）状態
   let yInflow     = null;
+
+  // 資金（escort別startMoneyをstartEscort()内で加算するため、初回startEscort(0,0)呼び出しより前に宣言する必要がある）
+  let money = stage.startMoney ?? 0;
+  let totalEarned = 0;  // ステージ通算の撃破報酬累計（資金計算ロジックを実機と一致させるための集計。ログ出力はしない）
+  if (stage.startMoney === undefined) {
+    log.push(`[WARN]   stage.startMoneyが未定義のため0として扱います（escort側のstartMoneyに全額寄せる設計なら意図通り。書き忘れの可能性もあるため確認推奨）`);
+  }
 
   // GameScene.js の _startEscort 相当: escortごとにEscort/SegmentManager(or SpawnEventManager)を作り直す
   function startEscort(idx, timeOffset) {
     const escDef = { ...escortDefs[idx] };
     if (opts.escortSpeed) escDef.speed = +opts.escortSpeed;
+
+    // escort別初期マネー（合算方式）: stage.startMoneyへの加算。1人目起動時・リレー交代時いずれも同じ扱い
+    if (escDef.startMoney) {
+      money += escDef.startMoney;
+      log.push(`[START_MONEY] t=${Math.round(mockScene.scaledTime)}ms escortIdx=${idx} variant=${escDef.variant} +${escDef.startMoney}  money=${money}`);
+    }
+
     const pixelPath = escDef.path.map(p => cellCenter(p.col, p.row));
     escort = new ctx.Escort(mockScene, pixelPath, escDef);
     if (escDef.segments) {
@@ -299,7 +313,6 @@ function runStage(stage, towerPattern = '', opts = {}) {
   // タワー
   const towerPlacements = parseTowerPattern(towerPattern);
   const simTowers = [];
-  let money = stage.startMoney ?? 500;
 
   const delayedQueue = [];
   for (const tp of towerPlacements) {
@@ -345,6 +358,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
       z._killed = true;
       killCount++;
       money += z.reward ?? 0;
+      totalEarned += z.reward ?? 0;
       log.push(`[KILL]   t=${Math.round(scaledTime)}ms  id=${z._logId}  killCount=${killCount}  reward+${z.reward ?? 0}  残=${money}`);
     };
     zombies.push(z);
@@ -507,7 +521,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
   let damageHits = 0, damageTotal = 0;
   for (const rec of damageBySpawn.values()) { damageHits += rec.hits; damageTotal += rec.totalDmg; }
 
-  return { log, judgment, hpPct, hpBreakdown, spawnTotal, killCount, passThrough, closecallCount, closeCallSpots: closeCallBySpawn.size, closestEver, survivors, total, yHitCount, damageHits, damageTotal };
+  return { log, judgment, hpPct, hpBreakdown, spawnTotal, killCount, passThrough, closecallCount, closeCallSpots: closeCallBySpawn.size, closestEver, survivors, total, yHitCount, damageHits, damageTotal, money, totalEarned };
 }
 
 // ─── スイープモード（2-7 機能A） ───────────────────────────────────────────────

@@ -281,7 +281,7 @@ class UIScene extends Phaser.Scene {
     const SAFE = 8;
     const barH = SAFE + UI_H;
 
-    this.moneyText.setText(`¥ ${r.get('hud_money') ?? 0}`);
+    this.moneyText.setText(`¥ ${r.get('hud_money') ?? 0} (稼ぎ ¥${r.get('hud_earned') ?? 0})`);
     this.waveText.setText(r.get('hud_wave') ?? '');
     this.timeText.setText(TIME_LABELS[r.get('hud_timeIdx') ?? 2]);
     this.relayStatusText.setText(r.get('hud_relay') ?? '');
