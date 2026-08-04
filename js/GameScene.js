@@ -197,12 +197,16 @@ class GameScene extends Phaser.Scene {
     this._onUiLaserDir       = ({ col, row, dir }) => {
       const t = this.towers.find(t => t.col === col && t.row === row);
       if (t) t.direction = dir;
+      this.input.enabled = true;  // 方向選択ポップアップ表示中に止めた入力を復帰（2026-08-04）
     };
+    // 建設ポップアップ外（UISceneの暗幕）タップで閉じるためのコールバック（2026-08-04追加）
+    this._onUiClosePopup     = () => this._closePopup();
     this.game.events.on('ui_cycleTime',      this._onUiCycleTime);
     this.game.events.on('ui_returnToEscort', this._onUiReturnToEscort);
     this.game.events.on('ui_toggleRoute',    this._onUiToggleRoute);
     this.game.events.on('ui_buildPlace',     this._onUiBuildPlace);
     this.game.events.on('ui_laserDir',       this._onUiLaserDir);
+    this.game.events.on('ui_closePopup',     this._onUiClosePopup);
     this.events.once('shutdown', () => {
       this.game.events.off('ui_cycleTime',      this._onUiCycleTime);
       this.game.events.off('ui_returnToEscort', this._onUiReturnToEscort);
@@ -210,6 +214,7 @@ class GameScene extends Phaser.Scene {
       this.game.events.off('ui_buildPlace',     this._onUiBuildPlace);
       this.game.events.off('ui_laserDir',       this._onUiLaserDir);
       this.game.events.off('ui_resize',         this._onUiResize);
+      this.game.events.off('ui_closePopup',     this._onUiClosePopup);
     });
 
     // UI構築
@@ -1201,6 +1206,12 @@ class GameScene extends Phaser.Scene {
     this.popupState   = { type: 'build', col, row };
     this.popupObjects = [];
 
+    // 建設ポップアップはUIScene側の別GameObject（カメラズーム非依存のため）。
+    // ボタンへのタップがGameScene自身のグリッド判定にも届いてしまい、隣接セルへの
+    // タップと誤認して即座にトグルクローズする競合があった（2026-08-04発覚）。
+    // ポップアップ表示中はGameScene自身の入力を止め、UIScene側だけで受けるようにする。
+    this.input.enabled = false;
+
     this.game.events.emit('openBuildMenu', { col, row, sx, sy, cellHalfPx, money: this.money });
   }
 
@@ -1284,6 +1295,8 @@ class GameScene extends Phaser.Scene {
       : 'null';
     this._playLog.push(`[TAP_DEBUG] _closePopup開始 popupState=${_psBefore}`);
     // 調査用: 例外を握り潰さず、必ずplayLog/consoleへ内容を出してから同じ例外を再送出する（挙動は変えない・修正後に削除予定）
+    // input.enabledの復帰はfinallyで必ず実行する（途中で例外が起きて入力が永久停止したまま
+    // 固着する事故を防ぐため。中途半端に止まるくらいなら暴発してでも入力を戻す）
     try {
       if (this.popupObjects?.length) {
         this.popupObjects.forEach(o => o.destroy());
@@ -1306,6 +1319,8 @@ class GameScene extends Phaser.Scene {
       this._playLog.push(`[TAP_DEBUG] _closePopup例外: ${e?.message}\n${e?.stack}`);
       console.error('[TAP_DEBUG] _closePopup例外:', e);
       throw e;
+    } finally {
+      this.input.enabled = true;  // _openBuildMenu()で止めた入力を必ず復帰させる（2026-08-04）
     }
   }
 
@@ -1389,6 +1404,9 @@ class GameScene extends Phaser.Scene {
       const sx       = (col * CELL + CELL / 2 - cam.scrollX) * cam.zoom;
       const sy       = (row * CELL + CELL / 2 - cam.scrollY) * cam.zoom + HEADER_H;
       const event    = type === 'punch' ? 'openPunchDirPicker' : 'openDirectionPicker';
+      // 建設ポップアップと同じ理由（UIScene側の別GameObjectのため）で、方向選択中も
+      // GameScene自身の入力を止める。選択完了は_onUiLaserDirで復帰させる（2026-08-04）
+      this.input.enabled = false;
       this.game.events.emit(event, { col, row, sx, sy });
     }
   }

@@ -129,8 +129,10 @@ class UIScene extends Phaser.Scene {
     if (py < 6) py = sy + cellHalfPx + 6;
     py = Math.max(6, Math.min(H - UI_H - popH - 6, py));
 
-    // 暗幕オーバーレイ
-    const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72).setDepth(69);
+    // 暗幕オーバーレイ（タップで閉じる。GameScene側は建設ポップアップ表示中は入力を止めて
+    // いるため、「外側タップで閉じる」操作はこちらから'ui_closePopup'で伝える・2026-08-04）
+    const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72).setDepth(69).setInteractive();
+    overlay.on('pointerdown', () => this.game.events.emit('ui_closePopup'));
     this._buildPopupObjs.push(overlay);
 
     // 背景
