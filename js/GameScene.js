@@ -50,7 +50,7 @@ class GameScene extends Phaser.Scene {
     // ポップアップ状態
     this.popupState      = null;
     this.popupObjects    = [];
-    this._popupJustActed = false;
+    this._popupJustActed = 0;  // 0=非活性。非0ならその時刻(this.time.now基準)まで直後のゴーストタップを無視する
 
     // リレー状態
     this.escortDefs    = sd.escorts;
@@ -192,7 +192,8 @@ class GameScene extends Phaser.Scene {
     this._onUiCycleTime      = () => this._cycleTimeMode();
     this._onUiReturnToEscort = () => this._returnToEscort();
     this._onUiToggleRoute    = () => { this.showRoute = !this.showRoute; this._drawEscortRoute(); };
-    this._onUiBuildPlace     = ({ col, row, type }) => { this._popupJustActed = true; this._tryPlace(col, row, type); this._closePopup(); };
+    // _tryPlace()が内部で_closePopup()を呼ぶため、ここでは呼ばない（二重呼び出し防止・2026-08-04）
+    this._onUiBuildPlace     = ({ col, row, type }) => { this._popupJustActed = this.time.now + 300; this._tryPlace(col, row, type); };
     this._onUiLaserDir       = ({ col, row, dir }) => {
       const t = this.towers.find(t => t.col === col && t.row === row);
       if (t) t.direction = dir;
@@ -1126,9 +1127,14 @@ class GameScene extends Phaser.Scene {
     }
 
     if (this._popupJustActed) {
-      this._playLog.push(`[TAP_DEBUG] return=popupJustActed popupState=${_psSummary} money=${this.money}`);
-      this._popupJustActed = false;
-      return;
+      // 時間切れロック方式（2026-08-04修正）: 「次の1タップだけ消費する」設計だと、
+      // 期待していた"直後のゴースト重複タップ"が実機で来なかった場合にフラグが残り続け、
+      // それ以降の本物のタップまで無限に飲み込んでしまう事故があった（建設1回で以降ずっと開かない）。
+      // 実時間ベースで自動失効させることで、ゴーストタップが来ない場合でも必ず一定時間後に復帰する。
+      const stillActive = this.time.now < this._popupJustActed;
+      this._popupJustActed = 0;
+      this._playLog.push(`[TAP_DEBUG] return=popupJustActed(stillActive=${stillActive}) popupState=${_psSummary} money=${this.money}`);
+      if (stillActive) return;
     }
 
     if (this.popupState) {
@@ -1244,7 +1250,7 @@ class GameScene extends Phaser.Scene {
       if (hasMoney) {
         upgradeBtn.on('pointerover',  () => upgradeBtn.setFillStyle(0x226622, 0.9));
         upgradeBtn.on('pointerout',   () => upgradeBtn.setFillStyle(0x114411, 0.9));
-        upgradeBtn.on('pointerdown',  () => { this._popupJustActed = true; this._upgradeTower(tower); });
+        upgradeBtn.on('pointerdown',  () => { this._popupJustActed = this.time.now + 300; this._upgradeTower(tower); });
       }
       this.popupObjects.push(upgradeBtn);
       const upgradeText = this.add.text(btnX + btnW / 2, ubY + btnH / 2,
@@ -1260,7 +1266,7 @@ class GameScene extends Phaser.Scene {
       .setScrollFactor(0).setDepth(71).setStrokeStyle(1.5, 0xff4444, 0.8).setInteractive();
     sellBtn.on('pointerover',  () => sellBtn.setFillStyle(0x882222, 0.9));
     sellBtn.on('pointerout',   () => sellBtn.setFillStyle(0x551111, 0.9));
-    sellBtn.on('pointerdown',  () => { this._popupJustActed = true; this._sellTower(tower); });
+    sellBtn.on('pointerdown',  () => { this._popupJustActed = this.time.now + 300; this._sellTower(tower); });
     this.popupObjects.push(sellBtn);
 
     const sellText = this.add.text(btnX + btnW / 2, sbY + btnH / 2, `売却  +¥${tower.sell}`, {
