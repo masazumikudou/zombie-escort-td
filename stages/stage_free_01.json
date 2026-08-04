@@ -7,8 +7,8 @@
   "rows": 20
  },
  "ground_base": "grass",
- "startMoney": 1400,
- "_comment_startMoney": "理論計算ではなく当て。最初に回すツマミ。",
+ "startMoney": 0,
+ "_comment_startMoney": "全額をescort側に寄せる方式。stage直下は0（未定義にするとWARNが出るため明示的に0を書く）。合計3500G = dad1400 + mom900 + son1200",
  "minSurvivors": 1,
  "spawns": {
   "A1": { "col": 7, "row": 6 },
@@ -47,6 +47,7 @@
     {"col":13,"row":16},{"col":14,"row":16},{"col":15,"row":16},{"col":16,"row":16},{"col":17,"row":16},
     {"col":18,"row":16},{"col":19,"row":16}
    ],
+   "startMoney": 1400,
    "hp": 120,
    "speed": 50,
    "segments": [
@@ -97,6 +98,7 @@
     {"col":13,"row":16},{"col":14,"row":16},{"col":15,"row":16},{"col":16,"row":16},{"col":17,"row":16},
     {"col":18,"row":16},{"col":19,"row":16}
    ],
+   "startMoney": 900,
    "hp": 90,
    "speed": 65,
    "segments": [
@@ -139,6 +141,7 @@
     {"col":13,"row":16},{"col":14,"row":16},{"col":15,"row":16},{"col":16,"row":16},{"col":17,"row":16},
     {"col":18,"row":16},{"col":19,"row":16}
    ],
+   "startMoney": 1200,
    "hp": 80,
    "speed": 70,
    "segments": [
