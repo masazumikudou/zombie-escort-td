@@ -1110,41 +1110,58 @@ class GameScene extends Phaser.Scene {
   _handleTap(p) {
     if (p.y > CANVAS_H - UI_H) return;
 
+    // 調査用デバッグログ（2026-08-04・ポップアップ2回目以降開かない事象の原因特定用・修正後に削除予定）
+    const col = Math.floor(p.worldX / CELL);
+    const row = Math.floor(p.worldY / CELL);
+    const _psSummary = this.popupState
+      ? `type=${this.popupState.type}${this.popupState.col !== undefined ? `,col=${this.popupState.col},row=${this.popupState.row}` : ''}`
+      : 'null';
+    this._playLog.push(`[TAP_DEBUG] enter col=${col} row=${row} popupState=${_psSummary} money=${this.money}`);
+
     // NEXT WAVEカード表示中のタップ → スキップ
     if (this.relayPhase === 'interval' && this._nextWaveCardObjs) {
+      this._playLog.push(`[TAP_DEBUG] return=nextWaveCard popupState=${_psSummary} money=${this.money}`);
       this._activateNextEscort();
       return;
     }
 
     if (this._popupJustActed) {
+      this._playLog.push(`[TAP_DEBUG] return=popupJustActed popupState=${_psSummary} money=${this.money}`);
       this._popupJustActed = false;
       return;
     }
 
     if (this.popupState) {
+      this._playLog.push(`[TAP_DEBUG] return=popupState既存(トグルクローズ) popupState=${_psSummary} money=${this.money}`);
       this._closePopup();
       return;
     }
 
-    const col = Math.floor(p.worldX / CELL);
-    const row = Math.floor(p.worldY / CELL);
-    if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+    if (col < 0 || col >= COLS || row < 0 || row >= ROWS) {
+      this._playLog.push(`[TAP_DEBUG] return=範囲外 col=${col} row=${row} money=${this.money}`);
+      return;
+    }
 
     const tower = this.towers.find(t => t.col === col && t.row === row);
     if (tower) {
+      this._playLog.push(`[TAP_DEBUG] return=既存タワー重複(売却メニューへ) col=${col} row=${row} money=${this.money}`);
       this._openSellMenu(tower);
       return;
     }
 
     // プロップ上のタップ → バツマーク＋効果音
     if (this.propCells?.has(`${col},${row}`)) {
+      this._playLog.push(`[TAP_DEBUG] return=prop衝突 col=${col} row=${row} money=${this.money}`);
       this._showPlaceFail(col, row);
       return;
     }
 
     const onSpot = this.buildSpots.size === 0 || this.buildSpots.has(`${col},${row}`);
     if (onSpot) {
+      this._playLog.push(`[TAP_DEBUG] return=正常到達→openBuildMenu col=${col} row=${row} money=${this.money}`);
       this._openBuildMenu(col, row);
+    } else {
+      this._playLog.push(`[TAP_DEBUG] return=buildSpots非該当 col=${col} row=${row} money=${this.money}`);
     }
   }
 
@@ -1255,22 +1272,35 @@ class GameScene extends Phaser.Scene {
 
   // ─── ポップアップを閉じる ────────────────────────────────
   _closePopup() {
-    if (this.popupObjects?.length) {
-      this.popupObjects.forEach(o => o.destroy());
-      this.popupObjects = [];
+    // 調査用デバッグログ（2026-08-04・修正後に削除予定）
+    const _psBefore = this.popupState
+      ? `type=${this.popupState.type}${this.popupState.col !== undefined ? `,col=${this.popupState.col},row=${this.popupState.row}` : ''}`
+      : 'null';
+    this._playLog.push(`[TAP_DEBUG] _closePopup開始 popupState=${_psBefore}`);
+    // 調査用: 例外を握り潰さず、必ずplayLog/consoleへ内容を出してから同じ例外を再送出する（挙動は変えない・修正後に削除予定）
+    try {
+      if (this.popupObjects?.length) {
+        this.popupObjects.forEach(o => o.destroy());
+        this.popupObjects = [];
+      }
+      if (this.popupState?.type === 'sell') {
+        this.popupState.tower.selected = false;
+      }
+      // 建設メニューを閉じたら元の速度に戻す・UISceneのポップアップも閉じる
+      if (this.popupState?.type === 'build' && this._preBuildTimeIdx !== undefined) {
+        this.timeModeIdx = this._preBuildTimeIdx;
+        this._preBuildTimeIdx = undefined;
+        this.game.events.emit('closeBuildMenu');
+        this.showGrid = false;
+        this._drawMapStatic();
+      }
+      this.popupState = null;
+      this._playLog.push(`[TAP_DEBUG] _closePopup完了 popupState=null`);
+    } catch (e) {
+      this._playLog.push(`[TAP_DEBUG] _closePopup例外: ${e?.message}\n${e?.stack}`);
+      console.error('[TAP_DEBUG] _closePopup例外:', e);
+      throw e;
     }
-    if (this.popupState?.type === 'sell') {
-      this.popupState.tower.selected = false;
-    }
-    // 建設メニューを閉じたら元の速度に戻す・UISceneのポップアップも閉じる
-    if (this.popupState?.type === 'build' && this._preBuildTimeIdx !== undefined) {
-      this.timeModeIdx = this._preBuildTimeIdx;
-      this._preBuildTimeIdx = undefined;
-      this.game.events.emit('closeBuildMenu');
-      this.showGrid = false;
-      this._drawMapStatic();
-    }
-    this.popupState = null;
   }
 
   // ─── 初期配置タワー（JSON + ステージ選択画面入力・コスト無消費・チェックバイパス） ───
