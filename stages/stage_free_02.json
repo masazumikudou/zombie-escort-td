@@ -1,36 +1,45 @@
 {
- "id": "stage_free_01",
- "name": "自由設計01（碁盤・3人・AB導線）",
- "_comment_design": "Claudeが導線から敵配置まで単独設計した1本目。小松は設計図を見ずに初見プレイする前提。buildSpot・敵spawnはすべて道路2セル上のみ。難易度の当てはめは後付け。",
+ "id": "stage_free_02",
+ "name": "自由設計02（A/B/A・枠外突入あり）",
+ "_comment_design": "stage_free_01の作り直し。①導線割当をA/B/Aとし②dadの交戦を前半に、sonの交戦を後半に寄せることで遺産の効きに濃淡をつけた③B導線を引き直しA導線と付かず離れずにした④枠外突入を2箇所（すべて道路の延長線上）。敵47体は多め＝引き算で調整する前提。",
  "grid": {
   "cols": 20,
   "rows": 20
  },
  "ground_base": "grass",
  "startMoney": 0,
- "_comment_startMoney": "全額をescort側に寄せる方式。stage直下は0（未定義にするとWARNが出るため明示的に0を書く）。合計3500G = dad1400 + mom900 + son1200",
+ "_comment_startMoney": "全額escort側に寄せる。合計3400G = dad1100 + mom900 + son1400",
  "minSurvivors": 1,
  "spawns": {
-  "A1": { "col": 7, "row": 6 },
-  "A2": { "col": 7, "row": 7 },
-  "A3": { "col": 7, "row": 8 },
-  "B1": { "col": 9, "row": 9 },
-  "B2": { "col": 10, "row": 9 },
-  "B3": { "col": 11, "row": 9 },
-  "C1": { "col": 13, "row": 12 },
-  "C2": { "col": 13, "row": 13 },
-  "C3": { "col": 13, "row": 14 },
-  "D1": { "col": 15, "row": 15 },
-  "D2": { "col": 16, "row": 15 },
-  "K1": { "col": 19, "row": 15 },
-  "M1": { "col": 1, "row": 11 },
-  "M2": { "col": 1, "row": 12 },
-  "M3": { "col": 1, "row": 13 },
-  "N1": { "col": 5, "row": 15 },
-  "N2": { "col": 6, "row": 15 },
-  "N3": { "col": 8, "row": 15 },
-  "N4": { "col": 9, "row": 15 },
-  "T1": { "col": 19, "row": 3 }
+  "a1": { "col": 7, "row": 5 },
+  "a2": { "col": 7, "row": 6 },
+  "a3": { "col": 7, "row": 7 },
+  "a4": { "col": 7, "row": 8 },
+  "b1": { "col": 8, "row": 9 },
+  "b2": { "col": 9, "row": 9 },
+  "b3": { "col": 10, "row": 9 },
+  "b4": { "col": 11, "row": 9 },
+  "c1": { "col": 13, "row": 12 },
+  "c2": { "col": 13, "row": 13 },
+  "c3": { "col": 13, "row": 14 },
+  "m1": { "col": 2, "row": 9 },
+  "m2": { "col": 3, "row": 9 },
+  "m3": { "col": 4, "row": 9 },
+  "m4": { "col": 5, "row": 9 },
+  "m5": { "col": 6, "row": 9 },
+  "m6": { "col": 7, "row": 12 },
+  "m7": { "col": 7, "row": 13 },
+  "m8": { "col": 7, "row": 14 },
+  "m9": { "col": 9, "row": 15 },
+  "m10": { "col": 10, "row": 15 },
+  "m11": { "col": 15, "row": 15 },
+  "m12": { "col": 16, "row": 15 },
+  "m13": { "col": 17, "row": 15 },
+  "s1": { "col": 13, "row": 11 },
+  "s2": { "col": 17, "row": 15 },
+  "X_south": { "col": 13, "row": 22 },
+  "X_east": { "col": 23, "row": 15 },
+  "X_bird": { "col": 23, "row": 4 }
  },
  "escorts": [
   {
@@ -47,41 +56,37 @@
     {"col":13,"row":16},{"col":14,"row":16},{"col":15,"row":16},{"col":16,"row":16},{"col":17,"row":16},
     {"col":18,"row":16},{"col":19,"row":16}
    ],
-   "startMoney": 1400,
+   "startMoney": 1100,
    "hp": 120,
    "speed": 50,
    "segments": [
     { "segmentId": "d1_kangae", "range": {"fromWp":0,"toWp":6}, "onExit": "retreat",
-      "_comment_segment": "最初の直線。敵ゼロ。盤面を見回して展開を組み立てる時間（spec07 ルール1）",
+      "_comment_segment": "最初の直線。敵ゼロ（考える時間）",
       "initial": [], "triggers": [] },
     { "segmentId": "d2_tate", "range": {"fromWp":6,"toWp":12}, "onExit": "retreat",
       "initial": [
-        {"spawn":"A1","enemy":{"type":"salaryman"}},
-        {"spawn":"A2","enemy":{"type":"salaryman"}},
-        {"spawn":"A3","enemy":{"type":"salaryman"}}
+        {"spawn":"a1","enemy":{"type":"salaryman"}},
+        {"spawn":"a2","enemy":{"type":"salaryman"}},
+        {"spawn":"a3","enemy":{"type":"salaryman"}},
+        {"spawn":"a4","enemy":{"type":"salaryman"}}
       ], "triggers": [] },
     { "segmentId": "d3_yoko", "range": {"fromWp":12,"toWp":18}, "onExit": "retreat",
       "initial": [
-        {"spawn":"B1","enemy":{"type":"worker"}},
-        {"spawn":"B2","enemy":{"type":"worker"}},
-        {"spawn":"B3","enemy":{"type":"worker"}}
+        {"spawn":"b1","enemy":{"type":"worker"}},
+        {"spawn":"b2","enemy":{"type":"worker"}},
+        {"spawn":"b3","enemy":{"type":"worker"}},
+        {"spawn":"b4","enemy":{"type":"worker"}}
       ], "triggers": [] },
-    { "segmentId": "d4_debu", "range": {"fromWp":18,"toWp":24}, "onExit": "retreat",
+    { "segmentId": "d4_tate2", "range": {"fromWp":18,"toWp":24}, "onExit": "retreat",
+      "_comment_segment": "軽め。ここを軽くすることでdadの布陣が後半に伸びず、sonの後半区間が無防備になる",
       "initial": [
-        {"spawn":"C1","enemy":{"type":"debu"}},
-        {"spawn":"C2","enemy":{"type":"debu"}},
-        {"spawn":"C3","enemy":{"type":"debu"}}
+        {"spawn":"c1","enemy":{"type":"salaryman"}},
+        {"spawn":"c2","enemy":{"type":"salaryman"}},
+        {"spawn":"c3","enemy":{"type":"salaryman"}}
       ], "triggers": [] },
     { "segmentId": "d5_last", "range": {"fromWp":24,"toWp":31}, "onExit": "retreat",
-      "initial": [
-        {"spawn":"D1","enemy":{"type":"police"}},
-        {"spawn":"D2","enemy":{"type":"police"}}
-      ],
-      "triggers": [
-        { "type":"progress","atWpIdx":26,"spawn":"K1","count":2,"interval":500,
-          "_comment_trigger": "Gから来る型。dad(speed50)は5体が上限値だが、警察2体と重なるため2体に抑えている",
-          "enemy":{"type":"kickboard"} }
-      ] }
+      "_comment_segment": "敵ゼロ。ここに投資させないのが狙い（sonの最濃区間になる）",
+      "initial": [], "triggers": [] }
    ]
   },
   {
@@ -91,9 +96,9 @@
    "goal": { "col": 19, "row": 16 },
    "path": [
     {"col":0,"row":4},{"col":0,"row":5},{"col":0,"row":6},{"col":0,"row":7},{"col":0,"row":8},
-    {"col":0,"row":9},{"col":0,"row":10},{"col":0,"row":11},{"col":0,"row":12},{"col":0,"row":13},
-    {"col":0,"row":14},{"col":0,"row":15},{"col":0,"row":16},{"col":1,"row":16},{"col":2,"row":16},
-    {"col":3,"row":16},{"col":4,"row":16},{"col":5,"row":16},{"col":6,"row":16},{"col":7,"row":16},
+    {"col":0,"row":9},{"col":0,"row":10},{"col":1,"row":10},{"col":2,"row":10},{"col":3,"row":10},
+    {"col":4,"row":10},{"col":5,"row":10},{"col":6,"row":10},{"col":6,"row":11},{"col":6,"row":12},
+    {"col":6,"row":13},{"col":6,"row":14},{"col":6,"row":15},{"col":6,"row":16},{"col":7,"row":16},
     {"col":8,"row":16},{"col":9,"row":16},{"col":10,"row":16},{"col":11,"row":16},{"col":12,"row":16},
     {"col":13,"row":16},{"col":14,"row":16},{"col":15,"row":16},{"col":16,"row":16},{"col":17,"row":16},
     {"col":18,"row":16},{"col":19,"row":16}
@@ -102,29 +107,38 @@
    "hp": 90,
    "speed": 65,
    "segments": [
-    { "segmentId": "m1_iriguchi", "range": {"fromWp":0,"toWp":12}, "onExit": "retreat",
-      "_comment_segment": "別導線の入口。dadの遺産タワーがcol6以降にしか無いため、ここは実質ノーガード。入口直後(row4-10)には敵を置かず、row11以降で初交戦",
+    { "segmentId": "m1_iriguchi", "range": {"fromWp":0,"toWp":6}, "onExit": "retreat",
+      "_comment_segment": "別導線の入口。row7以降で初交戦になるよう曲がり角の先に置く",
       "initial": [
-        {"spawn":"M1","enemy":{"type":"police"}},
-        {"spawn":"M2","enemy":{"type":"police"}},
-        {"spawn":"M3","enemy":{"type":"worker"}}
+        {"spawn":"m1","enemy":{"type":"worker"}},
+        {"spawn":"m2","enemy":{"type":"worker"}}
       ], "triggers": [] },
-    { "segmentId": "m2_goryu", "range": {"fromWp":12,"toWp":22}, "onExit": "retreat",
+    { "segmentId": "m2_yoko", "range": {"fromWp":6,"toWp":13}, "onExit": "retreat",
+      "_comment_segment": "row10。A導線のrow10区間と同じ行なのでdadの遺産が部分的に届く",
       "initial": [
-        {"spawn":"N1","enemy":{"type":"debu"}},
-        {"spawn":"N2","enemy":{"type":"debu"}},
-        {"spawn":"N3","enemy":{"type":"salaryman"}},
-        {"spawn":"N4","enemy":{"type":"salaryman"}}
+        {"spawn":"m3","enemy":{"type":"police"}},
+        {"spawn":"m4","enemy":{"type":"police"}},
+        {"spawn":"m5","enemy":{"type":"police"}}
       ], "triggers": [] },
-    { "segmentId": "m3_last", "range": {"fromWp":22,"toWp":31}, "onExit": "retreat",
+    { "segmentId": "m3_tate", "range": {"fromWp":13,"toWp":19}, "onExit": "retreat",
+      "_comment_segment": "col6縦道。A導線のcol12から6マス離れており遺産がほぼ効かない",
       "initial": [
-        {"spawn":"D1","enemy":{"type":"police"}},
-        {"spawn":"D2","enemy":{"type":"police"}}
-      ],
-      "triggers": [
-        { "type":"progress","atWpIdx":26,"spawn":"K1","count":2,"interval":500,
-          "enemy":{"type":"kickboard"} }
-      ] }
+        {"spawn":"m6","enemy":{"type":"debu"}},
+        {"spawn":"m7","enemy":{"type":"debu"}},
+        {"spawn":"m8","enemy":{"type":"debu"}}
+      ], "triggers": [] },
+    { "segmentId": "m4_last1", "range": {"fromWp":19,"toWp":25}, "onExit": "retreat",
+      "initial": [
+        {"spawn":"m9","enemy":{"type":"police"}},
+        {"spawn":"m10","enemy":{"type":"police"}}
+      ], "triggers": [] },
+    { "segmentId": "m5_last2", "range": {"fromWp":25,"toWp":31}, "onExit": "retreat",
+      "_comment_segment": "row16終盤。A導線と完全に重なるのでmomの投資がsonにも残る",
+      "initial": [
+        {"spawn":"m11","enemy":{"type":"salaryman"}},
+        {"spawn":"m12","enemy":{"type":"salaryman"}},
+        {"spawn":"m13","enemy":{"type":"salaryman"}}
+      ], "triggers": [] }
    ]
   },
   {
@@ -141,56 +155,71 @@
     {"col":13,"row":16},{"col":14,"row":16},{"col":15,"row":16},{"col":16,"row":16},{"col":17,"row":16},
     {"col":18,"row":16},{"col":19,"row":16}
    ],
-   "startMoney": 1200,
+   "startMoney": 1400,
    "hp": 80,
    "speed": 70,
    "segments": [
     { "segmentId": "s1_kangae", "range": {"fromWp":0,"toWp":6}, "onExit": "retreat",
       "initial": [], "triggers": [] },
     { "segmentId": "s2_tate", "range": {"fromWp":6,"toWp":12}, "onExit": "retreat",
+      "_comment_segment": "軽め。dadの遺産がそのまま効く区間",
       "initial": [
-        {"spawn":"A1","enemy":{"type":"worker"}},
-        {"spawn":"A2","enemy":{"type":"worker"}},
-        {"spawn":"A3","enemy":{"type":"worker"}}
+        {"spawn":"a2","enemy":{"type":"salaryman"}},
+        {"spawn":"a3","enemy":{"type":"salaryman"}}
       ], "triggers": [] },
-    { "segmentId": "s3_yoko", "range": {"fromWp":12,"toWp":18}, "onExit": "retreat",
+    { "segmentId": "s3_yoko", "range": {"fromWp":12,"toWp":17}, "onExit": "retreat",
+      "_comment_segment": "中。dadの遺産が効く区間",
       "initial": [
-        {"spawn":"B1","enemy":{"type":"police"}},
-        {"spawn":"B2","enemy":{"type":"police"}},
-        {"spawn":"B3","enemy":{"type":"police"}}
+        {"spawn":"b2","enemy":{"type":"worker"}},
+        {"spawn":"b3","enemy":{"type":"worker"}},
+        {"spawn":"b4","enemy":{"type":"worker"}}
       ], "triggers": [] },
-    { "segmentId": "s4_tori", "range": {"fromWp":18,"toWp":24}, "onExit": "retreat",
-      "_comment_segment": "鳥単独区間。spec07の設計ルール①に従い地上の交戦と重ねない。旋回点は(10,12)固定",
-      "initial": [],
-      "triggers": [
-        { "type":"progress","atWpIdx":19,"spawn":"T1","count":5,"interval":100,
-          "enemy":{"type":"bird","circleAt":{"col":10,"row":12},"circleRadius":150,"circleDurationMs":6000,"circleLoops":2.5} }
-      ] },
-    { "segmentId": "s5_last", "range": {"fromWp":24,"toWp":31}, "onExit": "retreat",
+    { "segmentId": "s4_tate2", "range": {"fromWp":17,"toWp":21}, "onExit": "retreat",
+      "_comment_segment": "★濃い。dadはここを軽くしか通っていないため遺産が薄い。さらに南の枠外から突入",
       "initial": [
-        {"spawn":"D1","enemy":{"type":"debu"}},
-        {"spawn":"D2","enemy":{"type":"debu"}}
+        {"spawn":"s1","enemy":{"type":"police"}},
+        {"spawn":"c1","enemy":{"type":"police"}},
+        {"spawn":"c2","enemy":{"type":"police"}}
       ],
       "triggers": [
-        { "type":"progress","atWpIdx":26,"spawn":"K1","count":3,"interval":500,
-          "_comment_trigger": "son(speed70)は4体が上限値。デブ2体と重なるため3体",
+        { "type":"progress","atWpIdx":18,"spawn":"X_south","count":3,"interval":600,
+          "_comment_trigger": "枠外突入①。(13,22)から(13,19)へ侵入しcol12縦道を北上する",
           "enemy":{"type":"kickboard"} }
+      ] },
+    { "segmentId": "s5_tori", "range": {"fromWp":21,"toWp":26}, "onExit": "retreat",
+      "_comment_segment": "鳥単独区間。spec07の設計ルール①に従い地上の交戦と重ねない",
+      "initial": [],
+      "triggers": [
+        { "type":"progress","atWpIdx":22,"spawn":"X_bird","count":5,"interval":100,
+          "enemy":{"type":"bird","circleAt":{"col":16,"row":12},"circleRadius":150,"circleDurationMs":6000,"circleLoops":2.5} }
+      ] },
+    { "segmentId": "s6_last", "range": {"fromWp":26,"toWp":31}, "onExit": "retreat",
+      "_comment_segment": "★★最濃。dadは敵ゼロで通過した区間なので遺産がほぼ無い。東の枠外からも突入",
+      "initial": [
+        {"spawn":"m11","enemy":{"type":"debu"}},
+        {"spawn":"m12","enemy":{"type":"debu"}},
+        {"spawn":"s2","enemy":{"type":"debu"}}
+      ],
+      "triggers": [
+        { "type":"progress","atWpIdx":27,"spawn":"X_east","count":4,"interval":600,
+          "_comment_trigger": "枠外突入②。(23,15)から(19,15)へ侵入しrow15横道を西進する",
+          "enemy":{"type":"worker"} }
       ] }
    ]
   }
  ],
  "obstacles": [],
  "buildSpots": [
-  {"col":0,"row":3},
+  {"col":0,"row":3},{"col":0,"row":15},
   {"col":1,"row":0},{"col":1,"row":1},{"col":1,"row":2},{"col":1,"row":3},{"col":1,"row":5},
-  {"col":1,"row":6},{"col":1,"row":7},{"col":1,"row":8},{"col":1,"row":9},{"col":1,"row":10},
-  {"col":1,"row":11},{"col":1,"row":12},{"col":1,"row":13},{"col":1,"row":14},{"col":1,"row":15},
+  {"col":1,"row":6},{"col":1,"row":7},{"col":1,"row":8},{"col":1,"row":9},{"col":1,"row":11},
+  {"col":1,"row":12},{"col":1,"row":13},{"col":1,"row":14},{"col":1,"row":15},{"col":1,"row":16},
   {"col":1,"row":17},{"col":1,"row":18},{"col":1,"row":19},
   {"col":2,"row":3},{"col":2,"row":9},{"col":2,"row":15},
   {"col":3,"row":3},{"col":3,"row":9},{"col":3,"row":15},
   {"col":4,"row":3},{"col":4,"row":9},{"col":4,"row":15},
   {"col":5,"row":3},{"col":5,"row":9},{"col":5,"row":15},
-  {"col":6,"row":3},{"col":6,"row":15},
+  {"col":6,"row":3},
   {"col":7,"row":0},{"col":7,"row":1},{"col":7,"row":2},{"col":7,"row":3},{"col":7,"row":4},
   {"col":7,"row":5},{"col":7,"row":6},{"col":7,"row":7},{"col":7,"row":8},{"col":7,"row":9},
   {"col":7,"row":11},{"col":7,"row":12},{"col":7,"row":13},{"col":7,"row":14},{"col":7,"row":15},
@@ -213,6 +242,16 @@
   {"col":19,"row":5},{"col":19,"row":6},{"col":19,"row":7},{"col":19,"row":8},{"col":19,"row":9},
   {"col":19,"row":10},{"col":19,"row":11},{"col":19,"row":12},{"col":19,"row":13},{"col":19,"row":14},
   {"col":19,"row":15},{"col":19,"row":17},{"col":19,"row":18},{"col":19,"row":19}
+ ],
+ "encounterHints": [
+  { "col": 6, "row": 7, "note": "dad 交戦地1（曲がり角の先）" },
+  { "col": 10, "row": 10, "note": "dad 交戦地2" },
+  { "col": 12, "row": 13, "note": "dad 交戦地3（軽め）" },
+  { "col": 1, "row": 9, "note": "mom 交戦地1（B導線入口の先）" },
+  { "col": 4, "row": 10, "note": "mom 交戦地2（A導線row10と同じ行＝遺産が届く）" },
+  { "col": 6, "row": 13, "note": "mom 交戦地3（col12から6マス＝遺産が効かない）" },
+  { "col": 12, "row": 12, "note": "son ★濃（枠外突入①）" },
+  { "col": 16, "row": 16, "note": "son ★★最濃（枠外突入②）" }
  ],
  "ground_cells": [
   {"col":0,"row":3,"type":"道横"},{"col":1,"row":3,"type":"道横"},{"col":2,"row":3,"type":"道横"},
