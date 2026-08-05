@@ -204,12 +204,27 @@ class GameScene extends Phaser.Scene {
     };
     // 建設ポップアップ外（UISceneの暗幕）タップで閉じるためのコールバック（2026-08-04追加）
     this._onUiClosePopup     = () => this._closePopup();
+    // 売却/アップグレードポップアップもUIScene側に描画を委譲（2026-08-05・建設ポップアップと揃える）
+    this._onUiUpgradeTower   = ({ col, row }) => {
+      const t = this.towers.find(t => t.col === col && t.row === row);
+      this._popupJustActed = this.time.now + 300;
+      if (t) this._upgradeTower(t);
+      this._closePopup();
+    };
+    this._onUiSellTower      = ({ col, row }) => {
+      const t = this.towers.find(t => t.col === col && t.row === row);
+      this._popupJustActed = this.time.now + 300;
+      if (t) this._sellTower(t);
+      this._closePopup();
+    };
     this.game.events.on('ui_cycleTime',      this._onUiCycleTime);
     this.game.events.on('ui_returnToEscort', this._onUiReturnToEscort);
     this.game.events.on('ui_toggleRoute',    this._onUiToggleRoute);
     this.game.events.on('ui_buildPlace',     this._onUiBuildPlace);
     this.game.events.on('ui_laserDir',       this._onUiLaserDir);
     this.game.events.on('ui_closePopup',     this._onUiClosePopup);
+    this.game.events.on('ui_upgradeTower',   this._onUiUpgradeTower);
+    this.game.events.on('ui_sellTower',      this._onUiSellTower);
     this.events.once('shutdown', () => {
       this.game.events.off('ui_cycleTime',      this._onUiCycleTime);
       this.game.events.off('ui_returnToEscort', this._onUiReturnToEscort);
@@ -218,6 +233,8 @@ class GameScene extends Phaser.Scene {
       this.game.events.off('ui_laserDir',       this._onUiLaserDir);
       this.game.events.off('ui_resize',         this._onUiResize);
       this.game.events.off('ui_closePopup',     this._onUiClosePopup);
+      this.game.events.off('ui_upgradeTower',   this._onUiUpgradeTower);
+      this.game.events.off('ui_sellTower',      this._onUiSellTower);
     });
 
     // UI構築
@@ -1234,6 +1251,12 @@ class GameScene extends Phaser.Scene {
   }
 
   // ─── 売却メニュー ────────────────────────────────────────
+  // 建設ポップアップと同じ理由でUIScene側に描画を委譲する（2026-08-05）。
+  // 以前はGameScene自身が描画しており、暗幕が無いため「範囲外タップで閉じる」を
+  // _handleTap()自身のトグル分岐に頼っていたが、ポップアップ表示中はGameScene自身の
+  // 入力を止める設計にしたため、暗幕を持たないこの経路だけ閉じ手段がEscapeキーのみに
+  // なってしまう（モバイルでは事実上操作不能）。ボタン自体もGameScene側に置いたままだと
+  // input.enabled=false化で押せなくなるため、ボタンごとUIScene側へ移した。
   _openSellMenu(tower) {
     this._closePopup();
 
@@ -1243,6 +1266,7 @@ class GameScene extends Phaser.Scene {
 
     const upgCost    = tower.upgradeCost?.() ?? null;
     const canUpgrade = upgCost !== null;
+    const hasMoney   = canUpgrade ? this.money >= upgCost : false;
     const popW = 152;
     const popH = canUpgrade ? 110 : 72;
     let px = sx - popW / 2;
@@ -1257,52 +1281,13 @@ class GameScene extends Phaser.Scene {
 
     const def = TOWER_DEFS[tower.type];
 
-    const bg = this.add.rectangle(px + popW / 2, py + popH / 2, popW, popH, 0x050510, 0.96)
-      .setScrollFactor(0).setDepth(70).setStrokeStyle(1, 0x3a5070);
-    this.popupObjects.push(bg);
-
-    const titleText = this.add.text(px + popW / 2, py + 8, `${def.label}タワー  Lv${tower.upgradeLevel}`, {
-      fontSize: '14px', fontFamily: 'Arial, Helvetica, sans-serif',
-      color: def.textColor, stroke: '#000000', strokeThickness: 2,
-    }).setScrollFactor(0).setDepth(71).setOrigin(0.5, 0);
-    this.popupObjects.push(titleText);
-
-    const btnW = 128, btnH = 30;
-    const btnX = px + (popW - btnW) / 2;
-
-    if (canUpgrade) {
-      const ubY = py + 32;
-      const hasMoney = this.money >= upgCost;
-      const ubColor  = hasMoney ? 0x114411 : 0x222222;
-      const upgradeBtn = this.add.rectangle(btnX + btnW / 2, ubY + btnH / 2, btnW, btnH, ubColor, 0.9)
-        .setScrollFactor(0).setDepth(71).setStrokeStyle(1.5, hasMoney ? 0x44ff44 : 0x555555, 0.8).setInteractive();
-      if (hasMoney) {
-        upgradeBtn.on('pointerover',  () => upgradeBtn.setFillStyle(0x226622, 0.9));
-        upgradeBtn.on('pointerout',   () => upgradeBtn.setFillStyle(0x114411, 0.9));
-        upgradeBtn.on('pointerdown',  () => { this._popupJustActed = this.time.now + 300; this._upgradeTower(tower); });
-      }
-      this.popupObjects.push(upgradeBtn);
-      const upgradeText = this.add.text(btnX + btnW / 2, ubY + btnH / 2,
-        hasMoney ? `強化 Lv${tower.upgradeLevel + 1}  ¥${upgCost}` : `強化 ¥${upgCost} (資金不足)`, {
-        fontSize: '13px', fontFamily: 'Arial, Helvetica, sans-serif',
-        color: hasMoney ? '#88ff88' : '#666666', stroke: '#000000', strokeThickness: 2,
-      }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0.5);
-      this.popupObjects.push(upgradeText);
-    }
-
-    const sbY = canUpgrade ? py + 72 : py + popH - btnH - 8;
-    const sellBtn = this.add.rectangle(btnX + btnW / 2, sbY + btnH / 2, btnW, btnH, 0x551111, 0.9)
-      .setScrollFactor(0).setDepth(71).setStrokeStyle(1.5, 0xff4444, 0.8).setInteractive();
-    sellBtn.on('pointerover',  () => sellBtn.setFillStyle(0x882222, 0.9));
-    sellBtn.on('pointerout',   () => sellBtn.setFillStyle(0x551111, 0.9));
-    sellBtn.on('pointerdown',  () => { this._popupJustActed = this.time.now + 300; this._sellTower(tower); });
-    this.popupObjects.push(sellBtn);
-
-    const sellText = this.add.text(btnX + btnW / 2, sbY + btnH / 2, `売却  +¥${tower.sell}`, {
-      fontSize: '14px', fontFamily: 'Arial, Helvetica, sans-serif',
-      color: '#ff9999', stroke: '#000000', strokeThickness: 2,
-    }).setScrollFactor(0).setDepth(72).setOrigin(0.5, 0.5);
-    this.popupObjects.push(sellText);
+    this.game.events.emit('openSellMenu', {
+      col: tower.col, row: tower.row,
+      px, py, popW, popH,
+      label: def.label, textColor: def.textColor, upgradeLevel: tower.upgradeLevel,
+      canUpgrade, upgCost, hasMoney,
+      sellRefund: tower.sell,
+    });
   }
 
   // ─── ポップアップを閉じる ────────────────────────────────
@@ -1322,6 +1307,7 @@ class GameScene extends Phaser.Scene {
       }
       if (this.popupState?.type === 'sell') {
         this.popupState.tower.selected = false;
+        this.game.events.emit('closeSellMenu');  // UIScene側の売却/アップグレードポップアップを閉じる（2026-08-05）
       }
       // 建設メニューを閉じたら元の速度に戻す・UISceneのポップアップも閉じる
       if (this.popupState?.type === 'build' && this._preBuildTimeIdx !== undefined) {

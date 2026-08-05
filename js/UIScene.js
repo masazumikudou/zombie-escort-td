@@ -75,6 +75,11 @@ class UIScene extends Phaser.Scene {
     this.game.events.on('openDirectionPicker',  (data) => this._openDirectionPicker(data));
     this.game.events.on('openPunchDirPicker',   (data) => this._openPunchDirPicker(data));
 
+    // 売却/アップグレードポップアップ（建設ポップアップと同じ理由でUIScene管理・2026-08-05）
+    this._sellPopupObjs = [];
+    this.game.events.on('openSellMenu',        (data) => this._openSellPopup(data));
+    this.game.events.on('closeSellMenu',       ()     => this._closeSellPopup());
+
     // FPSカウンター（右下・タップでON/OFF）
     this._showFps = false;
     this.fpsText = this.add.text(0, 0, '', {
@@ -180,6 +185,68 @@ class UIScene extends Phaser.Scene {
   _closeBuildPopup() {
     this._buildPopupObjs.forEach(o => o.destroy());
     this._buildPopupObjs = [];
+  }
+
+  // 売却/アップグレードポップアップ（建設ポップアップと同じ構成。座標・寸法はGameScene側で計算済み・2026-08-05）
+  _openSellPopup({ col, row, px, py, popW, popH, label, textColor, upgradeLevel, canUpgrade, upgCost, hasMoney, sellRefund }) {
+    this._closeSellPopup();
+    const uiFont = { fontFamily: 'Arial, Helvetica, sans-serif' };
+    const W = this.scale.width, H = this.scale.height;
+
+    // 暗幕オーバーレイ（タップで閉じる。建設ポップアップと同じ理由・2026-08-05）
+    const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72).setDepth(69).setInteractive();
+    overlay.on('pointerdown', () => this.game.events.emit('ui_closePopup'));
+    this._sellPopupObjs.push(overlay);
+
+    const bg = this.add.rectangle(px + popW / 2, py + popH / 2, popW, popH, 0x050510, 0.96)
+      .setDepth(70).setStrokeStyle(1, 0x3a5070);
+    this._sellPopupObjs.push(bg);
+
+    const titleText = this.add.text(px + popW / 2, py + 8, `${label}タワー  Lv${upgradeLevel}`, {
+      ...uiFont, fontSize: '14px', color: textColor, stroke: '#000000', strokeThickness: 2,
+    }).setDepth(71).setOrigin(0.5, 0);
+    this._sellPopupObjs.push(titleText);
+
+    const btnW = 128, btnH = 30;
+    const btnX = px + (popW - btnW) / 2;
+
+    if (canUpgrade) {
+      const ubY     = py + 32;
+      const ubColor = hasMoney ? 0x114411 : 0x222222;
+      const upgradeBtn = this.add.rectangle(btnX + btnW / 2, ubY + btnH / 2, btnW, btnH, ubColor, 0.9)
+        .setDepth(71).setStrokeStyle(1.5, hasMoney ? 0x44ff44 : 0x555555, 0.8);
+      if (hasMoney) {
+        upgradeBtn.setInteractive();
+        upgradeBtn.on('pointerover',  () => upgradeBtn.setFillStyle(0x226622, 0.9));
+        upgradeBtn.on('pointerout',   () => upgradeBtn.setFillStyle(0x114411, 0.9));
+        upgradeBtn.on('pointerdown',  () => this.game.events.emit('ui_upgradeTower', { col, row }));
+      }
+      this._sellPopupObjs.push(upgradeBtn);
+      const upgradeText = this.add.text(btnX + btnW / 2, ubY + btnH / 2,
+        hasMoney ? `強化 Lv${upgradeLevel + 1}  ¥${upgCost}` : `強化 ¥${upgCost} (資金不足)`, {
+        ...uiFont, fontSize: '13px',
+        color: hasMoney ? '#88ff88' : '#666666', stroke: '#000000', strokeThickness: 2,
+      }).setDepth(72).setOrigin(0.5, 0.5);
+      this._sellPopupObjs.push(upgradeText);
+    }
+
+    const sbY = canUpgrade ? py + 72 : py + popH - btnH - 8;
+    const sellBtn = this.add.rectangle(btnX + btnW / 2, sbY + btnH / 2, btnW, btnH, 0x551111, 0.9)
+      .setDepth(71).setStrokeStyle(1.5, 0xff4444, 0.8).setInteractive();
+    sellBtn.on('pointerover',  () => sellBtn.setFillStyle(0x882222, 0.9));
+    sellBtn.on('pointerout',   () => sellBtn.setFillStyle(0x551111, 0.9));
+    sellBtn.on('pointerdown',  () => this.game.events.emit('ui_sellTower', { col, row }));
+    this._sellPopupObjs.push(sellBtn);
+
+    const sellText = this.add.text(btnX + btnW / 2, sbY + btnH / 2, `売却  +¥${sellRefund}`, {
+      ...uiFont, fontSize: '14px', color: '#ff9999', stroke: '#000000', strokeThickness: 2,
+    }).setDepth(72).setOrigin(0.5, 0.5);
+    this._sellPopupObjs.push(sellText);
+  }
+
+  _closeSellPopup() {
+    this._sellPopupObjs.forEach(o => o.destroy());
+    this._sellPopupObjs = [];
   }
 
   _openPunchDirPicker({ col, row, sx, sy }) {
