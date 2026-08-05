@@ -51,6 +51,8 @@ class GameScene extends Phaser.Scene {
     this.popupState      = null;
     this.popupObjects    = [];
     this._popupJustActed = 0;  // 0=非活性。非0ならその時刻(this.time.now基準)まで直後のゴーストタップを無視する
+    this._popupOpenSince  = undefined;  // popupStateが立ってから経過した実時間の起点（固着検出用・2026-08-05）
+    this._popupStuckWarned = false;
 
     // リレー状態
     this.escortDefs    = sd.escorts;
@@ -192,12 +194,13 @@ class GameScene extends Phaser.Scene {
     this._onUiCycleTime      = () => this._cycleTimeMode();
     this._onUiReturnToEscort = () => this._returnToEscort();
     this._onUiToggleRoute    = () => { this.showRoute = !this.showRoute; this._drawEscortRoute(); };
-    // _tryPlace()が内部で_closePopup()を呼ぶため、ここでは呼ばない（二重呼び出し防止・2026-08-04）
-    this._onUiBuildPlace     = ({ col, row, type }) => { this._popupJustActed = this.time.now + 300; this._tryPlace(col, row, type); };
+    // _tryPlace()内でも_closePopup()を呼ぶが、_canPlace失敗など閉じ損ねる経路があるため、
+    // ここでの保険の呼び出しは削除しない（2026-08-04に一度削除したが判断ミスだったため復帰・2026-08-05）
+    this._onUiBuildPlace     = ({ col, row, type }) => { this._popupJustActed = this.time.now + 300; this._tryPlace(col, row, type); this._closePopup(); };
     this._onUiLaserDir       = ({ col, row, dir }) => {
       const t = this.towers.find(t => t.col === col && t.row === row);
       if (t) t.direction = dir;
-      this.input.enabled = true;  // 方向選択ポップアップ表示中に止めた入力を復帰（2026-08-04）
+      this._closePopup();  // popupState('dirPicker')を閉じる。input.enabledはupdate()で毎フレーム同期される
     };
     // 建設ポップアップ外（UISceneの暗幕）タップで閉じるためのコールバック（2026-08-04追加）
     this._onUiClosePopup     = () => this._closePopup();
@@ -422,6 +425,25 @@ class GameScene extends Phaser.Scene {
 
   // ─── メインループ ─────────────────────────────────────────
   update(time, delta) {
+    // ポップアップ表示中はGameScene自身の入力を毎フレーム強制的に同期する（2026-08-05）。
+    // 「開く場所・閉じる場所それぞれで手動true/false」方式は、閉じる経路を1つ見落とすだけで
+    // 恒久固着する事故を起こした（_tryPlaceの_canPlace失敗パス）。popupStateから毎フレーム
+    // 導出する形にすれば、どの経路がpopupStateのクリアを忘れても次のフレームで自動復旧する。
+    this.input.enabled = !this.popupState;
+    if (this.popupState) {
+      if (this._popupOpenSince === undefined) this._popupOpenSince = this.time.now;
+      const openMs = this.time.now - this._popupOpenSince;
+      if (openMs > 2000 && !this._popupStuckWarned) {
+        this._popupStuckWarned = true;
+        const msg = `[TAP_DEBUG] 警告: popupStateが${Math.round(openMs)}ms開いたまま固着しています type=${this.popupState.type}`;
+        this._playLog.push(msg);
+        console.warn(msg, this.popupState);
+      }
+    } else {
+      this._popupOpenSince   = undefined;
+      this._popupStuckWarned = false;
+    }
+
     const scale   = TIME_SCALES[this.timeModeIdx];
     const totalDt = delta * scale;
     this._dt      = totalDt;  // _drawDynamic から矢印アニメに使う
@@ -1205,12 +1227,8 @@ class GameScene extends Phaser.Scene {
 
     this.popupState   = { type: 'build', col, row };
     this.popupObjects = [];
-
-    // 建設ポップアップはUIScene側の別GameObject（カメラズーム非依存のため）。
-    // ボタンへのタップがGameScene自身のグリッド判定にも届いてしまい、隣接セルへの
-    // タップと誤認して即座にトグルクローズする競合があった（2026-08-04発覚）。
-    // ポップアップ表示中はGameScene自身の入力を止め、UIScene側だけで受けるようにする。
-    this.input.enabled = false;
+    // 建設ポップアップ表示中のGameScene自身の入力停止はupdate()で毎フレーム
+    // popupStateから導出する（2026-08-05・手動true/false管理は閉じ忘れに弱いため廃止）
 
     this.game.events.emit('openBuildMenu', { col, row, sx, sy, cellHalfPx, money: this.money });
   }
@@ -1295,8 +1313,8 @@ class GameScene extends Phaser.Scene {
       : 'null';
     this._playLog.push(`[TAP_DEBUG] _closePopup開始 popupState=${_psBefore}`);
     // 調査用: 例外を握り潰さず、必ずplayLog/consoleへ内容を出してから同じ例外を再送出する（挙動は変えない・修正後に削除予定）
-    // input.enabledの復帰はfinallyで必ず実行する（途中で例外が起きて入力が永久停止したまま
-    // 固着する事故を防ぐため。中途半端に止まるくらいなら暴発してでも入力を戻す）
+    // input.enabledはここでは触らない。update()が毎フレームpopupStateから導出するため
+    // （2026-08-05・手動true/false管理は「閉じ忘れ」に弱く、実際にそれで固着事故が起きたため廃止）
     try {
       if (this.popupObjects?.length) {
         this.popupObjects.forEach(o => o.destroy());
@@ -1319,8 +1337,6 @@ class GameScene extends Phaser.Scene {
       this._playLog.push(`[TAP_DEBUG] _closePopup例外: ${e?.message}\n${e?.stack}`);
       console.error('[TAP_DEBUG] _closePopup例外:', e);
       throw e;
-    } finally {
-      this.input.enabled = true;  // _openBuildMenu()で止めた入力を必ず復帰させる（2026-08-04）
     }
   }
 
@@ -1390,7 +1406,13 @@ class GameScene extends Phaser.Scene {
   }
 
   _tryPlace(col, row, type) {
-    if (!this._canPlace(col, row, type)) return;
+    if (!this._canPlace(col, row, type)) {
+      // 建設不可でもポップアップ・入力ロックは残さない（2026-08-05）。
+      // popupStateとUIScene側の暗幕がここで閉じ損ねると「ボタンを押しても何も
+      // 起きず、ポップアップも消えない」という無反応状態になる。
+      this._closePopup();
+      return;
+    }
     const cost = TOWER_DEFS[type].cost;
     this.money -= cost;
     this.towers.push(new Tower(this, col, row, type));
@@ -1404,9 +1426,9 @@ class GameScene extends Phaser.Scene {
       const sx       = (col * CELL + CELL / 2 - cam.scrollX) * cam.zoom;
       const sy       = (row * CELL + CELL / 2 - cam.scrollY) * cam.zoom + HEADER_H;
       const event    = type === 'punch' ? 'openPunchDirPicker' : 'openDirectionPicker';
-      // 建設ポップアップと同じ理由（UIScene側の別GameObjectのため）で、方向選択中も
-      // GameScene自身の入力を止める。選択完了は_onUiLaserDirで復帰させる（2026-08-04）
-      this.input.enabled = false;
+      // 建設ポップアップと同じ理由（UIScene側の別GameObjectのため）でpopupStateを
+      // 立てる。input.enabledはupdate()で毎フレーム導出される（2026-08-05）
+      this.popupState = { type: 'dirPicker', col, row };
       this.game.events.emit(event, { col, row, sx, sy });
     }
   }
