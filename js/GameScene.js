@@ -1076,6 +1076,7 @@ class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (p) => {
       downX = p.x; downY = p.y; isDrag = false;
+      this._playLog.push(`[TAP_DEBUG] pointerdown受信 enabled=${this.input.enabled} popupState=${this.popupState ? 'type=' + this.popupState.type : 'null'}`);
     });
 
     this.input.on('pointermove', (p) => {
@@ -1129,7 +1130,16 @@ class GameScene extends Phaser.Scene {
     this.input.on('pointerup', (p) => {
       if (this.pinching) this._snapZoomIdx();
       this.pinching = false;
-      if (!isDrag) this._handleTap(p);
+      // isDrag(クロージャ変数)はこのシーン自身のpointerdown/pointermoveでしか更新されない。
+      // ポップアップ表示中(input.enabled=false)にタップが開始されるとpointerdownが
+      // このシーンに届かず、前回タップ時点のisDrag/downXが残ったまま次のタップのpointerupを
+      // 迎えてしまい、離れた位置での誤ドラッグ判定でタップが無視される不具合があった。
+      // p.getDistance()はシーンのinput.enabledに関係なくPhaser側が常に正しく追跡しているため、
+      // こちらを判定の正とする（2026-08-06）。
+      const dist = p.getDistance();
+      const ok   = !isDrag && dist <= 8;
+      this._playLog.push(`[TAP_DEBUG] pointerup受信 isDrag=${isDrag} dist=${Math.round(dist)} enabled=${this.input.enabled} popupState=${this.popupState ? 'type=' + this.popupState.type : 'null'} → ${ok ? 'handleTapへ' : '棄却(ドラッグ扱い)'}`);
+      if (ok) this._handleTap(p);
       isDrag = false;
     });
 
