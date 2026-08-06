@@ -1180,7 +1180,15 @@ class GameScene extends Phaser.Scene {
 
   // ─── タップ処理 ──────────────────────────────────────────
   _handleTap(p) {
-    if (p.y > CANVAS_H - UI_H) return;
+    // CANVAS_H(config.js)は設計時の固定値(640)だが、ゲームはPhaser.Scale.RESIZEモードで
+    // 実際のキャンバス高さはウィンドウの実サイズになる。ウィンドウがCANVAS_Hより高い場合、
+    // 画面下部の広い範囲（本来は盤面）が誤ってUI帯と判定されタップが握りつぶされていた
+    // （Edgeでのデスクトッププレイで「空クリック」として報告された不具合の原因・2026-08-06）。
+    // 実際のUI帯位置と一致させるため、実行時の高さ(this.scale.height)を使う。
+    if (p.y > this.scale.height - UI_H) {
+      this._playLog.push(`[TAP_DEBUG] UI帯判定で棄却 p.y=${Math.round(p.y)} scaleH=${Math.round(this.scale.height)} 閾値=${Math.round(this.scale.height - UI_H)}`);
+      return;
+    }
 
     // 調査用デバッグログ（2026-08-04・ポップアップ2回目以降開かない事象の原因特定用・修正後に削除予定）
     const col = Math.floor(p.worldX / CELL);
