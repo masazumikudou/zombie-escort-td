@@ -203,7 +203,16 @@ class GameScene extends Phaser.Scene {
       this._closePopup();  // popupState('dirPicker')を閉じる。input.enabledはupdate()で毎フレーム同期される
     };
     // 建設ポップアップ外（UISceneの暗幕）タップで閉じるためのコールバック（2026-08-04追加）
-    this._onUiClosePopup     = () => this._closePopup();
+    // 暗幕は開いた直後に生成されるため、同一物理タップのtouch/mouseゴースト重複が
+    // 生成直後の暗幕に命中してこのイベントを誤発火させることがある。_popupJustActedの
+    // ロック中は無視する（2026-08-05）。
+    this._onUiClosePopup     = () => {
+      if (this._popupJustActed && this.time.now < this._popupJustActed) {
+        this._playLog.push(`[TAP_DEBUG] ui_closePopup無視(popupJustActed) t=${this.time.now}`);
+        return;
+      }
+      this._closePopup();
+    };
     // 売却/アップグレードポップアップもUIScene側に描画を委譲（2026-08-05・建設ポップアップと揃える）
     this._onUiUpgradeTower   = ({ col, row }) => {
       const t = this.towers.find(t => t.col === col && t.row === row);
@@ -1246,6 +1255,10 @@ class GameScene extends Phaser.Scene {
     this.popupObjects = [];
     // 建設ポップアップ表示中のGameScene自身の入力停止はupdate()で毎フレーム
     // popupStateから導出する（2026-08-05・手動true/false管理は閉じ忘れに弱いため廃止）
+    // 開いた直後のゴースト重複タップ（同一物理タップがtouch/mouse両系統で発火し、
+    // 生成直後の暗幕オーバーレイに命中してui_closePopupを誤発火させる）を吸収するため、
+    // オープン時にも300msロックをセットする（2026-08-05）。
+    this._popupJustActed = this.time.now + 300;
 
     this.game.events.emit('openBuildMenu', { col, row, sx, sy, cellHalfPx, money: this.money });
   }
@@ -1259,6 +1272,8 @@ class GameScene extends Phaser.Scene {
   // input.enabled=false化で押せなくなるため、ボタンごとUIScene側へ移した。
   _openSellMenu(tower) {
     this._closePopup();
+    // 建設ポップアップと同じ理由でオープン直後のゴースト重複タップをロックする（2026-08-05）。
+    this._popupJustActed = this.time.now + 300;
 
     const cam = this.cameras.main;
     const sx  = (tower.x - cam.scrollX) * cam.zoom;
