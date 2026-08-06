@@ -160,10 +160,18 @@ class SimTower {
 // 形式: "normal:5,3 sniper:8,3"    即時建設
 //       "sniper:7,14@90000"         t=90000ms に建設（道中資金で）
 //       "upgrade:5,3@60000"         t=60000ms に (5,3) のタワーを強化
-function parseTowerPattern(text) {
+// warnLog: 正規表現に一致しなかったトークンを報告するための配列（省略可）。
+// これまでflatMapが不一致トークンを無言で捨てており、全角文字混入や区切り漏れなどで
+// 一部のタワーが無言でスキップされる事故があった（2026-08-06）。
+function parseTowerPattern(text, warnLog) {
   return text.trim().split(/[\s\n]+/).flatMap(token => {
     const m = token.match(/^(\w+):(\d+),(\d+)(?:@(\d+))?$/);
-    return m ? [{ type: m[1], col: +m[2], row: +m[3], buildAt: m[4] !== undefined ? +m[4] : 0 }] : [];
+    if (!m) {
+      const msg = `[WARN]   タワー配置のトークンが書式に一致せずスキップされました: "${token}"`;
+      if (warnLog) warnLog.push(msg); else console.warn(msg);
+      return [];
+    }
+    return [{ type: m[1], col: +m[2], row: +m[3], buildAt: m[4] !== undefined ? +m[4] : 0 }];
   });
 }
 
@@ -821,7 +829,8 @@ async function runAll() {
     document.querySelectorAll('#patterns .pattern-row').forEach(row => {
       const name      = row.querySelector('.pname').value   || 'パターン';
       const towerText = row.querySelector('.ptowers').value;
-      const towers    = parseTowerPattern(towerText);
+      const towerWarns = [];
+      const towers    = parseTowerPattern(towerText, towerWarns);
 
       const lines = [];
       for (const value of values) {
@@ -829,7 +838,7 @@ async function runAll() {
         const res = sim.run(newStage, towers, newOpts);
         lines.push(formatSweepLine(key, value, res));
       }
-      const sweepText = lines.join('\n');
+      const sweepText = (towerWarns.length ? towerWarns.join('\n') + '\n' : '') + lines.join('\n');
       allLogs.push(`=== ${name} [スイープ: ${sweepExprRaw}] ===\n${sweepText}`);
 
       const div = document.createElement('div');
@@ -861,10 +870,12 @@ async function runAll() {
   document.querySelectorAll('#patterns .pattern-row').forEach(row => {
     const name      = row.querySelector('.pname').value   || 'パターン';
     const towerText = row.querySelector('.ptowers').value;
-    const towers    = parseTowerPattern(towerText);
+    const towerWarns = [];
+    const towers    = parseTowerPattern(towerText, towerWarns);
     const res       = sim.run(stage, towers, opts);
+    const warnPrefix = towerWarns.length ? towerWarns.join('\n') + '\n' : '';
 
-    allLogs.push(`=== ${name} [${res.judgment} HP残${res.hpPct}% CLOSE_CALL=${res.closecallCount}回] ===\n${res.log}`);
+    allLogs.push(`=== ${name} [${res.judgment} HP残${res.hpPct}% CLOSE_CALL=${res.closecallCount}回] ===\n${warnPrefix}${res.log}`);
 
     const cls = res.judgment === 'CLEAR' ? 'clear' : 'gameover';
     const div = document.createElement('div');
@@ -877,11 +888,11 @@ async function runAll() {
     const copyBtn = document.createElement('button');
     copyBtn.className = 'sm gray';
     copyBtn.textContent = 'コピー';
-    copyBtn.onclick = () => copyText(res.log, copyBtn);
+    copyBtn.onclick = () => copyText(warnPrefix + res.log, copyBtn);
     header.appendChild(copyBtn);
 
     const pre = document.createElement('pre');
-    pre.textContent = res.log;
+    pre.textContent = warnPrefix + res.log;
 
     div.appendChild(header);
     div.appendChild(pre);

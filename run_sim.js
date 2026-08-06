@@ -129,11 +129,19 @@ function makeSimTower(col, row, type, log) {
 // 形式: "normal:5,3 sniper:8,3"    即時建設
 //       "sniper:7,14@90000"         t=90000ms に建設
 //       "upgrade:5,3@60000"         t=60000ms に (5,3) を強化
-function parseTowerPattern(text) {
+// warnLog: 正規表現に一致しなかったトークンを報告するための配列（省略可）。
+// これまでflatMapが不一致トークンを無言で捨てており、全角文字混入や区切り漏れなどで
+// 一部のタワーが無言でスキップされる事故があった（2026-08-06）。
+function parseTowerPattern(text, warnLog) {
   if (!text || !text.trim()) return [];
   return text.trim().split(/[\s\n]+/).flatMap(token => {
     const m = token.match(/^(\w+):(\d+),(\d+)(?:@(\d+))?$/);
-    return m ? [{ type: m[1], col: +m[2], row: +m[3], buildAt: m[4] !== undefined ? +m[4] : 0 }] : [];
+    if (!m) {
+      const msg = `[WARN]   --towerのトークンが書式に一致せずスキップされました: "${token}"`;
+      if (warnLog) warnLog.push(msg); else console.warn(msg);
+      return [];
+    }
+    return [{ type: m[1], col: +m[2], row: +m[3], buildAt: m[4] !== undefined ? +m[4] : 0 }];
   });
 }
 
@@ -311,7 +319,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
   }
 
   // タワー
-  const towerPlacements = parseTowerPattern(towerPattern);
+  const towerPlacements = parseTowerPattern(towerPattern, log);
   const simTowers = [];
 
   const delayedQueue = [];

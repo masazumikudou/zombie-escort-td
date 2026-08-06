@@ -1374,16 +1374,20 @@ class GameScene extends Phaser.Scene {
     // JSONのinitialTowers
     const fromJson = this.stageData.initialTowers || [];
 
+    const errors = [];
     // ステージ選択画面のテキスト入力をパース（書式: type:col,row or type:col,row@ms）
-    const fromText = (this.sessionTowerText || '').trim()
-      .split(/[\s\n]+/)
-      .flatMap(token => {
-        const m = token.match(/^(\w+):(\d+),(\d+)(?:@(\d+))?$/);
-        return m ? [{ type: m[1], col: +m[2], row: +m[3], buildAt: m[4] !== undefined ? +m[4] : 0 }] : [];
-      });
+    // 正規表現に一致しないトークンはこれまで無言で捨てられており、全角文字混入や区切り漏れ
+    // などで一部のタワーが無言でスキップされる事故があった（2026-08-06・errorsに追加してalert表示）
+    const towerText = (this.sessionTowerText || '').trim();
+    const fromText = towerText
+      ? towerText.split(/[\s\n]+/).flatMap(token => {
+          const m = token.match(/^(\w+):(\d+),(\d+)(?:@(\d+))?$/);
+          if (!m) { errors.push(`書式に一致せずスキップ: "${token}"`); return []; }
+          return [{ type: m[1], col: +m[2], row: +m[3], buildAt: m[4] !== undefined ? +m[4] : 0 }];
+        })
+      : [];
 
     this._delayedTowerQueue = [];
-    const errors = [];
     const placedCoords = new Set(); // JSON/テキスト入力の重複座標を検知（同一座標は先着1基のみ建設）
     for (const t of [...fromJson.map(t => ({ ...t, buildAt: 0 })), ...fromText]) {
       if (!TOWER_DEFS[t.type]) {
