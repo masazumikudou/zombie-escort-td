@@ -1137,8 +1137,16 @@ class GameScene extends Phaser.Scene {
       // p.getDistance()はシーンのinput.enabledに関係なくPhaser側が常に正しく追跡しているため、
       // こちらを判定の正とする（2026-08-06）。
       const dist = p.getDistance();
-      const ok   = !isDrag && dist <= 8;
-      this._playLog.push(`[TAP_DEBUG] pointerup受信 isDrag=${isDrag} dist=${Math.round(dist)} enabled=${this.input.enabled} popupState=${this.popupState ? 'type=' + this.popupState.type : 'null'} → ${ok ? 'handleTapへ' : '棄却(ドラッグ扱い)'}`);
+      const dur  = p.getDuration();
+      // 実機/Edge双方で「物理的には動かしていないのにdistanceだけ大きい」瞬間的な座標不整合を確認した
+      // （連打時、押してから離すまで100ms未満で100px超という人間には不可能な速度の"ドラッグ"が記録された）。
+      // 人間が意図してドラッグする場合は最低でも100ms程度は要するため、極端に短時間かつ大距離の場合は
+      // 座標取得側の不整合とみなしタップ扱いにフォールバックする（2026-08-06）。
+      const suspicious = dist > 8 && dur < 100;
+      // isDrag(pointermoveでの逐次判定)も同じ座標不整合の影響を受け得るため、
+      // suspicious時はisDragの値に関わらずタップ扱いに救済する。
+      const ok = suspicious || (!isDrag && dist <= 8);
+      this._playLog.push(`[TAP_DEBUG] pointerup受信 isDrag=${isDrag} dist=${Math.round(dist)} dur=${Math.round(dur)} enabled=${this.input.enabled} popupState=${this.popupState ? 'type=' + this.popupState.type : 'null'} → ${ok ? (suspicious ? 'handleTapへ(suspicious救済)' : 'handleTapへ') : '棄却(ドラッグ扱い)'}`);
       if (ok) this._handleTap(p);
       isDrag = false;
     });
