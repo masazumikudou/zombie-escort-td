@@ -1329,7 +1329,9 @@ class GameScene extends Phaser.Scene {
     const _psBefore = this.popupState
       ? `type=${this.popupState.type}${this.popupState.col !== undefined ? `,col=${this.popupState.col},row=${this.popupState.row}` : ''}`
       : 'null';
-    this._playLog.push(`[TAP_DEBUG] _closePopup開始 popupState=${_psBefore}`);
+    // 開いた直後に理由不明の2回目のcloseが発生する事象の呼び出し元特定用（2026-08-06・修正後に削除予定）
+    const _callerLine = (new Error().stack || '').split('\n')[2]?.trim() ?? '(不明)';
+    this._playLog.push(`[TAP_DEBUG] _closePopup開始 popupState=${_psBefore} caller=${_callerLine}`);
     // 調査用: 例外を握り潰さず、必ずplayLog/consoleへ内容を出してから同じ例外を再送出する（挙動は変えない・修正後に削除予定）
     // input.enabledはここでは触らない。update()が毎フレームpopupStateから導出するため
     // （2026-08-05・手動true/false管理は「閉じ忘れ」に弱く、実際にそれで固着事故が起きたため廃止）
