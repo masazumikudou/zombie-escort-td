@@ -1,15 +1,15 @@
 'use strict';
-// R-6: ステージJSON静的検証スクリプト（1便目：座標・ルール突き合わせ系・9項目）
+// R-6: ステージJSON静的検証スクリプト
+// 1便目（座標・ルール突き合わせ系・9項目）＋2便目（枠外spawn侵入余裕チェック・猶予マップ）
 // シムを一切動かさず、座標とルールの整合性だけを機械的にチェックする。
 // 「JSONの書き損じがエラーなく素通りし、実行結果から逆算しないと発覚しない」事故の再発防止。
 //
 // 使い方: node validate_stage.js stages/xxx.json
+//        node validate_stage.js --margin stages/xxx.json   （猶予マップ出力モード・判定なし）
 //
 // 判定は2段階:
 //   ERROR: 量産に進めない致命的な不整合
 //   WARN : 動くが小松の確認が要る
-//
-// 2便目（未実装・別発注）: 枠外spawnの侵入所要時間 vs segment猶予の計算、猶予マップ出力モード
 
 const fs   = require('fs');
 const path = require('path');
@@ -17,16 +17,70 @@ const vm   = require('vm');
 
 const ROOT = path.resolve(__dirname);
 
-// ─── config.js から GROUND_BLOCK_DEFS / PROP_DEFS を取得 ─────────────────────
+// ─── config.js + balance.json から定数を取得 ─────────────────────────────────
 // config.jsは他ファイルに依存しないため、vmコンテキストへの単独読み込みで足りる
 // （run_sim.jsと同じくvm.runInContext経由で取得。トップレベルconst/letの
-//  ctx.NAMEプロパティ露出はNode vmの既知の癖で不安定なため、この方式に統一する）
+//  ctx.NAMEプロパティ露出はNode vmの既知の癖で不安定なため、この方式に統一する）。
+// balance.jsonはZOMBIE_BASE/ESCORT_ENGAGE_RADIUSを上書きするため、run_sim.jsと同じ手順で適用する
+// （2便目の距離計算は実機/シムと同じ単位系・同じ数値を正典として使う必要があるため）。
 const ctx = vm.createContext({ console, Math, JSON });
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/config.js'), 'utf8'), ctx);
-const GROUND_BLOCK_DEFS = vm.runInContext('GROUND_BLOCK_DEFS', ctx);
-const PROP_DEFS         = vm.runInContext('PROP_DEFS', ctx);
+const balance = JSON.parse(fs.readFileSync(path.join(ROOT, 'balance.json'), 'utf8'));
+vm.runInContext(`applyBalance(${JSON.stringify(balance)})`, ctx);
+
+const GROUND_BLOCK_DEFS  = vm.runInContext('GROUND_BLOCK_DEFS', ctx);
+const PROP_DEFS          = vm.runInContext('PROP_DEFS', ctx);
+const ZOMBIE_BASE         = vm.runInContext('ZOMBIE_BASE', ctx);
+const CELL                = vm.runInContext('CELL', ctx);
+const ESCORT_ENGAGE_RADIUS = vm.runInContext('ESCORT_ENGAGE_RADIUS', ctx);
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ─── 2便目用の幾何ヘルパー（js/config.jsのcellCenterと同一式） ───────────────
+function cellCenter(col, row) {
+  return { x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 };
+}
+
+function dist(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// 点pから線分ab（両端含む）への最短距離
+function pointToSegmentDist(p, a, b) {
+  const abx = b.x - a.x, aby = b.y - a.y;
+  const lenSq = abx * abx + aby * aby;
+  if (lenSq === 0) return dist(p, a);
+  let t = ((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq;
+  t = clamp(t, 0, 1);
+  return dist(p, { x: a.x + abx * t, y: a.y + aby * t });
+}
+
+// 点pから、pathPixels（連続する折れ線）上の最近接点までの距離
+function nearestPathDist(p, pathPixels) {
+  if (!pathPixels || pathPixels.length === 0) return Infinity;
+  if (pathPixels.length === 1) return dist(p, pathPixels[0]);
+  let min = Infinity;
+  for (let i = 0; i < pathPixels.length - 1; i++) {
+    min = Math.min(min, pointToSegmentDist(p, pathPixels[i], pathPixels[i + 1]));
+  }
+  return min;
+}
+
+// 護衛pathのwaypoint fromIdx→toIdx間の実距離合計（waypoint間を直線で結んだ長さの総和）
+function pathDistanceBetween(pathCoords, fromIdx, toIdx) {
+  const lo = clamp(Math.min(fromIdx, toIdx), 0, pathCoords.length - 1);
+  const hi = clamp(Math.max(fromIdx, toIdx), 0, pathCoords.length - 1);
+  let total = 0;
+  for (let i = lo; i < hi; i++) {
+    total += dist(cellCenter(pathCoords[i].col, pathCoords[i].row), cellCenter(pathCoords[i + 1].col, pathCoords[i + 1].row));
+  }
+  return total;
+}
+
+function resolveEnemySpeed(enemyDef) {
+  if (enemyDef?.speed !== undefined) return enemyDef.speed;
+  return ZOMBIE_BASE[enemyDef?.type]?.speed;
+}
 
 // ground_cells登録セルを、ブロック型タイル（blockW/blockH・blockCells）分だけ展開して
 // 「道路として歩行可能」なセル集合を作る。GameScene.js（87-109行目）と同一ロジック。
@@ -210,6 +264,70 @@ function validateStage(stage) {
     }
   }
 
+  // ── 項目10: 枠外spawnの侵入余裕チェック（2便目・CC発注書ではチェック項目6と表記されているが、
+  // 本スクリプトの1-9番採番と衝突するため10番として実装する。工程表「現在地」のR-6検査項目
+  // 10件リストの6番目と同一項目） ──────────────────────────────────────
+  // 対象: initial/triggerでoff-grid(枠外)のspawnを使用しているenemyエントリすべて。
+  // ①侵入所要時間 = 盤外spawn座標→クランプ後着地点の距離÷敵speed
+  //   （着地点が護衛pathからescortEngageRadius(450px)より遠い場合は、着地点→path最近接点の距離も加算）
+  // ②segment猶予 = (trigger.atWpIdx、initialならsegment.range.fromWp)→segment.range.toWpの
+  //   護衛path実距離÷護衛speed
+  // 判定: ①≧② → ERROR（間に合わず素通り）。余裕率(②÷①)が1.0〜1.5 → WARN。それ以上は出力なし。
+  for (const escort of stage.escorts ?? []) {
+    const escortSpeed = escort.speed;
+    const pathPixels  = (escort.path ?? []).map(p => cellCenter(p.col, p.row));
+    for (const seg of escort.segments ?? []) {
+      const entries = [
+        ...(seg.initial ?? []).map(x => ({ src: 'initial', spawn: x.spawn, enemy: x.enemy ?? x, startWp: seg.range?.fromWp })),
+        ...(seg.triggers ?? []).map(x => ({ src: 'trigger', spawn: x.spawn, enemy: x.enemy ?? x, startWp: x.atWpIdx })),
+      ];
+      for (const { src, spawn, enemy, startWp } of entries) {
+        const coord = spawns[spawn];
+        if (!coord) continue;  // 未定義spawn参照は別項目（旧R-6リストの検出対象・本スクリプトでは扱わない）
+        if (inGrid(coord.col, coord.row, cols, rows)) continue;  // 枠外spawnのみが対象
+
+        if (enemy?.circleAt) {
+          add(10, 'WARN', `escort=${escort.variant} segment=${seg.segmentId} の${src}(spawn=${spawn}) はcircleAt使用（鳥系）のため侵入余裕チェックの対象外`);
+          continue;
+        }
+        if (startWp === undefined || seg.range?.toWp === undefined) {
+          add(10, 'WARN', `escort=${escort.variant} segment=${seg.segmentId} の${src}(spawn=${spawn}) はwaypoint範囲が特定できず侵入余裕チェックをスキップ`);
+          continue;
+        }
+        const enemySpeed = resolveEnemySpeed(enemy);
+        if (!enemySpeed) {
+          add(10, 'WARN', `escort=${escort.variant} segment=${seg.segmentId} の${src}(spawn=${spawn}) は敵speedが解決できず侵入余裕チェックをスキップ（type=${enemy?.type}）`);
+          continue;
+        }
+
+        const spawnPixel  = cellCenter(coord.col, coord.row);
+        const cCol        = clamp(coord.col, 0, cols - 1);
+        const cRow         = clamp(coord.row, 0, rows - 1);
+        const landingPixel = cellCenter(cCol, cRow);
+        const entryDist    = dist(spawnPixel, landingPixel);
+
+        const pathDist = nearestPathDist(landingPixel, pathPixels);
+        const extraDist = pathDist > ESCORT_ENGAGE_RADIUS ? pathDist : 0;
+
+        const entryTimeMs = ((entryDist + extraDist) / enemySpeed) * 1000;
+
+        const graceDist  = pathDistanceBetween(escort.path, startWp, seg.range.toWp);
+        const graceTimeMs = (graceDist / escortSpeed) * 1000;
+
+        const label = `escort=${escort.variant} segment=${seg.segmentId} ${src}(spawn=${spawn}) 侵入所要時間=${Math.round(entryTimeMs)}ms 猶予=${Math.round(graceTimeMs)}ms`;
+        if (entryTimeMs >= graceTimeMs) {
+          add(10, 'ERROR', `${label} 不足=${Math.round(entryTimeMs - graceTimeMs)}ms（間に合わず素通りする）`);
+        } else {
+          const ratio = graceTimeMs / entryTimeMs;
+          if (ratio >= 1.0 && ratio <= 1.5) {
+            add(10, 'WARN', `${label} 余裕率=${ratio.toFixed(2)}（ギリギリ帯・確認推奨）`);
+          }
+          // ratio > 1.5 は出力しない（緊張ゼロ問題はR-6のスコープ外）
+        }
+      }
+    }
+  }
+
   // ── 項目6: buildSpotが道路セル上・path外か ────────────────────────────
   for (const bs of stage.buildSpots ?? []) {
     if (!inGrid(bs.col, bs.row, cols, rows)) {
@@ -291,12 +409,13 @@ const ITEM_LABELS = {
   7: '全座標がグリッド範囲内か',
   8: '資金の供給元ゼロ検出',
   9: 'enemyへのhp直書き検出',
+  10: '枠外spawnの侵入余裕チェック（2便目）',
 };
 
 function printReport(stageFile, results) {
   console.log(`=== validate_stage.js: ${stageFile} ===`);
   let errorCount = 0, warnCount = 0;
-  for (let item = 0; item <= 9; item++) {
+  for (let item = 0; item <= 10; item++) {
     if (item === 0) continue;
     const itemResults = results.filter(r => r.item === item);
     const errs  = itemResults.filter(r => r.level === 'ERROR');
@@ -318,13 +437,46 @@ function printReport(stageFile, results) {
   return errorCount === 0;
 }
 
+// ─── --margin: 猶予マップ出力（判定なし・補助モード） ─────────────────────
+// 全escort×全waypointについて「そのwaypointから、現在のsegmentの終了waypointまでの猶予」を
+// 一覧表示する。項目10の判定ロジックとは別軸——ここでは何も判定しない（OK/NGの集計に含めない）。
+// 用途: 小松がMAP上に導線を引いた直後、Claudeが枠外spawnの配置を決めるための資料。
+function printMarginMap(stage) {
+  for (const escort of stage.escorts ?? []) {
+    console.log(`[${escort.variant}]`);
+    const escortSpeed = escort.speed;
+    for (const seg of escort.segments ?? []) {
+      const fromWp = seg.range?.fromWp;
+      const toWp   = seg.range?.toWp;
+      if (fromWp === undefined || toWp === undefined) {
+        console.log(`  segment=${seg.segmentId} range未定義のためスキップ`);
+        continue;
+      }
+      for (let wp = fromWp; wp < toWp; wp++) {
+        const graceDist = pathDistanceBetween(escort.path, wp, toWp);
+        const graceMs   = Math.round((graceDist / escortSpeed) * 1000);
+        console.log(`  wp${wp}→(segment ${seg.segmentId}終了wp${toWp}まで) 猶予: ${graceMs}ms`);
+      }
+    }
+  }
+}
+
 function main() {
-  const stageFile = process.argv[2];
+  const args = process.argv.slice(2);
+  const marginMode = args.includes('--margin');
+  const stageFile = args.find(a => a !== '--margin');
   if (!stageFile) {
     console.error('使い方: node validate_stage.js <stageFile>');
+    console.error('       node validate_stage.js --margin <stageFile>   （猶予マップ出力・判定なし）');
     process.exit(1);
   }
   const stage = JSON.parse(fs.readFileSync(path.join(ROOT, stageFile), 'utf8'));
+
+  if (marginMode) {
+    printMarginMap(stage);
+    process.exit(0);
+  }
+
   const results = validateStage(stage);
   const ok = printReport(stageFile, results);
   process.exit(ok ? 0 : 1);
