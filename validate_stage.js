@@ -394,6 +394,66 @@ function validateStage(stage) {
     }
   }
 
+  // ── 項目11: buildSpots vs propフットプリントの衝突検出（3便目）────────────
+  // R-6発端の元ネタ（本番segment_test再設計でbuildSpots 42箇所中11箇所がprop
+  // フットプリントと衝突していた事故）に対応。項目4（propと道路）・項目6（buildSpotと
+  // 道路・path）とは別軸のため見落とされていた。propFootprintCellsを流用。
+  {
+    const propCellMap = new Map();  // "col,row" -> "type@(col,row)" ラベル
+    for (const prop of stage.props ?? []) {
+      for (const c of propFootprintCells(prop)) {
+        propCellMap.set(`${c.col},${c.row}`, `${prop.type}@(${prop.col},${prop.row})`);
+      }
+    }
+    for (const bs of stage.buildSpots ?? []) {
+      const label = propCellMap.get(`${bs.col},${bs.row}`);
+      if (label) {
+        add(11, 'ERROR', `buildSpots(${bs.col},${bs.row}) がprop(${label})のフットプリントと重複しています`);
+      }
+    }
+  }
+
+  // ── 項目12: spawnキーの未定義参照検出（3便目）─────────────────────────
+  // initial/triggersが参照するspawn名が実際にstage.spawnsに定義されているか。
+  // SpawnEventManager.js側はconsole.warnで実行時に検出するが、静的チェックとしては
+  // 未実装だった（file_structure_review.md R-6原文の項目3）。
+  for (const escort of stage.escorts ?? []) {
+    for (const seg of escort.segments ?? []) {
+      const refs = [
+        ...(seg.initial ?? []).map(x => ({ src: 'initial', spawn: x.spawn })),
+        ...(seg.triggers ?? []).map(x => ({ src: 'trigger', spawn: x.spawn })),
+      ];
+      for (const { src, spawn } of refs) {
+        if (spawn !== undefined && !(spawn in spawns)) {
+          add(12, 'ERROR', `escort=${escort.variant} segment=${seg.segmentId} の${src}が未定義のspawn名"${spawn}"を参照しています`);
+        }
+      }
+    }
+  }
+
+  // ── 項目13: leashTo座標の歩行可能性チェック（3便目）────────────────────
+  // enemy.leashToが指定されている場合、グリッド範囲内かつ道路セル上であることを確認
+  // （file_structure_review.md R-6原文の項目4後半）。
+  for (const escort of stage.escorts ?? []) {
+    for (const seg of escort.segments ?? []) {
+      const entries = [
+        ...(seg.initial ?? []).map(x => ({ src: 'initial', spawn: x.spawn, enemy: x.enemy ?? x })),
+        ...(seg.triggers ?? []).map(x => ({ src: 'trigger', spawn: x.spawn, enemy: x.enemy ?? x })),
+      ];
+      for (const { src, spawn, enemy } of entries) {
+        const leashTo = enemy?.leashTo;
+        if (!leashTo) continue;
+        if (!inGrid(leashTo.col, leashTo.row, cols, rows)) {
+          add(13, 'ERROR', `escort=${escort.variant} segment=${seg.segmentId} の${src}(spawn=${spawn}) のleashTo(${leashTo.col},${leashTo.row})がグリッド範囲外です`);
+          continue;
+        }
+        if (hasRoadDef && !roadSet.has(`${leashTo.col},${leashTo.row}`)) {
+          add(13, 'ERROR', `escort=${escort.variant} segment=${seg.segmentId} の${src}(spawn=${spawn}) のleashTo(${leashTo.col},${leashTo.row})が道路セル上にありません`);
+        }
+      }
+    }
+  }
+
   return results;
 }
 
@@ -410,12 +470,15 @@ const ITEM_LABELS = {
   8: '資金の供給元ゼロ検出',
   9: 'enemyへのhp直書き検出',
   10: '枠外spawnの侵入余裕チェック（2便目）',
+  11: 'buildSpots vs propフットプリントの衝突検出（3便目）',
+  12: 'spawnキーの未定義参照検出（3便目）',
+  13: 'leashTo座標の歩行可能性チェック（3便目）',
 };
 
 function printReport(stageFile, results) {
   console.log(`=== validate_stage.js: ${stageFile} ===`);
   let errorCount = 0, warnCount = 0;
-  for (let item = 0; item <= 10; item++) {
+  for (let item = 0; item <= 13; item++) {
     if (item === 0) continue;
     const itemResults = results.filter(r => r.item === item);
     const errs  = itemResults.filter(r => r.level === 'ERROR');
