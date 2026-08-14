@@ -25,7 +25,15 @@ class GameScene extends Phaser.Scene {
     this.scaledTime   = 0;
     this.timeModeIdx  = 2;
     this.zoomIdx      = DEFAULT_ZOOM_IDX;
-    this.money        = sd.startMoney ?? 0;
+    // 資金は「支給分(grantMoney)」と「稼ぎ(earnedMoney)」を分けて管理する（2026-08-14・2-9）。
+    // escort交代時にgrantMoneyだけ0にリセットし、earnedMoneyは持ち越す
+    // （「撃破報酬のみ繰り越し・支給分の残りは交代時に消滅」というルールの実体）。
+    // this.moneyは両者の合算＝実際の残高（表示・_canPlaceの判定に使う値はこれまで通り）。
+    // totalEarnedは既存のステージ通算表示用カウンタで、こちらは減らない別物
+    // （「稼ぎ」表示はあくまで生涯累計。使ったかどうかに関わらず増え続ける）。
+    this.grantMoney   = sd.startMoney ?? 0;
+    this.earnedMoney  = 0;
+    this.money        = this.grantMoney + this.earnedMoney;
     this.totalEarned  = 0;  // ステージ通算の撃破報酬累計（資金表示の内訳用。建設で減らない）
     this.gameState    = 'playing';
     this.killCount       = 0;
@@ -267,9 +275,14 @@ class GameScene extends Phaser.Scene {
     const _vStats  = ESCORT_DEFS[_baseDef.variant] ?? ESCORT_DEFS.dad;
     const def      = { hp: _vStats.hp, speed: _vStats.speed, ..._baseDef };
 
-    // escort別初期マネー（合算方式）: stage.startMoneyへの加算。1人目起動時・リレー交代時いずれも同じ扱い
+    // escort別初期マネー: リレー交代時（idx>0）は前のescortの支給分残り(grantMoney)をここで
+    // 消滅させてから新しいescortのstartMoneyを加算する（2-9・2026-08-14）。稼ぎ(earnedMoney)は
+    // 持ち越す。1人目起動時（idx===0）はリセットしない——constructorで積んだstage.startMoneyが
+    // ここで消えてしまうため（合算方式: stage.startMoney + escort0.startMoneyを両方活かす）。
+    if (idx > 0) this.grantMoney = 0;
+    this.grantMoney += (def.startMoney ?? 0);
+    this.money = this.grantMoney + this.earnedMoney;
     if (def.startMoney) {
-      this.money += def.startMoney;
       this._playLog.push(`[START_MONEY] t=${Math.round(this.scaledTime)}ms escortIdx=${idx} variant=${def.variant} +${def.startMoney}  money=${this.money}`);
     }
 
@@ -292,6 +305,9 @@ class GameScene extends Phaser.Scene {
     this.escort.onDetourActivate = () => {
       const walletAmount = def.detour?.walletAmount ?? 0;
       if (walletAmount > 0) {
+        // Y中の着席取得は「支給」ではなく寄り道行動への報酬のため、稼ぎ(earnedMoney)側に計上する
+        // （2-9・2026-08-14。撃破報酬と同じく交代時も持ち越される）
+        this.earnedMoney += walletAmount;
         this.money += walletAmount;
         this._playLog.push(`[WALLET] t=${Math.round(this.scaledTime)}ms 着席取得 +${walletAmount}  money=${this.money}`);
       }
@@ -1438,6 +1454,16 @@ class GameScene extends Phaser.Scene {
     return this.money >= TOWER_DEFS[type].cost;
   }
 
+  // 支払いはgrantMoney（支給分）から優先的に引き落とし、不足分だけearnedMoney（稼ぎ）から引く
+  // （2-9・2026-08-14）。「撃破報酬はプレイヤーの報酬」という感覚に合わせ、稼ぎは使い切るまで
+  // 温存されるようにする（支給分から先に溶かした方が、交代でどうせ消える支給分を無駄にしない）。
+  _spendMoney(cost) {
+    const fromGrant = Math.min(this.grantMoney, cost);
+    this.grantMoney  -= fromGrant;
+    this.earnedMoney -= (cost - fromGrant);
+    this.money -= cost;
+  }
+
   _tryPlace(col, row, type) {
     if (!this._canPlace(col, row, type)) {
       // 建設不可でもポップアップ・入力ロックは残さない（2026-08-05）。
@@ -1447,7 +1473,7 @@ class GameScene extends Phaser.Scene {
       return;
     }
     const cost = TOWER_DEFS[type].cost;
-    this.money -= cost;
+    this._spendMoney(cost);
     this.towers.push(new Tower(this, col, row, type));
     this._playLog.push(`[BUILD]  t=${Math.round(this.scaledTime)}ms  type=${type}  pos=(${col},${row})  cost=${cost}  money=${this.money}`);
     audioSynth.coin();
@@ -1468,6 +1494,9 @@ class GameScene extends Phaser.Scene {
 
   _sellTower(tower) {
     const refund = tower.sell;
+    // 売却返金はgrantMoney側に戻す（2-9・2026-08-14）。「支払いはgrantMoney優先」と対称にし、
+    // 建てて即売る往復でearnedMoneyが不当に減ったり増えたりしないようにする
+    this.grantMoney += refund;
     this.money += refund;
     this._playLog.push(`[SELL]   t=${Math.round(this.scaledTime)}ms  type=${tower.type}  pos=(${tower.col},${tower.row})  refund=${refund}  money=${this.money}`);
     tower.cleanup();
@@ -1479,7 +1508,7 @@ class GameScene extends Phaser.Scene {
   _upgradeTower(tower) {
     const cost = tower.upgradeCost?.() ?? null;
     if (cost === null || this.money < cost) return;
-    this.money -= cost;
+    this._spendMoney(cost);
     tower.upgrade();
     this._playLog.push(`[UPGRADE] t=${Math.round(this.scaledTime)}ms  ${tower.type}@(${tower.col},${tower.row})  Lv${tower.upgradeLevel}  cost=${cost}  money=${this.money}`);
     audioSynth.coin();
@@ -1517,6 +1546,7 @@ class GameScene extends Phaser.Scene {
     const origOnDeath = z.onDeath;
     z.onDeath = () => {
       z._killed = true;
+      this.earnedMoney += z.reward;
       this.money += z.reward;
       this.totalEarned += z.reward;
       this.killCount++;

@@ -243,10 +243,21 @@ function runStage(stage, towerPattern = '', opts = {}) {
   let yInflow     = null;
 
   // 資金（escort別startMoneyをstartEscort()内で加算するため、初回startEscort(0,0)呼び出しより前に宣言する必要がある）
-  let money = stage.startMoney ?? 0;
+  // 「支給分(grantMoney)」と「稼ぎ(earnedMoney)」を分けて管理する（2-9・2026-08-14・GameScene.jsと同一ロジック）。
+  // escort交代時にgrantMoneyだけ0にリセットし、earnedMoneyは持ち越す。moneyは両者の合算＝実際の残高。
+  let grantMoney  = stage.startMoney ?? 0;
+  let earnedMoney = 0;
+  let money = grantMoney + earnedMoney;
   let totalEarned = 0;  // ステージ通算の撃破報酬累計（資金計算ロジックを実機と一致させるための集計。ログ出力はしない）
   if (stage.startMoney === undefined) {
     log.push(`[WARN]   stage.startMoneyが未定義のため0として扱います（escort側のstartMoneyに全額寄せる設計なら意図通り。書き忘れの可能性もあるため確認推奨）`);
+  }
+  // 支払いはgrantMoney優先で引き落とし、不足分だけearnedMoneyから引く（GameScene.js _spendMoneyと同一）
+  function spendMoney(cost) {
+    const fromGrant = Math.min(grantMoney, cost);
+    grantMoney  -= fromGrant;
+    earnedMoney -= (cost - fromGrant);
+    money -= cost;
   }
 
   // GameScene.js の _startEscort 相当: escortごとにEscort/SegmentManager(or SpawnEventManager)を作り直す
@@ -254,9 +265,13 @@ function runStage(stage, towerPattern = '', opts = {}) {
     const escDef = { ...escortDefs[idx] };
     if (opts.escortSpeed) escDef.speed = +opts.escortSpeed;
 
-    // escort別初期マネー（合算方式）: stage.startMoneyへの加算。1人目起動時・リレー交代時いずれも同じ扱い
+    // escort別初期マネー: リレー交代時（idx>0）は前のescortの支給分残り(grantMoney)をここで
+    // 消滅させてから新しいescortのstartMoneyを加算する（2-9・2026-08-14）。稼ぎ(earnedMoney)は
+    // 持ち越す。1人目起動時（idx===0）はリセットしない（stage.startMoneyを活かすため）
+    if (idx > 0) grantMoney = 0;
+    grantMoney += (escDef.startMoney ?? 0);
+    money = grantMoney + earnedMoney;
     if (escDef.startMoney) {
-      money += escDef.startMoney;
       log.push(`[START_MONEY] t=${Math.round(mockScene.scaledTime)}ms escortIdx=${idx} variant=${escDef.variant} +${escDef.startMoney}  money=${money}`);
     }
 
@@ -277,6 +292,8 @@ function runStage(stage, towerPattern = '', opts = {}) {
     escort.onDetourActivate = () => {
       const walletAmount = escDef.detour?.walletAmount ?? 0;
       if (walletAmount > 0) {
+        // Y中の着席取得は稼ぎ側に計上する（2-9・2026-08-14。GameScene.jsと同一）
+        earnedMoney += walletAmount;
         money += walletAmount;
         log.push(`[WALLET] t=${Math.round(mockScene.scaledTime)}ms 着席取得 +${walletAmount}  money=${money}`);
       }
@@ -338,7 +355,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
     if (propHit) { log.push(`[ERROR]  設置不可: ${tp.type}@(${tp.col},${tp.row}) はprop(${propHit})のフットプリント内です。ステージ側のbuildSpots/props定義が不整合`); continue; }
     if (money < def.cost) { log.push(`[WARN]   資金不足: ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`); continue; }
     simTowers.push(makeSimTower(tp.col, tp.row, tp.type, log));
-    money -= def.cost;
+    spendMoney(def.cost);
     log.push(`[BUILD]  ${tp.type}@(${tp.col},${tp.row})  cost=${def.cost}  残=${money}`);
   }
   delayedQueue.sort((a, b) => a.buildAt - b.buildAt);
@@ -365,6 +382,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
     z.onDeath = () => {
       z._killed = true;
       killCount++;
+      earnedMoney += z.reward ?? 0;
       money += z.reward ?? 0;
       totalEarned += z.reward ?? 0;
       log.push(`[KILL]   t=${Math.round(scaledTime)}ms  id=${z._logId}  killCount=${killCount}  reward+${z.reward ?? 0}  残=${money}`);
@@ -399,7 +417,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
       if (propHit) { log.push(`[ERROR]  t=${Math.round(scaledTime)}ms 設置不可: ${tp.type}@(${tp.col},${tp.row}) はprop(${propHit})のフットプリント内です。ステージ側のbuildSpots/props定義が不整合`); continue; }
       if (money < def.cost) { log.push(`[WARN]   t=${Math.round(scaledTime)}ms 資金不足: ${tp.type}@(${tp.col},${tp.row}) cost=${def.cost} 残=${money}`); continue; }
       simTowers.push(makeSimTower(tp.col, tp.row, tp.type, log));
-      money -= def.cost;
+      spendMoney(def.cost);
       log.push(`[BUILD]  t=${Math.round(scaledTime)}ms  ${tp.type}@(${tp.col},${tp.row})  cost=${def.cost}  残=${money}`);
     }
 
