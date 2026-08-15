@@ -1548,6 +1548,9 @@ class GameScene extends Phaser.Scene {
       circleAt:         enemyDef.circleAt,
       circleRadius:     enemyDef.circleRadius,
       circleDurationMs: enemyDef.circleDurationMs,
+      // 2026-08-16: 鳥のflying/circleAtと同じ理由でここに追加し忘れていた
+      // （run_sim.js/simulator.htmlはenemyDefをそのまま渡すため実機のみで再現）
+      persistAcrossSegments: enemyDef.persistAcrossSegments,
     };
     const z = new Zombie(this, col, row, def, waveNum, leader);
     z._spawnOrigin = { col, row };
