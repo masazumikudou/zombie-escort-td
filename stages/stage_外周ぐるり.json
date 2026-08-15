@@ -1,7 +1,7 @@
 {
  "id": "stage_free_03",
  "name": "外周ぐるり",
- "_comment_design": "低難易度サンプル（2本目・rev2）。14x14・田型道路（外周＋中央十字）。導線は外周のみ・2人リレー。dad時計回り／mom反時計回り。中央十字は護衛が通らず敵spawnとbuildSpotの置き場。rev1でmomが1基も建てず無傷完走・895G余りとなったため、①北をkickboard(speed90)に変更しmom(speed65)が無視できないようにした ②momの敵を10→12体に増やし2周目を重くした ③mom支給を500→300に減額。dadは10体・700Gのまま据え置き。",
+ "_comment_design": "低難易度サンプル（2本目・rev3）。14x14・田型道路（外周＋中央十字）。導線は外周のみ・2人リレー。dad時計回り／mom反時計回り。rev2からの変更点: ①脅威の敵spawn(n/e/s/w)を十字の腕の先端から中心を囲む最内周(400px)へ移動し「中心から湧いて四方の外周へ向かう」絵にした。真の中心(6,6)(7,6)(6,7)(7,7)は全護衛から500px離れており交戦圏450pxに一度も入らないため使用不可（initial型が起動せず永久に静止する）②開始区間(dad: d1_oikake／mom: m1_oikake、旧d1_start/m1_start)に護衛の背後から追う演出のsalaryman×4ずつを配置し、persistAcrossSegments:trueで区間をまたいで追跡させる。salarymanのspeed50はdad(50)と同速・mom(65)より遅いため追いつかない設計。家族交代時に自動退場。rev1でmomが1基も建てず無傷完走・895G余りとなったため、rev2で①北をkickboard(speed90)に変更しmom(speed65)が無視できないようにした ②momの敵を10→12体に増やし2周目を重くした ③mom支給を500→300に減額。dadは10体・700Gのまま据え置き。",
  "grid": {
   "cols": 14,
   "rows": 14
@@ -13,67 +13,99 @@
  "spawns": {
   "n1": {
    "col": 6,
-   "row": 2
+   "row": 4
   },
   "n2": {
    "col": 7,
-   "row": 2
+   "row": 4
   },
   "n3": {
    "col": 6,
-   "row": 3
+   "row": 5
   },
   "n4": {
    "col": 7,
-   "row": 3
+   "row": 5
   },
   "e1": {
-   "col": 11,
+   "col": 9,
    "row": 6
   },
   "e2": {
-   "col": 11,
+   "col": 9,
    "row": 7
   },
   "e3": {
-   "col": 10,
+   "col": 8,
    "row": 6
   },
   "e4": {
-   "col": 10,
+   "col": 8,
    "row": 7
   },
   "s1": {
    "col": 6,
-   "row": 11
+   "row": 9
   },
   "s2": {
    "col": 7,
-   "row": 11
+   "row": 9
   },
   "s3": {
-   "col": 7,
-   "row": 10
+   "col": 6,
+   "row": 8
   },
   "s4": {
-   "col": 6,
-   "row": 10
+   "col": 7,
+   "row": 8
   },
   "w1": {
-   "col": 2,
+   "col": 4,
    "row": 6
   },
   "w2": {
-   "col": 2,
+   "col": 4,
    "row": 7
   },
   "w3": {
-   "col": 3,
-   "row": 7
+   "col": 5,
+   "row": 6
   },
   "w4": {
+   "col": 5,
+   "row": 7
+  },
+  "cd1": {
+   "col": 0,
+   "row": 2
+  },
+  "cd2": {
+   "col": 0,
+   "row": 3
+  },
+  "cd3": {
+   "col": 0,
+   "row": 4
+  },
+  "cd4": {
+   "col": 0,
+   "row": 5
+  },
+  "cm1": {
+   "col": 2,
+   "row": 0
+  },
+  "cm2": {
    "col": 3,
-   "row": 6
+   "row": 0
+  },
+  "cm3": {
+   "col": 4,
+   "row": 0
+  },
+  "cm4": {
+   "col": 5,
+   "row": 0
   }
  },
  "escorts": [
@@ -271,13 +303,42 @@
    "speed": 50,
    "segments": [
     {
-     "segmentId": "d1_start",
+     "segmentId": "d1_oikake",
      "range": {
       "fromWp": 0,
       "toWp": 6
      },
      "onExit": "retreat",
-     "initial": [],
+     "initial": [
+      {
+       "spawn": "cd1",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true
+       }
+      },
+      {
+       "spawn": "cd2",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true
+       }
+      },
+      {
+       "spawn": "cd3",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true
+       }
+      },
+      {
+       "spawn": "cd4",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true
+       }
+      }
+     ],
      "triggers": []
     },
     {
@@ -569,13 +630,42 @@
    "speed": 65,
    "segments": [
     {
-     "segmentId": "m1_start",
+     "segmentId": "m1_oikake",
      "range": {
       "fromWp": 0,
       "toWp": 8
      },
      "onExit": "retreat",
-     "initial": [],
+     "initial": [
+      {
+       "spawn": "cm1",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true
+       }
+      },
+      {
+       "spawn": "cm2",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true
+       }
+      },
+      {
+       "spawn": "cm3",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true
+       }
+      },
+      {
+       "spawn": "cm4",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true
+       }
+      }
+     ],
      "triggers": []
     },
     {
