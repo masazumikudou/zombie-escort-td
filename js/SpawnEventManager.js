@@ -353,9 +353,11 @@ var SegmentManager = class SegmentManager {
   }
 
   _exitCurrentSegment() {
-    // その区間のゾンビ（initial＋トリガー産）を全員退場させる
+    // その区間のゾンビ（initial＋トリガー産）を全員退場させる。
+    // persistAcrossSegments付きの敵だけは例外——区間をまたいで護衛を追い続けさせる演出用の
+    // 個体のため、ここではretreatさせない（家族交代時・Y終了時には別途必ず退場させる・2026-08-15）
     for (const z of this._segZombieGroups[this._segIdx]) {
-      if (z.alive && !z._retreating) z.retreat();
+      if (z.alive && !z._retreating && !z.persistAcrossSegments) z.retreat();
     }
     this._segZombieGroups[this._segIdx] = [];
     // 未発火のペンディングもキャンセル
@@ -377,6 +379,7 @@ var SegmentManager = class SegmentManager {
     if (def.circleRadius     !== undefined) result.circleRadius     = def.circleRadius;
     if (def.circleDurationMs !== undefined) result.circleDurationMs = def.circleDurationMs;
     if (def.circleLoops      !== undefined) result.circleLoops      = def.circleLoops;
+    if (def.persistAcrossSegments !== undefined) result.persistAcrossSegments = def.persistAcrossSegments;
     return result;
   }
 
@@ -442,6 +445,7 @@ var YInflowManager = class YInflowManager {
     if (def.circleRadius     !== undefined) result.circleRadius     = def.circleRadius;
     if (def.circleDurationMs !== undefined) result.circleDurationMs = def.circleDurationMs;
     if (def.circleLoops      !== undefined) result.circleLoops      = def.circleLoops;
+    if (def.persistAcrossSegments !== undefined) result.persistAcrossSegments = def.persistAcrossSegments;
     return result;
   }
 }

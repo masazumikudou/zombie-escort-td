@@ -47,6 +47,11 @@ var Zombie = class Zombie {
     this._retDx        = 0;
     this._retDy        = 0;
     this._oneShotDefeated = false;  // true = Y中の一撃離脱で消滅（CLOSE_CALL集計・すり抜け集計から除外）
+    // 演出専用「追跡型」の敵: 区間(segment)を抜けても無条件retreatの対象外にし、護衛を追い続けさせる。
+    // ただし家族(escort)交代・Y終了時は例外なく退場させる（GameScene.js/run_sim.js/simulator.htmlの
+    // onEscortDone相当・YInflowManager.retreatAllで処理）。撃破ならず終わっても「取りこぼし」ではない
+    // ため、すり抜け・CLOSE_CALL集計からは除外する（撃破できた場合の撃破数・被弾は通常通り計上）
+    this.persistAcrossSegments = !!def.persistAcrossSegments;
     this._engageGate    = false;  // true = 護衛範囲円に入るまで静止（initial配置ゾンビ用）
     // 鳥系: FlowField/propを無視し直進のみで移動する特殊個体（侵入→旋回→ホーミングの3フェーズ）
     this._flying           = !!def.flying;
