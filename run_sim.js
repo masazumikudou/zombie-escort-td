@@ -473,7 +473,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
     // CLOSE_CALL判定はrelayPhase==='active'時のみ（GameScene.jsと同一条件）。
     // Y中の一撃離脱ゾンビは攻撃成立時点で必ず150px以内にいるため除外する（別途yHitBySpawnで集計）
     for (const z of zombies) {
-      if (!z.alive && !z._retreating && !z._oneShotDefeated && !z.persistAcrossSegments && z._closestToEscort < CELL * 1.5 && relayPhase === 'active') {
+      if (!z.alive && !z._retreating && !z._oneShotDefeated && !z.excludeFromMetrics && z._closestToEscort < CELL * 1.5 && relayPhase === 'active') {
         closecallCount++;
         if (z._closestToEscort < closestEver) closestEver = z._closestToEscort;
         log.push(`[CLOSE_CALL] t=${Math.round(scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
@@ -502,10 +502,10 @@ function runStage(stage, towerPattern = '', opts = {}) {
   if (scaledTime > MAX_TIME) log.push(`[TIMEOUT] 最大時間(${Math.round(MAX_TIME / 60000)}分)超過`);
 
   const total       = escortDefs.length;
-  // persistAcrossSegments付きの追跡演出敵は「倒せなくて当たり前」のためすり抜け集計から除外（2026-08-15）
+  // excludeFromMetrics付きの演出敵は「倒せなくて当たり前」のためすり抜け集計から除外（2026-08-17）
   // _oneShotDefeated（Y一撃離脱）は既にyHitCountで別途除外しているため、二重減算を防ぐためここでは除く
-  const persistNotKilled = allSpawned.filter(z => z.persistAcrossSegments && !z._killed && !z._oneShotDefeated).length;
-  const passThrough = spawnTotal - killCount - yHitCount - persistNotKilled;
+  const excludedNotKilled = allSpawned.filter(z => z.excludeFromMetrics && !z._killed && !z._oneShotDefeated).length;
+  const passThrough = spawnTotal - killCount - yHitCount - excludedNotKilled;
   const judgment    = survivors >= minSurvivors ? 'CLEAR' : 'GAMEOVER';
   // HP残: 全護衛のHP合計÷maxHp合計（交代のたびに前護衛のHPが消えるバグを修正・2026-07-29）
   if (escortHpRecords.length <= escortIdx) recordEscortHp();
@@ -518,7 +518,7 @@ function runStage(stage, towerPattern = '', opts = {}) {
 
   // すり抜け（未撃破）をスポーン地点別に集計（2-7 機能B）。Y一撃離脱は別枠(yHitBySpawn)のため除外
   for (const z of allSpawned) {
-    if (z._killed || z._oneShotDefeated || z.persistAcrossSegments) continue;
+    if (z._killed || z._oneShotDefeated || z.excludeFromMetrics) continue;
     const key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
     leakBySpawn.set(key, (leakBySpawn.get(key) ?? 0) + 1);
   }

@@ -414,21 +414,21 @@ class GameScene extends Phaser.Scene {
     const hpMaxSum    = this._escortHpRecords.reduce((s, r) => s + r.maxHp, 0);
     const hpPct       = hpMaxSum > 0 ? Math.round(hpSum / hpMaxSum * 100) : 0;
     const hpBreakdown = this._escortHpRecords.map(r => `${r.variant}${Math.round(r.hp / r.maxHp * 100)}`).join('/');
-    // persistAcrossSegments付きの追跡演出敵は「倒せなくて当たり前」のため、未撃破のままでも
+    // excludeFromMetrics付きの演出敵は「倒せなくて当たり前」のため、未撃破のままでも
     // すり抜け集計には含めない（撃破できた場合は通常通りkillCountに計上されるので除外不要・2026-08-15）
     // _oneShotDefeated（Y一撃離脱）は既にyHitCountで別途除外しているため、二重減算を防ぐためここでは除く
-    const persistNotKilled = this._allSpawnedZombies.filter(z => z.persistAcrossSegments && !z._killed && !z._oneShotDefeated).length;
+    const excludedNotKilled = this._allSpawnedZombies.filter(z => z.excludeFromMetrics && !z._killed && !z._oneShotDefeated).length;
     if (this.survivors >= minS) {
       this.gameState = 'victory';
       audioSynth.stageClear();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount - this._yHitCount - persistNotKilled}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}% (${hpBreakdown})  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  Y一撃離脱=${this._yHitCount}体  判定=CLEAR`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount - this._yHitCount - excludedNotKilled}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}% (${hpBreakdown})  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  Y一撃離脱=${this._yHitCount}体  判定=CLEAR`);
       this._printDamageAndLeakLogs();
       this._printPlayLog();
       this._showResult('STAGE CLEAR!', '#ffff44', 'リスタート', true);
     } else {
       this.gameState = 'defeat';
       audioSynth.gameOver();
-      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount - this._yHitCount - persistNotKilled}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}% (${hpBreakdown})  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  Y一撃離脱=${this._yHitCount}体  判定=GAMEOVER`);
+      this._playLog.push(`[RESULT] スポーン総数=${this.spawnCount}  撃破=${this.killCount}  すり抜け=${this.spawnCount - this.killCount - this._yHitCount - excludedNotKilled}  護衛生還=${this.survivors}/${total}  HP残=${hpPct}% (${hpBreakdown})  CLOSE_CALL=${this._closecallCount}回/${this._closeCallBySpawn.size}箇所  最接近=${this._closestEver === Infinity ? '-' : Math.round(this._closestEver)}px  Y一撃離脱=${this._yHitCount}体  判定=GAMEOVER`);
       this._printDamageAndLeakLogs();
       this._printPlayLog();
       this._showResult('GAME OVER', '#ff4444', 'もう一度', false);
@@ -449,7 +449,7 @@ class GameScene extends Phaser.Scene {
     if (this._allSpawnedZombies?.length > 0) {
       const leakBySpawn = new Map();
       for (const z of this._allSpawnedZombies) {
-        if (z._killed || z._oneShotDefeated || z.persistAcrossSegments) continue;
+        if (z._killed || z._oneShotDefeated || z.excludeFromMetrics) continue;
         const key = `${z._spawnOrigin.col},${z._spawnOrigin.row}`;
         leakBySpawn.set(key, (leakBySpawn.get(key) ?? 0) + 1);
       }
@@ -552,8 +552,8 @@ class GameScene extends Phaser.Scene {
         this.zombies.forEach(z => {
           if (!z.alive) {
             // Y中の一撃離脱ゾンビは攻撃成立時点で必ず150px以内にいるため除外する（別途_yHitBySpawnで集計）。
-            // persistAcrossSegments付きの追跡演出敵はCLOSE_CALL集計の対象外（2026-08-15）
-            if (!z._retreating && !z._oneShotDefeated && !z.persistAcrossSegments && z._closestToEscort < CELL * 1.5 && this.relayPhase === 'active') {
+            // excludeFromMetrics付きの演出敵はCLOSE_CALL集計の対象外（2026-08-17）
+            if (!z._retreating && !z._oneShotDefeated && !z.excludeFromMetrics && z._closestToEscort < CELL * 1.5 && this.relayPhase === 'active') {
               this._closecallCount++;
               if (z._closestToEscort < this._closestEver) this._closestEver = z._closestToEscort;
               this._playLog?.push(`[CLOSE_CALL] t=${Math.round(this.scaledTime)}ms  dist=${Math.round(z._closestToEscort)}px → 撃破`);
@@ -1548,9 +1548,11 @@ class GameScene extends Phaser.Scene {
       circleAt:         enemyDef.circleAt,
       circleRadius:     enemyDef.circleRadius,
       circleDurationMs: enemyDef.circleDurationMs,
-      // 2026-08-16: 鳥のflying/circleAtと同じ理由でここに追加し忘れていた
-      // （run_sim.js/simulator.htmlはenemyDefをそのまま渡すため実機のみで再現）
+      // 2026-08-16/17: 鳥のflying/circleAtと同じ理由でここに追加し忘れる事故が過去2回発生している
+      // （run_sim.js/simulator.htmlはenemyDefをそのまま渡すため実機のみで再現）。新規キーを
+      // enemyDefに追加したら必ずこのオブジェクトへの追加も忘れないこと。
       persistAcrossSegments: enemyDef.persistAcrossSegments,
+      excludeFromMetrics:    enemyDef.excludeFromMetrics,
     };
     const z = new Zombie(this, col, row, def, waveNum, leader);
     z._spawnOrigin = { col, row };

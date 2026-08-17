@@ -380,6 +380,7 @@ var SegmentManager = class SegmentManager {
     if (def.circleDurationMs !== undefined) result.circleDurationMs = def.circleDurationMs;
     if (def.circleLoops      !== undefined) result.circleLoops      = def.circleLoops;
     if (def.persistAcrossSegments !== undefined) result.persistAcrossSegments = def.persistAcrossSegments;
+    if (def.excludeFromMetrics    !== undefined) result.excludeFromMetrics    = def.excludeFromMetrics;
     return result;
   }
 
@@ -446,6 +447,7 @@ var YInflowManager = class YInflowManager {
     if (def.circleDurationMs !== undefined) result.circleDurationMs = def.circleDurationMs;
     if (def.circleLoops      !== undefined) result.circleLoops      = def.circleLoops;
     if (def.persistAcrossSegments !== undefined) result.persistAcrossSegments = def.persistAcrossSegments;
+    if (def.excludeFromMetrics    !== undefined) result.excludeFromMetrics    = def.excludeFromMetrics;
     return result;
   }
 }

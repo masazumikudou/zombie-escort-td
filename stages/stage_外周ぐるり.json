@@ -314,28 +314,32 @@
        "spawn": "cd1",
        "enemy": {
         "type": "salaryman",
-        "persistAcrossSegments": true
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
        }
       },
       {
        "spawn": "cd2",
        "enemy": {
         "type": "salaryman",
-        "persistAcrossSegments": true
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
        }
       },
       {
        "spawn": "cd3",
        "enemy": {
         "type": "salaryman",
-        "persistAcrossSegments": true
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
        }
       },
       {
        "spawn": "cd4",
        "enemy": {
         "type": "salaryman",
-        "persistAcrossSegments": true
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
        }
       }
      ],
@@ -641,28 +645,32 @@
        "spawn": "cm1",
        "enemy": {
         "type": "salaryman",
-        "persistAcrossSegments": true
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
        }
       },
       {
        "spawn": "cm2",
        "enemy": {
         "type": "salaryman",
-        "persistAcrossSegments": true
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
        }
       },
       {
        "spawn": "cm3",
        "enemy": {
         "type": "salaryman",
-        "persistAcrossSegments": true
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
        }
       },
       {
        "spawn": "cm4",
        "enemy": {
         "type": "salaryman",
-        "persistAcrossSegments": true
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
        }
       }
      ],
