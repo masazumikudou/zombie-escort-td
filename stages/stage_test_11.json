@@ -1,0 +1,1461 @@
+{
+ "id": "stage_test_11",
+ "name": "枠外検証（persistAcrossSegments/excludeFromMetrics切り分け用・検証専用/未登録）",
+ "_comment_design": "検証専用ステージ。外周ぐるりをベースに、追跡演出(cd/cm・両方true)に加え、枠外の脅威(X_gate・persistAcrossSegmentsのみ)をmomの最終区間に追加。枠外の脅威が撃破されず生存した場合にすり抜け集計へ正しく計上されるかを確認する用途。index.jsonには登録しない。",
+ "grid": {
+  "cols": 14,
+  "rows": 14
+ },
+ "ground_base": "grass",
+ "startMoney": 0,
+ "_comment_startMoney": "全額escort側。合計1000G = dad700 + mom300",
+ "minSurvivors": 1,
+ "spawns": {
+  "n1": {
+   "col": 6,
+   "row": 4
+  },
+  "n2": {
+   "col": 7,
+   "row": 4
+  },
+  "n3": {
+   "col": 6,
+   "row": 5
+  },
+  "n4": {
+   "col": 7,
+   "row": 5
+  },
+  "e1": {
+   "col": 9,
+   "row": 6
+  },
+  "e2": {
+   "col": 9,
+   "row": 7
+  },
+  "e3": {
+   "col": 8,
+   "row": 6
+  },
+  "e4": {
+   "col": 8,
+   "row": 7
+  },
+  "s1": {
+   "col": 6,
+   "row": 9
+  },
+  "s2": {
+   "col": 7,
+   "row": 9
+  },
+  "s3": {
+   "col": 6,
+   "row": 8
+  },
+  "s4": {
+   "col": 7,
+   "row": 8
+  },
+  "w1": {
+   "col": 4,
+   "row": 6
+  },
+  "w2": {
+   "col": 4,
+   "row": 7
+  },
+  "w3": {
+   "col": 5,
+   "row": 6
+  },
+  "w4": {
+   "col": 5,
+   "row": 7
+  },
+  "cd1": {
+   "col": 0,
+   "row": 2
+  },
+  "cd2": {
+   "col": 0,
+   "row": 3
+  },
+  "cd3": {
+   "col": 0,
+   "row": 4
+  },
+  "cd4": {
+   "col": 0,
+   "row": 5
+  },
+  "cm1": {
+   "col": 2,
+   "row": 0
+  },
+  "cm2": {
+   "col": 3,
+   "row": 0
+  },
+  "cm3": {
+   "col": 4,
+   "row": 0
+  },
+  "cm4": {
+   "col": 5,
+   "row": 0
+  },
+  "X_gate": {
+   "col": 1,
+   "row": -3
+  },
+  "X_far": {
+   "col": 13,
+   "row": 6
+  }
+ },
+ "escorts": [
+  {
+   "variant": "dad",
+   "startTrigger": "afterPrevious",
+   "start": {
+    "col": 1,
+    "row": 1
+   },
+   "goal": {
+    "col": 1,
+    "row": 2
+   },
+   "path": [
+    {
+     "col": 1,
+     "row": 1
+    },
+    {
+     "col": 2,
+     "row": 1
+    },
+    {
+     "col": 3,
+     "row": 1
+    },
+    {
+     "col": 4,
+     "row": 1
+    },
+    {
+     "col": 5,
+     "row": 1
+    },
+    {
+     "col": 6,
+     "row": 1
+    },
+    {
+     "col": 7,
+     "row": 1
+    },
+    {
+     "col": 8,
+     "row": 1
+    },
+    {
+     "col": 9,
+     "row": 1
+    },
+    {
+     "col": 10,
+     "row": 1
+    },
+    {
+     "col": 11,
+     "row": 1
+    },
+    {
+     "col": 12,
+     "row": 1
+    },
+    {
+     "col": 12,
+     "row": 2
+    },
+    {
+     "col": 12,
+     "row": 3
+    },
+    {
+     "col": 12,
+     "row": 4
+    },
+    {
+     "col": 12,
+     "row": 5
+    },
+    {
+     "col": 12,
+     "row": 6
+    },
+    {
+     "col": 12,
+     "row": 7
+    },
+    {
+     "col": 12,
+     "row": 8
+    },
+    {
+     "col": 12,
+     "row": 9
+    },
+    {
+     "col": 12,
+     "row": 10
+    },
+    {
+     "col": 12,
+     "row": 11
+    },
+    {
+     "col": 12,
+     "row": 12
+    },
+    {
+     "col": 11,
+     "row": 12
+    },
+    {
+     "col": 10,
+     "row": 12
+    },
+    {
+     "col": 9,
+     "row": 12
+    },
+    {
+     "col": 8,
+     "row": 12
+    },
+    {
+     "col": 7,
+     "row": 12
+    },
+    {
+     "col": 6,
+     "row": 12
+    },
+    {
+     "col": 5,
+     "row": 12
+    },
+    {
+     "col": 4,
+     "row": 12
+    },
+    {
+     "col": 3,
+     "row": 12
+    },
+    {
+     "col": 2,
+     "row": 12
+    },
+    {
+     "col": 1,
+     "row": 12
+    },
+    {
+     "col": 1,
+     "row": 11
+    },
+    {
+     "col": 1,
+     "row": 10
+    },
+    {
+     "col": 1,
+     "row": 9
+    },
+    {
+     "col": 1,
+     "row": 8
+    },
+    {
+     "col": 1,
+     "row": 7
+    },
+    {
+     "col": 1,
+     "row": 6
+    },
+    {
+     "col": 1,
+     "row": 5
+    },
+    {
+     "col": 1,
+     "row": 4
+    },
+    {
+     "col": 1,
+     "row": 3
+    },
+    {
+     "col": 1,
+     "row": 2
+    }
+   ],
+   "startMoney": 700,
+   "hp": 120,
+   "speed": 50,
+   "segments": [
+    {
+     "segmentId": "d1_oikake",
+     "range": {
+      "fromWp": 0,
+      "toWp": 6
+     },
+     "onExit": "retreat",
+     "initial": [
+      {
+       "spawn": "cd1",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
+       }
+      },
+      {
+       "spawn": "cd2",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
+       }
+      },
+      {
+       "spawn": "cd3",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
+       }
+      },
+      {
+       "spawn": "cd4",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
+       }
+      }
+     ],
+     "triggers": []
+    },
+    {
+     "segmentId": "d2_east",
+     "range": {
+      "fromWp": 6,
+      "toWp": 20
+     },
+     "onExit": "retreat",
+     "initial": [
+      {
+       "spawn": "e1",
+       "enemy": {
+        "type": "salaryman"
+       }
+      },
+      {
+       "spawn": "e2",
+       "enemy": {
+        "type": "salaryman"
+       }
+      },
+      {
+       "spawn": "e3",
+       "enemy": {
+        "type": "salaryman"
+       }
+      }
+     ],
+     "triggers": []
+    },
+    {
+     "segmentId": "d3_south",
+     "range": {
+      "fromWp": 20,
+      "toWp": 31
+     },
+     "onExit": "retreat",
+     "initial": [
+      {
+       "spawn": "s1",
+       "enemy": {
+        "type": "salaryman"
+       }
+      },
+      {
+       "spawn": "s2",
+       "enemy": {
+        "type": "salaryman"
+       }
+      },
+      {
+       "spawn": "s3",
+       "enemy": {
+        "type": "salaryman"
+       }
+      }
+     ],
+     "triggers": []
+    },
+    {
+     "segmentId": "d4_west",
+     "range": {
+      "fromWp": 31,
+      "toWp": 43
+     },
+     "onExit": "retreat",
+     "initial": [
+      {
+       "spawn": "w1",
+       "enemy": {
+        "type": "worker"
+       }
+      },
+      {
+       "spawn": "w2",
+       "enemy": {
+        "type": "worker"
+       }
+      },
+      {
+       "spawn": "w3",
+       "enemy": {
+        "type": "worker"
+       }
+      },
+      {
+       "spawn": "w4",
+       "enemy": {
+        "type": "worker"
+       }
+      }
+     ],
+     "triggers": []
+    }
+   ]
+  },
+  {
+   "variant": "mom",
+   "startTrigger": "afterPrevious",
+   "start": {
+    "col": 1,
+    "row": 1
+   },
+   "goal": {
+    "col": 2,
+    "row": 1
+   },
+   "path": [
+    {
+     "col": 1,
+     "row": 1
+    },
+    {
+     "col": 1,
+     "row": 2
+    },
+    {
+     "col": 1,
+     "row": 3
+    },
+    {
+     "col": 1,
+     "row": 4
+    },
+    {
+     "col": 1,
+     "row": 5
+    },
+    {
+     "col": 1,
+     "row": 6
+    },
+    {
+     "col": 1,
+     "row": 7
+    },
+    {
+     "col": 1,
+     "row": 8
+    },
+    {
+     "col": 1,
+     "row": 9
+    },
+    {
+     "col": 1,
+     "row": 10
+    },
+    {
+     "col": 1,
+     "row": 11
+    },
+    {
+     "col": 1,
+     "row": 12
+    },
+    {
+     "col": 2,
+     "row": 12
+    },
+    {
+     "col": 3,
+     "row": 12
+    },
+    {
+     "col": 4,
+     "row": 12
+    },
+    {
+     "col": 5,
+     "row": 12
+    },
+    {
+     "col": 6,
+     "row": 12
+    },
+    {
+     "col": 7,
+     "row": 12
+    },
+    {
+     "col": 8,
+     "row": 12
+    },
+    {
+     "col": 9,
+     "row": 12
+    },
+    {
+     "col": 10,
+     "row": 12
+    },
+    {
+     "col": 11,
+     "row": 12
+    },
+    {
+     "col": 12,
+     "row": 12
+    },
+    {
+     "col": 12,
+     "row": 11
+    },
+    {
+     "col": 12,
+     "row": 10
+    },
+    {
+     "col": 12,
+     "row": 9
+    },
+    {
+     "col": 12,
+     "row": 8
+    },
+    {
+     "col": 12,
+     "row": 7
+    },
+    {
+     "col": 12,
+     "row": 6
+    },
+    {
+     "col": 12,
+     "row": 5
+    },
+    {
+     "col": 12,
+     "row": 4
+    },
+    {
+     "col": 12,
+     "row": 3
+    },
+    {
+     "col": 12,
+     "row": 2
+    },
+    {
+     "col": 12,
+     "row": 1
+    },
+    {
+     "col": 11,
+     "row": 1
+    },
+    {
+     "col": 10,
+     "row": 1
+    },
+    {
+     "col": 9,
+     "row": 1
+    },
+    {
+     "col": 8,
+     "row": 1
+    },
+    {
+     "col": 7,
+     "row": 1
+    },
+    {
+     "col": 6,
+     "row": 1
+    },
+    {
+     "col": 5,
+     "row": 1
+    },
+    {
+     "col": 4,
+     "row": 1
+    },
+    {
+     "col": 3,
+     "row": 1
+    },
+    {
+     "col": 2,
+     "row": 1
+    }
+   ],
+   "startMoney": 300,
+   "hp": 90,
+   "speed": 65,
+   "segments": [
+    {
+     "segmentId": "m1_oikake",
+     "range": {
+      "fromWp": 0,
+      "toWp": 8
+     },
+     "onExit": "retreat",
+     "initial": [
+      {
+       "spawn": "cm1",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
+       }
+      },
+      {
+       "spawn": "cm2",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
+       }
+      },
+      {
+       "spawn": "cm3",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
+       }
+      },
+      {
+       "spawn": "cm4",
+       "enemy": {
+        "type": "salaryman",
+        "persistAcrossSegments": true,
+        "excludeFromMetrics": true
+       }
+      }
+     ],
+     "triggers": []
+    },
+    {
+     "segmentId": "m2_south",
+     "range": {
+      "fromWp": 8,
+      "toWp": 20
+     },
+     "onExit": "retreat",
+     "initial": [
+      {
+       "spawn": "s1",
+       "enemy": {
+        "type": "worker"
+       }
+      },
+      {
+       "spawn": "s2",
+       "enemy": {
+        "type": "worker"
+       }
+      },
+      {
+       "spawn": "s3",
+       "enemy": {
+        "type": "worker"
+       }
+      },
+      {
+       "spawn": "s4",
+       "enemy": {
+        "type": "worker"
+       }
+      }
+     ],
+     "triggers": []
+    },
+    {
+     "segmentId": "m3_east",
+     "range": {
+      "fromWp": 20,
+      "toWp": 31
+     },
+     "onExit": "retreat",
+     "initial": [
+      {
+       "spawn": "e1",
+       "enemy": {
+        "type": "worker"
+       }
+      },
+      {
+       "spawn": "e2",
+       "enemy": {
+        "type": "worker"
+       }
+      },
+      {
+       "spawn": "e3",
+       "enemy": {
+        "type": "worker"
+       }
+      },
+      {
+       "spawn": "e4",
+       "enemy": {
+        "type": "worker"
+       }
+      }
+     ],
+     "triggers": [
+      {
+       "type": "progress",
+       "atWpIdx": 24,
+       "spawn": "X_far",
+       "count": 3,
+       "interval": 300,
+       "_comment_trigger": "検証A：区間をまたげるかの検証。persistAcrossSegmentsのみtrue",
+       "enemy": {
+        "type": "kickboard",
+        "persistAcrossSegments": true
+       }
+      }
+     ]
+    },
+    {
+     "segmentId": "m4_north",
+     "range": {
+      "fromWp": 31,
+      "toWp": 43
+     },
+     "onExit": "retreat",
+     "initial": [
+      {
+       "spawn": "n1",
+       "enemy": {
+        "type": "kickboard"
+       }
+      },
+      {
+       "spawn": "n2",
+       "enemy": {
+        "type": "kickboard"
+       }
+      },
+      {
+       "spawn": "n3",
+       "enemy": {
+        "type": "kickboard"
+       }
+      },
+      {
+       "spawn": "n4",
+       "enemy": {
+        "type": "kickboard"
+       }
+      }
+     ],
+     "triggers": [
+      {
+       "type": "progress",
+       "atWpIdx": 40,
+       "spawn": "X_gate",
+       "count": 5,
+       "interval": 300,
+       "_comment_trigger": "枠外の脅威。persistAcrossSegmentsのみtrue（excludeFromMetricsは付けない＝集計に出したい）",
+       "enemy": {
+        "type": "kickboard",
+        "persistAcrossSegments": true
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "obstacles": [],
+ "buildSpots": [
+  {
+   "col": 0,
+   "row": 0
+  },
+  {
+   "col": 0,
+   "row": 1
+  },
+  {
+   "col": 0,
+   "row": 2
+  },
+  {
+   "col": 0,
+   "row": 3
+  },
+  {
+   "col": 0,
+   "row": 4
+  },
+  {
+   "col": 0,
+   "row": 5
+  },
+  {
+   "col": 0,
+   "row": 6
+  },
+  {
+   "col": 0,
+   "row": 7
+  },
+  {
+   "col": 0,
+   "row": 8
+  },
+  {
+   "col": 0,
+   "row": 9
+  },
+  {
+   "col": 0,
+   "row": 10
+  },
+  {
+   "col": 0,
+   "row": 11
+  },
+  {
+   "col": 0,
+   "row": 12
+  },
+  {
+   "col": 0,
+   "row": 13
+  },
+  {
+   "col": 1,
+   "row": 0
+  },
+  {
+   "col": 1,
+   "row": 13
+  },
+  {
+   "col": 2,
+   "row": 0
+  },
+  {
+   "col": 2,
+   "row": 13
+  },
+  {
+   "col": 3,
+   "row": 0
+  },
+  {
+   "col": 3,
+   "row": 13
+  },
+  {
+   "col": 4,
+   "row": 0
+  },
+  {
+   "col": 4,
+   "row": 6
+  },
+  {
+   "col": 4,
+   "row": 7
+  },
+  {
+   "col": 4,
+   "row": 13
+  },
+  {
+   "col": 5,
+   "row": 0
+  },
+  {
+   "col": 5,
+   "row": 6
+  },
+  {
+   "col": 5,
+   "row": 7
+  },
+  {
+   "col": 5,
+   "row": 13
+  },
+  {
+   "col": 6,
+   "row": 0
+  },
+  {
+   "col": 6,
+   "row": 4
+  },
+  {
+   "col": 6,
+   "row": 5
+  },
+  {
+   "col": 6,
+   "row": 6
+  },
+  {
+   "col": 6,
+   "row": 7
+  },
+  {
+   "col": 6,
+   "row": 8
+  },
+  {
+   "col": 6,
+   "row": 9
+  },
+  {
+   "col": 6,
+   "row": 13
+  },
+  {
+   "col": 7,
+   "row": 0
+  },
+  {
+   "col": 7,
+   "row": 4
+  },
+  {
+   "col": 7,
+   "row": 5
+  },
+  {
+   "col": 7,
+   "row": 6
+  },
+  {
+   "col": 7,
+   "row": 7
+  },
+  {
+   "col": 7,
+   "row": 8
+  },
+  {
+   "col": 7,
+   "row": 9
+  },
+  {
+   "col": 7,
+   "row": 13
+  },
+  {
+   "col": 8,
+   "row": 0
+  },
+  {
+   "col": 8,
+   "row": 6
+  },
+  {
+   "col": 8,
+   "row": 7
+  },
+  {
+   "col": 8,
+   "row": 13
+  },
+  {
+   "col": 9,
+   "row": 0
+  },
+  {
+   "col": 9,
+   "row": 6
+  },
+  {
+   "col": 9,
+   "row": 7
+  },
+  {
+   "col": 9,
+   "row": 13
+  },
+  {
+   "col": 10,
+   "row": 0
+  },
+  {
+   "col": 10,
+   "row": 13
+  },
+  {
+   "col": 11,
+   "row": 0
+  },
+  {
+   "col": 11,
+   "row": 13
+  },
+  {
+   "col": 12,
+   "row": 0
+  },
+  {
+   "col": 12,
+   "row": 13
+  },
+  {
+   "col": 13,
+   "row": 0
+  },
+  {
+   "col": 13,
+   "row": 1
+  },
+  {
+   "col": 13,
+   "row": 2
+  },
+  {
+   "col": 13,
+   "row": 3
+  },
+  {
+   "col": 13,
+   "row": 4
+  },
+  {
+   "col": 13,
+   "row": 5
+  },
+  {
+   "col": 13,
+   "row": 6
+  },
+  {
+   "col": 13,
+   "row": 7
+  },
+  {
+   "col": 13,
+   "row": 8
+  },
+  {
+   "col": 13,
+   "row": 9
+  },
+  {
+   "col": 13,
+   "row": 10
+  },
+  {
+   "col": 13,
+   "row": 11
+  },
+  {
+   "col": 13,
+   "row": 12
+  },
+  {
+   "col": 13,
+   "row": 13
+  }
+ ],
+ "ground_cells": [
+  {
+   "col": 0,
+   "row": 0,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 1,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 2,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 3,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 4,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 5,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 6,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 7,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 8,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 9,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 10,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 11,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 12,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 0,
+   "row": 13,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 2,
+   "row": 0,
+   "type": "道横"
+  },
+  {
+   "col": 2,
+   "row": 6,
+   "type": "道横"
+  },
+  {
+   "col": 2,
+   "row": 12,
+   "type": "道横"
+  },
+  {
+   "col": 3,
+   "row": 0,
+   "type": "道横"
+  },
+  {
+   "col": 3,
+   "row": 6,
+   "type": "道横"
+  },
+  {
+   "col": 3,
+   "row": 12,
+   "type": "道横"
+  },
+  {
+   "col": 4,
+   "row": 0,
+   "type": "道横"
+  },
+  {
+   "col": 4,
+   "row": 6,
+   "type": "道横"
+  },
+  {
+   "col": 4,
+   "row": 12,
+   "type": "道横"
+  },
+  {
+   "col": 5,
+   "row": 0,
+   "type": "道横"
+  },
+  {
+   "col": 5,
+   "row": 6,
+   "type": "道横"
+  },
+  {
+   "col": 5,
+   "row": 12,
+   "type": "道横"
+  },
+  {
+   "col": 6,
+   "row": 0,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 1,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 2,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 3,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 4,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 5,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 6,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 7,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 8,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 9,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 10,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 11,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 12,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 6,
+   "row": 13,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 8,
+   "row": 0,
+   "type": "道横"
+  },
+  {
+   "col": 8,
+   "row": 6,
+   "type": "道横"
+  },
+  {
+   "col": 8,
+   "row": 12,
+   "type": "道横"
+  },
+  {
+   "col": 9,
+   "row": 0,
+   "type": "道横"
+  },
+  {
+   "col": 9,
+   "row": 6,
+   "type": "道横"
+  },
+  {
+   "col": 9,
+   "row": 12,
+   "type": "道横"
+  },
+  {
+   "col": 10,
+   "row": 0,
+   "type": "道横"
+  },
+  {
+   "col": 10,
+   "row": 6,
+   "type": "道横"
+  },
+  {
+   "col": 10,
+   "row": 12,
+   "type": "道横"
+  },
+  {
+   "col": 11,
+   "row": 0,
+   "type": "道横"
+  },
+  {
+   "col": 11,
+   "row": 6,
+   "type": "道横"
+  },
+  {
+   "col": 11,
+   "row": 12,
+   "type": "道横"
+  },
+  {
+   "col": 12,
+   "row": 0,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 1,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 2,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 3,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 4,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 5,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 6,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 7,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 8,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 9,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 10,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 11,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 12,
+   "type": "道縦ノーマル (2)"
+  },
+  {
+   "col": 12,
+   "row": 13,
+   "type": "道縦ノーマル (2)"
+  }
+ ],
+ "props": [
+  {
+   "type": "家青",
+   "col": 3,
+   "row": 3
+  },
+  {
+   "type": "家緑",
+   "col": 9,
+   "row": 3
+  },
+  {
+   "type": "ハンバーガー",
+   "col": 9,
+   "row": 9
+  }
+ ]
+}
